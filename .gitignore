@@ -11,8 +11,8 @@ ROADMAP.md
 node_modules/
 vendor/
 
-# Build
-frontend/dist/
+# Build (mantenuto nel repo per deploy su hosting senza Node.js)
+# frontend/dist/
 
 # IDE
 .vscode/

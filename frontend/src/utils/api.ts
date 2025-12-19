@@ -4,7 +4,7 @@ import axios, { AxiosInstance, AxiosError } from 'axios';
 import type { Neurone, Sinapsi, NotaPersonale, User, DashboardStats } from '../types';
 
 const API_BASE = import.meta.env.PROD
-  ? '/genagenta/backend/api'
+  ? '/genagenta/backend/api/index.php'
   : '/api';
 
 class ApiClient {
