@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { api } from '../utils/api';
-import type { User, AuthState } from '../types';
+import type { AuthState } from '../types';
 
 export function useAuth() {
   const [state, setState] = useState<AuthState>({
