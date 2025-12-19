@@ -3,6 +3,10 @@
 *.env.local
 backend/config/credentials.php
 
+# Documentazione interna/privata
+00_*.md
+ROADMAP.md
+
 # Dipendenze
 node_modules/
 vendor/
