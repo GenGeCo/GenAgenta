@@ -2,6 +2,16 @@
 -- GenAgenTa - Dati Mock per Test
 -- Dati fittizi realistici per il settore edile
 -- =====================================================
+--
+-- PER RESET COMPLETO: eseguire prima questo blocco
+-- che svuota tutte le tabelle mantenendo la struttura
+-- =====================================================
+
+-- RESET: Svuota tutte le tabelle (in ordine corretto per foreign keys)
+DELETE FROM note_personali;
+DELETE FROM sinapsi;
+DELETE FROM neuroni;
+-- NON cancelliamo utenti per mantenere il login
 
 -- =====================================================
 -- NEURONI - IMPRESE
