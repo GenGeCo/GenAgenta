@@ -1,0 +1,60 @@
+<?php
+/**
+ * GET /neuroni/{id}
+ * Dettaglio singolo neurone
+ */
+
+$user = requireAuth();
+$hasPersonalAccess = ($user['personal_access'] ?? false) === true;
+
+$id = $_REQUEST['id'] ?? '';
+
+if (empty($id)) {
+    errorResponse('ID richiesto', 400);
+}
+
+$db = getDB();
+
+// Ottieni neurone
+$stmt = $db->prepare('SELECT * FROM neuroni WHERE id = ?');
+$stmt->execute([$id]);
+$neurone = $stmt->fetch();
+
+if (!$neurone) {
+    errorResponse('Neurone non trovato', 404);
+}
+
+// Controllo visibilità
+if ($neurone['visibilita'] === 'personale' && !$hasPersonalAccess) {
+    // Restituisci versione anonimizzata
+    jsonResponse([
+        'id' => $neurone['id'],
+        'nome' => 'Fonte anonima',
+        'tipo' => $neurone['tipo'],
+        'categorie' => ['altro'],
+        'visibilita' => 'personale',
+        'is_hidden' => true
+    ]);
+}
+
+// Decodifica JSON
+$neurone['categorie'] = json_decode($neurone['categorie'], true);
+$neurone['dati_extra'] = $neurone['dati_extra'] ? json_decode($neurone['dati_extra'], true) : null;
+
+// Conta note personali (solo se ha accesso)
+$noteCount = 0;
+if ($hasPersonalAccess) {
+    $stmt = $db->prepare('SELECT COUNT(*) as cnt FROM note_personali WHERE neurone_id = ? AND utente_id = ?');
+    $stmt->execute([$id, $user['user_id']]);
+    $noteCount = $stmt->fetch()['cnt'];
+} else {
+    // Indica se esistono note (senza mostrare contenuto)
+    $stmt = $db->prepare('SELECT COUNT(*) as cnt FROM note_personali WHERE neurone_id = ? AND utente_id = ?');
+    $stmt->execute([$id, $user['user_id']]);
+    $noteCount = $stmt->fetch()['cnt'];
+}
+
+$neurone['has_note'] = $noteCount > 0;
+$neurone['note_count'] = $hasPersonalAccess ? $noteCount : null;
+
+jsonResponse($neurone);

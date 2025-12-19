@@ -1,0 +1,30 @@
+# Environment e credenziali - MAI COMMITTARE
+.env
+*.env.local
+backend/config/credentials.php
+
+# Dipendenze
+node_modules/
+vendor/
+
+# Build
+frontend/dist/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Log
+*.log
+logs/
+
+# Cache
+.cache/
+*.cache
+.claude/

@@ -1,0 +1,28 @@
+# GenAgenTa - Apache Configuration
+
+# Abilita rewrite
+RewriteEngine On
+
+# Tutte le richieste API vanno a index.php
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^api/(.*)$ api/index.php [QSA,L]
+
+# Sicurezza: blocca accesso a file sensibili
+<FilesMatch "\.(env|sql|md|gitignore)$">
+    Order allow,deny
+    Deny from all
+</FilesMatch>
+
+# Blocca accesso alla cartella config
+<IfModule mod_rewrite.c>
+    RewriteRule ^config/ - [F,L]
+    RewriteRule ^includes/ - [F,L]
+</IfModule>
+
+# Headers sicurezza
+<IfModule mod_headers.c>
+    Header set X-Content-Type-Options "nosniff"
+    Header set X-Frame-Options "SAMEORIGIN"
+    Header set X-XSS-Protection "1; mode=block"
+</IfModule>

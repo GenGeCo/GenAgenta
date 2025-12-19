@@ -1,0 +1,310 @@
+/* GenAgenTa - Global Styles */
+
+:root {
+  /* Colori principali */
+  --color-primary: #2563eb;
+  --color-primary-dark: #1d4ed8;
+  --color-secondary: #64748b;
+
+  /* Colori per tipi di neurone */
+  --color-persona: #10b981;
+  --color-impresa: #3b82f6;
+  --color-luogo: #f59e0b;
+  --color-cantiere: #ef4444;
+
+  /* Colori certezza */
+  --color-certo: #22c55e;
+  --color-probabile: #eab308;
+  --color-ipotesi: #94a3b8;
+
+  /* Sfondo e testo */
+  --bg-primary: #ffffff;
+  --bg-secondary: #f8fafc;
+  --bg-dark: #1e293b;
+  --text-primary: #1e293b;
+  --text-secondary: #64748b;
+  --text-light: #ffffff;
+
+  /* Bordi */
+  --border-color: #e2e8f0;
+  --border-radius: 8px;
+
+  /* Ombre */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body, #root {
+  height: 100%;
+  width: 100%;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--text-primary);
+  background-color: var(--bg-secondary);
+}
+
+/* Layout principale */
+.app-container {
+  display: flex;
+  height: 100vh;
+  overflow: hidden;
+}
+
+.sidebar {
+  width: 280px;
+  background: var(--bg-primary);
+  border-right: 1px solid var(--border-color);
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+}
+
+.main-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.header {
+  height: 56px;
+  background: var(--bg-primary);
+  border-bottom: 1px solid var(--border-color);
+  display: flex;
+  align-items: center;
+  padding: 0 16px;
+  gap: 16px;
+}
+
+.content-area {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Mappa */
+.map-container {
+  width: 100%;
+  height: 100%;
+}
+
+/* Pannello dettaglio */
+.detail-panel {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 400px;
+  height: 100%;
+  background: var(--bg-primary);
+  border-left: 1px solid var(--border-color);
+  box-shadow: var(--shadow-lg);
+  overflow-y: auto;
+  z-index: 10;
+}
+
+.detail-panel.hidden {
+  display: none;
+}
+
+/* Slider temporale */
+.time-slider {
+  padding: 16px;
+  background: var(--bg-primary);
+  border-top: 1px solid var(--border-color);
+}
+
+.time-slider input[type="range"] {
+  width: 100%;
+}
+
+/* Bottoni */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 16px;
+  font-size: 14px;
+  font-weight: 500;
+  border-radius: var(--border-radius);
+  border: none;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-primary {
+  background: var(--color-primary);
+  color: var(--text-light);
+}
+
+.btn-primary:hover {
+  background: var(--color-primary-dark);
+}
+
+.btn-secondary {
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
+}
+
+.btn-secondary:hover {
+  background: var(--border-color);
+}
+
+/* Form */
+.form-group {
+  margin-bottom: 16px;
+}
+
+.form-label {
+  display: block;
+  font-weight: 500;
+  margin-bottom: 4px;
+  color: var(--text-primary);
+}
+
+.form-input {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius);
+  font-size: 14px;
+}
+
+.form-input:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+/* Cards */
+.card {
+  background: var(--bg-primary);
+  border-radius: var(--border-radius);
+  border: 1px solid var(--border-color);
+  padding: 16px;
+  margin-bottom: 12px;
+}
+
+.card-title {
+  font-size: 16px;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+/* Badge */
+.badge {
+  display: inline-block;
+  padding: 2px 8px;
+  font-size: 12px;
+  font-weight: 500;
+  border-radius: 12px;
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+}
+
+.badge-persona { background: rgba(16, 185, 129, 0.1); color: var(--color-persona); }
+.badge-impresa { background: rgba(59, 130, 246, 0.1); color: var(--color-impresa); }
+.badge-luogo { background: rgba(245, 158, 11, 0.1); color: var(--color-luogo); }
+.badge-certo { background: rgba(34, 197, 94, 0.1); color: var(--color-certo); }
+.badge-probabile { background: rgba(234, 179, 8, 0.1); color: var(--color-probabile); }
+.badge-ipotesi { background: rgba(148, 163, 184, 0.1); color: var(--color-ipotesi); }
+
+/* Lista neuroni sidebar */
+.neurone-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px;
+}
+
+.neurone-item {
+  padding: 12px;
+  border-radius: var(--border-radius);
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.neurone-item:hover {
+  background: var(--bg-secondary);
+}
+
+.neurone-item.active {
+  background: rgba(37, 99, 235, 0.1);
+}
+
+.neurone-item-name {
+  font-weight: 500;
+  margin-bottom: 4px;
+}
+
+.neurone-item-meta {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+/* Login */
+.login-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-dark) 100%);
+}
+
+.login-card {
+  background: var(--bg-primary);
+  padding: 40px;
+  border-radius: 12px;
+  box-shadow: var(--shadow-lg);
+  width: 100%;
+  max-width: 400px;
+}
+
+.login-title {
+  font-size: 24px;
+  font-weight: 700;
+  text-align: center;
+  margin-bottom: 8px;
+}
+
+.login-subtitle {
+  text-align: center;
+  color: var(--text-secondary);
+  margin-bottom: 32px;
+}
+
+/* Icona lucchetto (note personali) */
+.icon-lock {
+  color: var(--color-secondary);
+  margin-left: 4px;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .sidebar {
+    position: fixed;
+    left: -280px;
+    top: 0;
+    height: 100%;
+    z-index: 100;
+    transition: left 0.3s ease;
+  }
+
+  .sidebar.open {
+    left: 0;
+  }
+
+  .detail-panel {
+    width: 100%;
+  }
+}
