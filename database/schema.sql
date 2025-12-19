@@ -140,10 +140,11 @@ CREATE TABLE note_personali (
 -- DATI INIZIALI - Utente admin
 -- =====================================================
 -- Password: admin123 (da cambiare!)
+-- Hash generato con: password_hash('admin123', PASSWORD_DEFAULT)
 INSERT INTO utenti (id, email, password_hash, nome, ruolo) VALUES (
     'a0000000-0000-0000-0000-000000000001',
     'admin@gruppogea.net',
-    '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi',  -- admin123
+    '$2y$10$YourHashHere',  -- Placeholder - va rigenerato
     'Amministratore',
     'admin'
 );
