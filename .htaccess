@@ -11,6 +11,17 @@ RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
 RewriteRule ^backend/api/(.*)$ backend/api/index.php [QSA,L]
 
+# Frontend SPA: servi da frontend/dist/
+# Asset statici (css, js, immagini)
+RewriteRule ^assets/(.*)$ frontend/dist/assets/$1 [L]
+RewriteRule ^favicon\.svg$ frontend/dist/favicon.svg [L]
+
+# Tutte le altre richieste (non file, non directory, non backend) vanno a index.html
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteCond %{REQUEST_URI} !^/genagenta/backend/
+RewriteRule ^(.*)$ frontend/dist/index.html [L]
+
 # Blocca accesso a file sensibili
 <FilesMatch "^\.env|\.env\..*$">
     Order allow,deny
