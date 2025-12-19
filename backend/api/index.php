@@ -14,10 +14,11 @@ setCorsHeaders();
 $requestUri = $_SERVER['REQUEST_URI'];
 $basePath = '/genagenta/backend/api';
 
-// Rimuovi base path e query string
+// Rimuovi base path, query string e trailing slash
 $path = parse_url($requestUri, PHP_URL_PATH);
 $path = str_replace($basePath, '', $path);
 $path = trim($path, '/');
+$path = rtrim($path, '/'); // Rimuove trailing slash
 
 // Ottieni metodo HTTP
 $method = $_SERVER['REQUEST_METHOD'];
