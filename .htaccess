@@ -1,0 +1,22 @@
+# GenAgenTa - Protezione file sensibili
+
+# Blocca accesso a file sensibili
+<FilesMatch "^\.env|\.env\..*$">
+    Order allow,deny
+    Deny from all
+</FilesMatch>
+
+# Blocca accesso a file SQL
+<FilesMatch "\.sql$">
+    Order allow,deny
+    Deny from all
+</FilesMatch>
+
+# Blocca accesso a file markdown (opzionale ma meglio)
+<FilesMatch "\.md$">
+    Order allow,deny
+    Deny from all
+</FilesMatch>
+
+# Blocca accesso alla cartella database
+RedirectMatch 403 ^/genagenta/database/.*$
