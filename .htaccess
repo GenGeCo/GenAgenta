@@ -1,4 +1,15 @@
-# GenAgenTa - Protezione file sensibili
+# GenAgenTa - Apache Configuration
+
+# Abilita rewrite
+RewriteEngine On
+
+# Base path
+RewriteBase /genagenta/
+
+# Routing API: tutte le richieste /backend/api/* vanno a index.php
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^backend/api/(.*)$ backend/api/index.php [QSA,L]
 
 # Blocca accesso a file sensibili
 <FilesMatch "^\.env|\.env\..*$">
@@ -12,11 +23,19 @@
     Deny from all
 </FilesMatch>
 
-# Blocca accesso a file markdown (opzionale ma meglio)
+# Blocca accesso a file markdown
 <FilesMatch "\.md$">
     Order allow,deny
     Deny from all
 </FilesMatch>
 
-# Blocca accesso alla cartella database
+# Blocca accesso a cartelle sensibili
 RedirectMatch 403 ^/genagenta/database/.*$
+RedirectMatch 403 ^/genagenta/backend/config/.*$
+RedirectMatch 403 ^/genagenta/backend/includes/.*$
+
+# Headers sicurezza
+<IfModule mod_headers.c>
+    Header set X-Content-Type-Options "nosniff"
+    Header set X-Frame-Options "SAMEORIGIN"
+</IfModule>
