@@ -8,9 +8,10 @@ interface DetailPanelProps {
   neurone: Neurone;
   personalAccess: boolean;
   onClose: () => void;
+  onSelectNeurone?: (id: string) => void;
 }
 
-export default function DetailPanel({ neurone, personalAccess, onClose }: DetailPanelProps) {
+export default function DetailPanel({ neurone, personalAccess, onClose, onSelectNeurone }: DetailPanelProps) {
   const [sinapsi, setSinapsi] = useState<Sinapsi[]>([]);
   const [note, setNote] = useState<NotaPersonale[]>([]);
   const [activeTab, setActiveTab] = useState<'info' | 'connessioni' | 'note'>('info');
@@ -118,7 +119,13 @@ export default function DetailPanel({ neurone, personalAccess, onClose }: Detail
         ) : (
           <>
             {activeTab === 'info' && <InfoTab neurone={neurone} />}
-            {activeTab === 'connessioni' && <ConnessioniTab sinapsi={sinapsi} neuroneId={neurone.id} />}
+            {activeTab === 'connessioni' && (
+              <ConnessioniTab
+                sinapsi={sinapsi}
+                neuroneId={neurone.id}
+                onSelectNeurone={onSelectNeurone}
+              />
+            )}
             {activeTab === 'note' && (
               <NoteTab
                 note={note}
@@ -185,7 +192,15 @@ function InfoRow({ label, value }: { label: string; value: string }) {
 }
 
 // Tab Connessioni
-function ConnessioniTab({ sinapsi, neuroneId }: { sinapsi: Sinapsi[]; neuroneId: string }) {
+function ConnessioniTab({
+  sinapsi,
+  neuroneId,
+  onSelectNeurone,
+}: {
+  sinapsi: Sinapsi[];
+  neuroneId: string;
+  onSelectNeurone?: (id: string) => void;
+}) {
   if (sinapsi.length === 0) {
     return <p style={{ color: 'var(--text-secondary)' }}>Nessuna connessione</p>;
   }
@@ -195,12 +210,28 @@ function ConnessioniTab({ sinapsi, neuroneId }: { sinapsi: Sinapsi[]; neuroneId:
       {sinapsi.map((s) => {
         const isOutgoing = s.neurone_da === neuroneId;
         const altroNome = isOutgoing ? s.nome_a : s.nome_da;
+        const altroId = isOutgoing ? s.neurone_a : s.neurone_da;
 
         return (
-          <div key={s.id} className="card" style={{ padding: '12px' }}>
+          <div
+            key={s.id}
+            className="card"
+            style={{
+              padding: '12px',
+              cursor: onSelectNeurone ? 'pointer' : 'default',
+              transition: 'background 0.15s',
+            }}
+            onClick={() => onSelectNeurone?.(altroId)}
+            onMouseEnter={(e) => {
+              if (onSelectNeurone) e.currentTarget.style.background = 'var(--bg-secondary)';
+            }}
+            onMouseLeave={(e) => {
+              if (onSelectNeurone) e.currentTarget.style.background = '';
+            }}
+          >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
               <div>
-                <div style={{ fontWeight: 500, marginBottom: '4px' }}>
+                <div style={{ fontWeight: 500, marginBottom: '4px', color: 'var(--color-primary)' }}>
                   {isOutgoing ? '→' : '←'} {altroNome}
                 </div>
                 <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>

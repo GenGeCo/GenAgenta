@@ -151,6 +151,21 @@ export default function Dashboard() {
               neurone={selectedNeurone}
               personalAccess={personalAccess}
               onClose={() => setSelectedNeurone(null)}
+              onSelectNeurone={async (id) => {
+                // Cerca prima tra i neuroni già caricati
+                const trovato = neuroni.find(n => n.id === id);
+                if (trovato) {
+                  handleSelectNeurone(trovato);
+                } else {
+                  // Altrimenti carica il neurone dall'API
+                  try {
+                    const fullNeurone = await api.getNeurone(id);
+                    setSelectedNeurone(fullNeurone);
+                  } catch (error) {
+                    console.error('Errore caricamento neurone:', error);
+                  }
+                }
+              }}
             />
           )}
         </div>

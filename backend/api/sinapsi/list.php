@@ -90,6 +90,15 @@ $stmt = $db->prepare($sql);
 $stmt->execute($params);
 $sinapsi = $stmt->fetchAll();
 
+// Converti coordinate a float (MySQL le restituisce come stringhe)
+foreach ($sinapsi as &$s) {
+    $s['lat_da'] = $s['lat_da'] !== null ? (float)$s['lat_da'] : null;
+    $s['lng_da'] = $s['lng_da'] !== null ? (float)$s['lng_da'] : null;
+    $s['lat_a'] = $s['lat_a'] !== null ? (float)$s['lat_a'] : null;
+    $s['lng_a'] = $s['lng_a'] !== null ? (float)$s['lng_a'] : null;
+    $s['valore'] = $s['valore'] !== null ? (float)$s['valore'] : null;
+}
+
 jsonResponse([
     'data' => $sinapsi,
     'pagination' => [
