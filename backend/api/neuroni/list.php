@@ -25,13 +25,19 @@ $db = getDB();
 $where = [];
 $params = [];
 
-// Filtro visibilità
-// - Senza PIN: solo dati aziendali
-// - Con PIN: dati aziendali + i PROPRI dati personali (non quelli di altri utenti!)
+// Filtro visibilità e azienda
+// - Dati aziendali: visibili solo alla stessa azienda
+// - Dati personali: visibili solo al proprietario con PIN
+$aziendaId = $user['azienda_id'] ?? null;
+
 if (!$hasPersonalAccess) {
-    $where[] = "visibilita = 'aziendale'";
+    // Solo dati aziendali della MIA azienda
+    $where[] = "(visibilita = 'aziendale' AND azienda_id = ?)";
+    $params[] = $aziendaId;
 } else {
-    $where[] = "(visibilita = 'aziendale' OR (visibilita = 'personale' AND creato_da = ?))";
+    // Dati aziendali della MIA azienda + i MIEI dati personali
+    $where[] = "((visibilita = 'aziendale' AND azienda_id = ?) OR (visibilita = 'personale' AND creato_da = ?))";
+    $params[] = $aziendaId;
     $params[] = $user['user_id'];
 }
 

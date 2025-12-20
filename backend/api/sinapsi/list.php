@@ -6,6 +6,7 @@
 
 $user = requireAuth();
 $hasPersonalAccess = ($user['personal_access'] ?? false) === true;
+$aziendaId = $user['azienda_id'] ?? null;
 
 // Filtri
 $tipoConnessione = $_GET['tipo'] ?? null;
@@ -21,13 +22,17 @@ $db = getDB();
 $where = [];
 $params = [];
 
-// Filtro visibilità
-// - Senza PIN: solo connessioni aziendali
-// - Con PIN: connessioni aziendali + le PROPRIE connessioni personali (non quelle di altri utenti!)
+// Filtro visibilità e azienda
+// - Dati aziendali: visibili solo alla stessa azienda
+// - Dati personali: visibili solo al proprietario con PIN
 if (!$hasPersonalAccess) {
-    $where[] = "s.livello = 'aziendale'";
+    // Solo connessioni aziendali della MIA azienda
+    $where[] = "(s.livello = 'aziendale' AND s.azienda_id = ?)";
+    $params[] = $aziendaId;
 } else {
-    $where[] = "(s.livello = 'aziendale' OR (s.livello = 'personale' AND s.creato_da = ?))";
+    // Connessioni aziendali della MIA azienda + le MIE connessioni personali
+    $where[] = "((s.livello = 'aziendale' AND s.azienda_id = ?) OR (s.livello = 'personale' AND s.creato_da = ?))";
+    $params[] = $aziendaId;
     $params[] = $user['user_id'];
 }
 

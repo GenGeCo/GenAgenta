@@ -26,12 +26,14 @@ if (!verifyPIN($pin, $userData['pin_hash'])) {
     errorResponse('PIN non valido', 401);
 }
 
-// Genera token con flag accesso personale
+// Genera token con flag accesso personale (mantiene azienda_id)
 $personalToken = generateJWT([
     'user_id' => $user['user_id'],
+    'azienda_id' => $user['azienda_id'] ?? null,
     'email' => $user['email'],
     'nome' => $user['nome'],
     'ruolo' => $user['ruolo'],
+    'ruolo_azienda' => $user['ruolo_azienda'] ?? 'membro',
     'personal_access' => true,
     'personal_exp' => time() + 3600  // 1 ora per area personale
 ]);

@@ -6,6 +6,7 @@
 
 $user = requireAuth();
 $hasPersonalAccess = ($user['personal_access'] ?? false) === true;
+$aziendaId = $user['azienda_id'] ?? null;
 
 $id = $_REQUEST['id'] ?? '';
 
@@ -36,9 +37,14 @@ if (!$sinapsi) {
     errorResponse('Sinapsi non trovata', 404);
 }
 
-// Controllo visibilità
-// Le sinapsi personali sono visibili SOLO al proprietario con PIN valido
-if ($sinapsi['livello'] === 'personale') {
+// Controllo visibilità e azienda
+if ($sinapsi['livello'] === 'aziendale') {
+    // Dati aziendali: verifico che sia della MIA azienda
+    if ($sinapsi['azienda_id'] !== $aziendaId) {
+        errorResponse('Accesso non autorizzato', 403);
+    }
+} else {
+    // Dati personali: verifico che sia MIO e che ho il PIN
     $isOwner = $sinapsi['creato_da'] === $user['user_id'];
 
     if (!$hasPersonalAccess || !$isOwner) {
