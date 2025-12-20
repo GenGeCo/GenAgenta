@@ -1,7 +1,9 @@
 /* GenAgenTa - Global Styles */
 
-:root {
+:root,
+[data-theme="light"] {
   /* Colori principali */
+  --primary: #2563eb;
   --color-primary: #2563eb;
   --color-primary-dark: #1d4ed8;
   --color-secondary: #64748b;
@@ -16,10 +18,12 @@
   --color-certo: #22c55e;
   --color-probabile: #eab308;
   --color-ipotesi: #94a3b8;
+  --success: #22c55e;
 
-  /* Sfondo e testo */
+  /* Sfondo e testo - TEMA CHIARO */
   --bg-primary: #ffffff;
   --bg-secondary: #f8fafc;
+  --bg-hover: #f1f5f9;
   --bg-dark: #1e293b;
   --text-primary: #1e293b;
   --text-secondary: #64748b;
@@ -33,6 +37,44 @@
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
   --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
   --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+}
+
+/* TEMA SCURO */
+[data-theme="dark"] {
+  /* Colori principali */
+  --primary: #6366f1;
+  --color-primary: #6366f1;
+  --color-primary-dark: #4f46e5;
+  --color-secondary: #94a3b8;
+
+  /* Colori per tipi di neurone */
+  --color-persona: #34d399;
+  --color-impresa: #60a5fa;
+  --color-luogo: #fbbf24;
+  --color-cantiere: #f87171;
+
+  /* Colori certezza */
+  --color-certo: #4ade80;
+  --color-probabile: #facc15;
+  --color-ipotesi: #94a3b8;
+  --success: #22c55e;
+
+  /* Sfondo e testo - TEMA SCURO */
+  --bg-primary: #1e1e2e;
+  --bg-secondary: #181825;
+  --bg-hover: #313244;
+  --bg-dark: #11111b;
+  --text-primary: #cdd6f4;
+  --text-secondary: #a6adc8;
+  --text-light: #ffffff;
+
+  /* Bordi */
+  --border-color: #313244;
+
+  /* Ombre */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.5);
 }
 
 * {
