@@ -171,7 +171,7 @@ export default function MapView({
     // Crea GeoJSON per neuroni
     const neuroniFeatures = neuroniConCoord.map((neurone) => {
       const isLuogo = neurone.tipo === 'luogo';
-      const baseSize = isLuogo ? 100 : 80;
+      const baseSize = isLuogo ? 500 : 400; // metri - molto più grandi per visibilità
       const height = calculateHeight(neurone, getSinapsiCount(neurone.id));
 
       const polygon = isLuogo
