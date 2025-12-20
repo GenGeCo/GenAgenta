@@ -11,7 +11,7 @@ $db = getDB();
 // Query con JOIN per ottenere anche dati azienda
 $stmt = $db->prepare('
     SELECT
-        u.id, u.email, u.nome, u.ruolo, u.ruolo_azienda, u.azienda_id, u.pin_hash,
+        u.id, u.email, u.nome, u.foto_url, u.ruolo, u.ruolo_azienda, u.azienda_id, u.pin_hash,
         a.nome as nome_azienda,
         a.codice_pairing
     FROM utenti u
@@ -29,6 +29,7 @@ jsonResponse([
     'id' => $userData['id'],
     'email' => $userData['email'],
     'nome' => $userData['nome'],
+    'foto_url' => $userData['foto_url'],
     'ruolo' => $userData['ruolo'],
     'ruolo_azienda' => $userData['ruolo_azienda'],
     'azienda_id' => $userData['azienda_id'],

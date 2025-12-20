@@ -186,6 +186,40 @@ class ApiClient {
     const { data } = await this.client.get('/stats');
     return data;
   }
+
+  // Profilo utente
+  async updateProfile(params: { nome: string; foto_url?: string }): Promise<{ success: boolean }> {
+    const { data } = await this.client.put('/users/profile', params);
+    return data;
+  }
+
+  async changePassword(params: {
+    password_attuale: string;
+    nuova_password: string;
+    conferma_password: string;
+  }): Promise<{ success: boolean }> {
+    const { data } = await this.client.put('/users/password', params);
+    return data;
+  }
+
+  // Azienda
+  async getAziendaMembri(): Promise<{ data: Array<{
+    id: string;
+    nome: string;
+    email: string;
+    ruolo_azienda: 'admin' | 'membro';
+    data_creazione: string;
+    foto_url?: string;
+    is_me: boolean;
+  }>; total: number }> {
+    const { data } = await this.client.get('/azienda/membri');
+    return data;
+  }
+
+  async removeAziendaMembro(membroId: string): Promise<{ success: boolean }> {
+    const { data } = await this.client.delete(`/azienda/membri/${membroId}`);
+    return data;
+  }
 }
 
 export const api = new ApiClient();

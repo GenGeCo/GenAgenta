@@ -63,6 +63,7 @@ export interface User {
   id: string;
   email: string;
   nome: string;
+  foto_url?: string;
   ruolo: 'admin' | 'commerciale';
   ruolo_azienda?: 'admin' | 'membro';
   azienda_id?: string;

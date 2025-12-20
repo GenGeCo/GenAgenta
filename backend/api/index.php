@@ -36,6 +36,13 @@ $routes = [
     'POST:auth/register' => 'auth/register.php',
     'POST:auth/verify-pin' => 'auth/verify-pin.php',
 
+    // Users (profilo)
+    'PUT:users/profile' => 'users/profile.php',
+    'PUT:users/password' => 'users/password.php',
+
+    // Azienda
+    'GET:azienda/membri' => 'azienda/membri.php',
+
     // Neuroni
     'GET:neuroni' => 'neuroni/list.php',
     'GET:neuroni/search' => 'neuroni/search.php',
@@ -101,6 +108,11 @@ if (!$handler) {
     } elseif (preg_match('/^neuroni\/([a-zA-Z0-9-]+)\/sinapsi$/', $path, $matches)) {
         $params['neurone_id'] = $matches[1];
         $handler = 'neuroni/sinapsi.php';
+    } elseif (preg_match('/^azienda\/membri\/([a-zA-Z0-9-]+)$/', $path, $matches)) {
+        $params['id'] = $matches[1];
+        if ($method === 'DELETE') {
+            $handler = 'azienda/membri.php';
+        }
     }
 }
 
