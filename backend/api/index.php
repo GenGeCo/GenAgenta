@@ -33,6 +33,7 @@ $routes = [
     // Auth
     'GET:auth/me' => 'auth/me.php',
     'POST:auth/login' => 'auth/login.php',
+    'POST:auth/register' => 'auth/register.php',
     'POST:auth/verify-pin' => 'auth/verify-pin.php',
 
     // Neuroni
