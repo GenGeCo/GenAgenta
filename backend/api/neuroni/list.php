@@ -84,10 +84,14 @@ $stmt = $db->prepare($sql);
 $stmt->execute($params);
 $neuroni = $stmt->fetchAll();
 
-// Decodifica JSON
+// Decodifica JSON e converti tipi
 foreach ($neuroni as &$n) {
     $n['categorie'] = json_decode($n['categorie'], true);
     $n['dati_extra'] = $n['dati_extra'] ? json_decode($n['dati_extra'], true) : null;
+
+    // Converti lat/lng a float (MySQL li restituisce come stringhe)
+    $n['lat'] = $n['lat'] !== null ? (float)$n['lat'] : null;
+    $n['lng'] = $n['lng'] !== null ? (float)$n['lng'] : null;
 
     // Se non ha accesso personale, oscura neuroni personali (non dovrebbero esserci, ma per sicurezza)
     if (!$hasPersonalAccess && $n['visibilita'] === 'personale') {
