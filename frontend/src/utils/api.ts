@@ -229,6 +229,42 @@ class ApiClient {
     const { data } = await this.client.delete(`/azienda/membri/${membroId}`);
     return data;
   }
+
+  // Inviti
+  async invitaCollega(email: string): Promise<{ success: boolean; message: string; invito_id: string }> {
+    const { data } = await this.client.post('/azienda/inviti', { email });
+    return data;
+  }
+
+  async getInvitiPendenti(): Promise<{
+    has_invite: boolean;
+    invito?: {
+      id: string;
+      azienda_id: string;
+      nome_azienda: string;
+      invitato_da: string;
+      data: string;
+    };
+  }> {
+    const { data } = await this.client.get('/auth/inviti-pendenti');
+    return data;
+  }
+
+  async accettaInvito(invitoId: string): Promise<{
+    success: boolean;
+    message: string;
+    token: string;
+    azienda: { id: string; nome: string };
+  }> {
+    const { data } = await this.client.post('/azienda/inviti/accetta', { invito_id: invitoId });
+    this.setToken(data.token);
+    return data;
+  }
+
+  async rifiutaInvito(invitoId: string): Promise<{ success: boolean }> {
+    const { data } = await this.client.post('/azienda/inviti/rifiuta', { invito_id: invitoId });
+    return data;
+  }
 }
 
 export const api = new ApiClient();

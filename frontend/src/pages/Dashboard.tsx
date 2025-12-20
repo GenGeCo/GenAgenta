@@ -9,7 +9,15 @@ import DetailPanel from '../components/DetailPanel';
 import TimeSlider from '../components/TimeSlider';
 import PinModal from '../components/PinModal';
 import UserMenu from '../components/UserMenu';
+import InvitePopup from '../components/InvitePopup';
 import type { Neurone, Sinapsi, FiltriMappa } from '../types';
+
+interface PendingInvite {
+  id: string;
+  azienda_id: string;
+  nome_azienda: string;
+  invitato_da: string;
+}
 
 export default function Dashboard() {
   const { user, personalAccess, verifyPin, exitPersonalMode, logout, updateUser } = useAuth();
@@ -20,6 +28,7 @@ export default function Dashboard() {
   const [selectedNeurone, setSelectedNeurone] = useState<Neurone | null>(null);
   const [showPinModal, setShowPinModal] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [pendingInvite, setPendingInvite] = useState<PendingInvite | null>(null);
 
   // Filtri
   const [filtri, setFiltri] = useState<FiltriMappa>({
@@ -34,6 +43,22 @@ export default function Dashboard() {
     mostraConnessioni: true,
     soloConnessioniSelezionate: false,
   });
+
+  // Controlla inviti pendenti al caricamento
+  useEffect(() => {
+    const checkInvites = async () => {
+      try {
+        const result = await api.getInvitiPendenti();
+        if (result.has_invite && result.invito) {
+          setPendingInvite(result.invito);
+        }
+      } catch (error) {
+        console.error('Errore controllo inviti:', error);
+      }
+    };
+
+    checkInvites();
+  }, []);
 
   // Carica dati
   useEffect(() => {
@@ -184,6 +209,18 @@ export default function Dashboard() {
         <PinModal
           onVerify={handleVerifyPin}
           onClose={() => setShowPinModal(false)}
+        />
+      )}
+
+      {/* Popup invito ricevuto */}
+      {pendingInvite && (
+        <InvitePopup
+          invito={pendingInvite}
+          onAccept={() => {
+            setPendingInvite(null);
+            window.location.reload(); // Ricarica per aggiornare dati azienda
+          }}
+          onDecline={() => setPendingInvite(null)}
         />
       )}
     </div>

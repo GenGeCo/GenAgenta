@@ -43,6 +43,12 @@ $routes = [
 
     // Azienda
     'GET:azienda/membri' => 'azienda/membri.php',
+    'POST:azienda/inviti' => 'azienda/inviti.php',
+    'POST:azienda/inviti/accetta' => 'azienda/accetta-invito.php',
+    'POST:azienda/inviti/rifiuta' => 'azienda/rifiuta-invito.php',
+
+    // Inviti pendenti (per utente loggato)
+    'GET:auth/inviti-pendenti' => 'auth/inviti-pendenti.php',
 
     // Neuroni
     'GET:neuroni' => 'neuroni/list.php',

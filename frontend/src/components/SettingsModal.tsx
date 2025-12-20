@@ -47,6 +47,9 @@ export default function SettingsModal({ user, onClose, onUserUpdate }: SettingsM
   const [removingId, setRemovingId] = useState<string | null>(null);
   const [showInvitePopup, setShowInvitePopup] = useState(false);
   const [linkCopied, setLinkCopied] = useState(false);
+  const [inviteEmail, setInviteEmail] = useState('');
+  const [sendingInvite, setSendingInvite] = useState(false);
+  const [inviteMessage, setInviteMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   const isAdmin = user.ruolo_azienda === 'admin';
 
@@ -76,6 +79,23 @@ export default function SettingsModal({ user, onClose, onUserUpdate }: SettingsM
   const shareWhatsApp = () => {
     const text = `Unisciti al team ${user.nome_azienda || 'aziendale'} su GenAgenTa!\n\nClicca qui per registrarti:\n${inviteLink}\n\nOppure usa il codice: ${user.codice_pairing}`;
     window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
+  };
+
+  const handleSendInvite = async () => {
+    if (!inviteEmail.trim()) return;
+
+    setSendingInvite(true);
+    setInviteMessage(null);
+    try {
+      const result = await api.invitaCollega(inviteEmail.trim());
+      setInviteMessage({ type: 'success', text: result.message });
+      setInviteEmail('');
+    } catch (error: unknown) {
+      const err = error as { response?: { data?: { error?: string } } };
+      setInviteMessage({ type: 'error', text: err.response?.data?.error || 'Errore invio invito' });
+    } finally {
+      setSendingInvite(false);
+    }
   };
 
   // Carica membri quando si apre tab team
@@ -495,35 +515,60 @@ export default function SettingsModal({ user, onClose, onUserUpdate }: SettingsM
                       Invita un collega
                     </h3>
 
-                    <p style={{ color: 'var(--text-secondary)', fontSize: '14px', marginBottom: '20px' }}>
-                      Condividi questo link con il tuo collega. Cliccandolo, potrà registrarsi direttamente nel tuo team.
-                    </p>
+                    {/* Invito via email */}
+                    <div style={{ marginBottom: '24px' }}>
+                      <p style={{ color: 'var(--text-secondary)', fontSize: '14px', marginBottom: '12px' }}>
+                        Inserisci l'email del collega. Quando aprirà l'app vedrà la richiesta di unirsi al team.
+                      </p>
+                      <div style={{ display: 'flex', gap: '8px' }}>
+                        <input
+                          type="email"
+                          className="form-input"
+                          value={inviteEmail}
+                          onChange={(e) => setInviteEmail(e.target.value)}
+                          placeholder="email@collega.it"
+                          style={{ flex: 1 }}
+                        />
+                        <button
+                          className="btn btn-primary"
+                          onClick={handleSendInvite}
+                          disabled={sendingInvite || !inviteEmail.trim()}
+                        >
+                          {sendingInvite ? '...' : 'Invita'}
+                        </button>
+                      </div>
+                      {inviteMessage && (
+                        <div
+                          style={{
+                            marginTop: '8px',
+                            padding: '8px 12px',
+                            borderRadius: '6px',
+                            fontSize: '13px',
+                            background: inviteMessage.type === 'success' ? 'rgba(34, 197, 94, 0.1)' : 'rgba(239, 68, 68, 0.1)',
+                            color: inviteMessage.type === 'success' ? '#22c55e' : '#ef4444',
+                          }}
+                        >
+                          {inviteMessage.text}
+                        </div>
+                      )}
+                    </div>
 
-                    {/* Link */}
-                    <div
-                      style={{
-                        background: 'var(--bg-primary)',
-                        border: '1px solid var(--border-color)',
-                        borderRadius: '8px',
-                        padding: '12px',
-                        fontFamily: 'monospace',
-                        fontSize: '12px',
-                        wordBreak: 'break-all',
-                        marginBottom: '16px',
-                      }}
-                    >
-                      {inviteLink}
+                    {/* Separatore */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '20px' }}>
+                      <div style={{ flex: 1, height: '1px', background: 'var(--border-color)' }} />
+                      <span style={{ color: 'var(--text-secondary)', fontSize: '12px' }}>oppure condividi</span>
+                      <div style={{ flex: 1, height: '1px', background: 'var(--border-color)' }} />
                     </div>
 
                     {/* Codice */}
-                    <div style={{ textAlign: 'center', marginBottom: '20px' }}>
+                    <div style={{ textAlign: 'center', marginBottom: '16px' }}>
                       <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '4px' }}>
-                        Oppure comunica il codice:
+                        Codice team:
                       </div>
                       <div
                         style={{
                           fontFamily: 'monospace',
-                          fontSize: '24px',
+                          fontSize: '20px',
                           fontWeight: 700,
                           color: 'var(--primary)',
                           letterSpacing: '2px',
@@ -553,7 +598,7 @@ export default function SettingsModal({ user, onClose, onUserUpdate }: SettingsM
 
                     <button
                       className="btn btn-secondary"
-                      onClick={() => setShowInvitePopup(false)}
+                      onClick={() => { setShowInvitePopup(false); setInviteMessage(null); setInviteEmail(''); }}
                       style={{ width: '100%' }}
                     >
                       Chiudi
