@@ -24,11 +24,20 @@ if (strlen($nome) > 100) {
 
 $db = getDB();
 
+// Verifica se la colonna foto_url esiste
+$hasFotoUrl = false;
+try {
+    $checkStmt = $db->query("SHOW COLUMNS FROM utenti LIKE 'foto_url'");
+    $hasFotoUrl = $checkStmt->rowCount() > 0;
+} catch (Exception $e) {
+    // Ignora
+}
+
 // Aggiorna profilo
 $sql = 'UPDATE utenti SET nome = ?';
 $params = [$nome];
 
-if ($fotoUrl !== null) {
+if ($fotoUrl !== null && $hasFotoUrl) {
     // Valida URL foto (deve essere URL valido o null per rimuoverla)
     if (!empty($fotoUrl) && !filter_var($fotoUrl, FILTER_VALIDATE_URL)) {
         errorResponse('URL foto non valido', 400);
