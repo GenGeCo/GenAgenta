@@ -1,23 +1,35 @@
 // GenAgenTa - Registration Page
 
-import { useState, FormEvent } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useState, useEffect, FormEvent } from 'react';
+import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { api } from '../utils/api';
 
 type RegistrationMode = 'new' | 'join';
 
 export default function Register() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
 
-  const [mode, setMode] = useState<RegistrationMode>('new');
+  // Se arriva con ?codice=XXX, pre-compila e metti in modalità "join"
+  const codiceFromUrl = searchParams.get('codice') || '';
+
+  const [mode, setMode] = useState<RegistrationMode>(codiceFromUrl ? 'join' : 'new');
   const [nome, setNome] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [nomeAzienda, setNomeAzienda] = useState('');
-  const [codiceAzienda, setCodiceAzienda] = useState('');
+  const [codiceAzienda, setCodiceAzienda] = useState(codiceFromUrl);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+
+  // Aggiorna codice se cambia nella URL
+  useEffect(() => {
+    if (codiceFromUrl) {
+      setCodiceAzienda(codiceFromUrl);
+      setMode('join');
+    }
+  }, [codiceFromUrl]);
   const [success, setSuccess] = useState<{
     azienda: { nome: string; codice_pairing: string };
   } | null>(null);

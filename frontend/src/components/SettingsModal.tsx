@@ -45,8 +45,38 @@ export default function SettingsModal({ user, onClose, onUserUpdate }: SettingsM
   const [membri, setMembri] = useState<Membro[]>([]);
   const [loadingMembri, setLoadingMembri] = useState(false);
   const [removingId, setRemovingId] = useState<string | null>(null);
+  const [showInvitePopup, setShowInvitePopup] = useState(false);
+  const [linkCopied, setLinkCopied] = useState(false);
 
   const isAdmin = user.ruolo_azienda === 'admin';
+
+  // Genera link di invito
+  const inviteLink = user.codice_pairing
+    ? `${window.location.origin}/genagenta/register?codice=${user.codice_pairing}`
+    : '';
+
+  const copyInviteLink = async () => {
+    try {
+      await navigator.clipboard.writeText(inviteLink);
+      setLinkCopied(true);
+      setTimeout(() => setLinkCopied(false), 2000);
+    } catch {
+      // Fallback per browser più vecchi
+      const textArea = document.createElement('textarea');
+      textArea.value = inviteLink;
+      document.body.appendChild(textArea);
+      textArea.select();
+      document.execCommand('copy');
+      document.body.removeChild(textArea);
+      setLinkCopied(true);
+      setTimeout(() => setLinkCopied(false), 2000);
+    }
+  };
+
+  const shareWhatsApp = () => {
+    const text = `Unisciti al team ${user.nome_azienda || 'aziendale'} su GenAgenTa!\n\nClicca qui per registrarti:\n${inviteLink}\n\nOppure usa il codice: ${user.codice_pairing}`;
+    window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
+  };
 
   // Carica membri quando si apre tab team
   useEffect(() => {
@@ -424,29 +454,110 @@ export default function SettingsModal({ user, onClose, onUserUpdate }: SettingsM
           {/* TAB: Team */}
           {activeTab === 'team' && (
             <div>
-              {/* Codice pairing (solo admin) */}
+              {/* Pulsante Invita collega (solo admin) */}
               {isAdmin && user.codice_pairing && (
+                <div style={{ marginBottom: '24px' }}>
+                  <button
+                    className="btn btn-primary"
+                    onClick={() => setShowInvitePopup(true)}
+                    style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
+                  >
+                    <span style={{ fontSize: '18px' }}>+</span>
+                    Invita collega
+                  </button>
+                </div>
+              )}
+
+              {/* Popup invito */}
+              {showInvitePopup && (
                 <div
                   style={{
-                    padding: '16px',
-                    background: 'var(--bg-primary)',
-                    borderRadius: '12px',
-                    marginBottom: '24px',
+                    position: 'fixed',
+                    inset: 0,
+                    background: 'rgba(0, 0, 0, 0.5)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    zIndex: 3000,
                   }}
+                  onClick={(e) => e.target === e.currentTarget && setShowInvitePopup(false)}
                 >
-                  <div style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '8px' }}>
-                    Codice per invitare nuovi colleghi:
-                  </div>
                   <div
                     style={{
-                      fontFamily: 'monospace',
-                      fontSize: '20px',
-                      fontWeight: 600,
-                      color: 'var(--primary)',
-                      letterSpacing: '2px',
+                      background: 'var(--bg-secondary)',
+                      borderRadius: '16px',
+                      padding: '24px',
+                      width: '90%',
+                      maxWidth: '400px',
                     }}
                   >
-                    {user.codice_pairing}
+                    <h3 style={{ marginBottom: '16px', fontSize: '18px', fontWeight: 600 }}>
+                      Invita un collega
+                    </h3>
+
+                    <p style={{ color: 'var(--text-secondary)', fontSize: '14px', marginBottom: '20px' }}>
+                      Condividi questo link con il tuo collega. Cliccandolo, potrà registrarsi direttamente nel tuo team.
+                    </p>
+
+                    {/* Link */}
+                    <div
+                      style={{
+                        background: 'var(--bg-primary)',
+                        border: '1px solid var(--border-color)',
+                        borderRadius: '8px',
+                        padding: '12px',
+                        fontFamily: 'monospace',
+                        fontSize: '12px',
+                        wordBreak: 'break-all',
+                        marginBottom: '16px',
+                      }}
+                    >
+                      {inviteLink}
+                    </div>
+
+                    {/* Codice */}
+                    <div style={{ textAlign: 'center', marginBottom: '20px' }}>
+                      <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '4px' }}>
+                        Oppure comunica il codice:
+                      </div>
+                      <div
+                        style={{
+                          fontFamily: 'monospace',
+                          fontSize: '24px',
+                          fontWeight: 700,
+                          color: 'var(--primary)',
+                          letterSpacing: '2px',
+                        }}
+                      >
+                        {user.codice_pairing}
+                      </div>
+                    </div>
+
+                    {/* Pulsanti azione */}
+                    <div style={{ display: 'flex', gap: '12px', marginBottom: '16px' }}>
+                      <button
+                        className="btn btn-secondary"
+                        onClick={copyInviteLink}
+                        style={{ flex: 1 }}
+                      >
+                        {linkCopied ? '✓ Copiato!' : 'Copia link'}
+                      </button>
+                      <button
+                        className="btn btn-primary"
+                        onClick={shareWhatsApp}
+                        style={{ flex: 1, background: '#25D366' }}
+                      >
+                        WhatsApp
+                      </button>
+                    </div>
+
+                    <button
+                      className="btn btn-secondary"
+                      onClick={() => setShowInvitePopup(false)}
+                      style={{ width: '100%' }}
+                    >
+                      Chiudi
+                    </button>
                   </div>
                 </div>
               )}
