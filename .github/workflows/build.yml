@@ -34,3 +34,7 @@ jobs:
           git add -f frontend/dist
           git diff --staged --quiet || git commit -m "Build frontend [skip ci]"
           git push
+
+      - name: Trigger deploy on Netsons
+        run: |
+          curl -s "https://www.gruppogea.net/genagenta/deploy-webhook.php?token=GenAgentaDeploy2024!"
