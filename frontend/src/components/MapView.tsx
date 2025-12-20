@@ -60,19 +60,22 @@ function createSquarePolygon(lng: number, lat: number, sizeMeters: number): numb
 
 // Calcola altezza basata sui dati
 function calculateHeight(neurone: Neurone, sinapsiCount: number): number {
-  const baseHeight = 100;
-  const maxHeight = 800;
+  const baseHeight = 50;
+  const maxHeight = 500;
 
   let value = 0;
 
   if (neurone.tipo === 'impresa') {
+    // Fatturato: ogni 10.000€ = 10m di altezza
     const fatturato = (neurone.dati_extra as { fatturato_annuo?: number })?.fatturato_annuo || 0;
-    value = fatturato / 500;
+    value = fatturato / 1000;
   } else if (neurone.tipo === 'luogo') {
+    // Importo lavori: ogni 5.000€ = 10m di altezza
     const importo = (neurone.dati_extra as { importo_lavori?: number })?.importo_lavori || 0;
-    value = importo / 300;
+    value = importo / 500;
   } else {
-    value = sinapsiCount * 50;
+    // Persone: ogni connessione = 30m
+    value = sinapsiCount * 30;
   }
 
   return Math.min(Math.max(baseHeight + value, baseHeight), maxHeight);
@@ -140,17 +143,8 @@ export default function MapView({
 
     const m = map.current;
 
-    console.log('=== DEBUG MapView ===');
-    console.log('Neuroni ricevuti:', neuroni.length);
-    console.log('Sinapsi ricevute:', sinapsi.length);
-
     // Filtra neuroni con coordinate
     const neuroniConCoord = neuroni.filter((n) => n.lat && n.lng);
-    console.log('Neuroni con coordinate:', neuroniConCoord.length);
-
-    if (neuroniConCoord.length > 0) {
-      console.log('Esempio neurone:', JSON.stringify(neuroniConCoord[0], null, 2));
-    }
 
     // Rimuovi source e layer esistenti
     try {
@@ -160,19 +154,16 @@ export default function MapView({
       if (m.getSource('neuroni')) m.removeSource('neuroni');
       if (m.getLayer('sinapsi-lines')) m.removeLayer('sinapsi-lines');
       if (m.getSource('sinapsi')) m.removeSource('sinapsi');
-    } catch (e) {
-      console.log('Errore rimozione layer:', e);
+    } catch {
+      // Layer non esistenti, ignora
     }
 
-    if (neuroniConCoord.length === 0) {
-      console.log('Nessun neurone con coordinate, esco');
-      return;
-    }
+    if (neuroniConCoord.length === 0) return;
 
     // Crea GeoJSON per neuroni
     const neuroniFeatures = neuroniConCoord.map((neurone) => {
       const isLuogo = neurone.tipo === 'luogo';
-      const baseSize = isLuogo ? 500 : 400; // metri - molto più grandi per visibilità
+      const baseSize = isLuogo ? 80 : 60; // metri - dimensione base dei poligoni
       const height = calculateHeight(neurone, getSinapsiCount(neurone.id));
 
       const polygon = isLuogo
@@ -197,17 +188,10 @@ export default function MapView({
       };
     });
 
-    console.log('Features create:', neuroniFeatures.length);
-    if (neuroniFeatures.length > 0) {
-      console.log('Prima feature:', JSON.stringify(neuroniFeatures[0], null, 2));
-    }
-
     const geojsonData = {
       type: 'FeatureCollection' as const,
       features: neuroniFeatures,
     };
-
-    console.log('GeoJSON data:', JSON.stringify(geojsonData, null, 2).substring(0, 2000));
 
     // Aggiungi source
     m.addSource('neuroni', {
@@ -215,35 +199,18 @@ export default function MapView({
       data: geojsonData,
     });
 
-    // Layer 2D per debug - questo DEVE apparire
-    m.addLayer({
-      id: 'neuroni-2d',
-      type: 'fill',
-      source: 'neuroni',
-      paint: {
-        'fill-color': ['get', 'color'],
-        'fill-opacity': 0.7,
-      },
-    });
-    console.log('Layer neuroni-2d (fill) aggiunto');
-
-    // Layer 3D extrusion
+    // Layer 3D extrusion con altezze dinamiche
     m.addLayer({
       id: 'neuroni-3d',
       type: 'fill-extrusion',
       source: 'neuroni',
       paint: {
         'fill-extrusion-color': ['get', 'color'],
-        'fill-extrusion-height': 200, // altezza fissa per test
+        'fill-extrusion-height': ['get', 'height'],
         'fill-extrusion-base': 0,
-        'fill-extrusion-opacity': 0.9,
+        'fill-extrusion-opacity': 0.85,
       },
     });
-
-    // Verifica che i layer esistano
-    console.log('Layer neuroni-2d esiste:', !!m.getLayer('neuroni-2d'));
-    console.log('Layer neuroni-3d esiste:', !!m.getLayer('neuroni-3d'));
-    console.log('Layers aggiunti');
 
     // Sinapsi
     const sinapsiFiltered = sinapsi.filter((s) => {
@@ -251,8 +218,6 @@ export default function MapView({
       if (filtri.dataFine && s.data_inizio > filtri.dataFine) return false;
       return s.lat_da && s.lng_da && s.lat_a && s.lng_a;
     });
-
-    console.log('Sinapsi con coordinate:', sinapsiFiltered.length);
 
     if (sinapsiFiltered.length > 0) {
       const sinapsiFeatures = sinapsiFiltered.map((s) => ({
@@ -295,8 +260,6 @@ export default function MapView({
           'line-opacity': 0.8,
         },
       });
-
-      console.log('Layer sinapsi-lines aggiunto');
     }
 
     // Event handlers (solo una volta)
