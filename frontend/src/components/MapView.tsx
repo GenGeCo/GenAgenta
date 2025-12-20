@@ -158,12 +158,17 @@ export default function MapView({
     // Filtra neuroni con coordinate
     const neuroniConCoord = neuroni.filter((n) => n.lat && n.lng);
 
+    console.log('Neuroni totali:', neuroni.length, 'Con coordinate:', neuroniConCoord.length);
+    if (neuroniConCoord.length > 0) {
+      console.log('Primo neurone:', neuroniConCoord[0]);
+    }
+
     if (neuroniConCoord.length === 0) return;
 
     // Crea GeoJSON per neuroni (poligoni 3D)
     const neuroniFeatures = neuroniConCoord.map((neurone) => {
       const isLuogo = neurone.tipo === 'luogo';
-      const baseSize = isLuogo ? 25 : 20; // metri
+      const baseSize = isLuogo ? 80 : 60; // metri - più grandi per essere visibili
       const height = calculateHeight(neurone, getSinapsiCount(neurone.id));
 
       const polygon = isLuogo
