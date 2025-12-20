@@ -128,13 +128,6 @@ export default function MapView({
     });
 
     map.current.on('load', () => {
-      // Aggiungi luce per effetto 3D
-      map.current!.setLight({
-        anchor: 'viewport',
-        color: 'white',
-        intensity: 0.4,
-      });
-
       setMapReady(true);
     });
 
@@ -249,7 +242,7 @@ export default function MapView({
         properties: {
           id: s.id,
           tipo: s.tipo_connessione,
-          valore: s.valore || 1,
+          valore: Number(s.valore) || 1,
           certezza: s.certezza,
         },
         geometry: {
@@ -347,18 +340,6 @@ export default function MapView({
 
   return (
     <div className="map-container" ref={mapContainer}>
-      {!mapReady && (
-        <div style={{
-          position: 'absolute',
-          top: '50%',
-          left: '50%',
-          transform: 'translate(-50%, -50%)',
-          color: 'var(--text-secondary)',
-        }}>
-          Caricamento mappa...
-        </div>
-      )}
-
       {/* Legenda */}
       <div style={{
         position: 'absolute',
