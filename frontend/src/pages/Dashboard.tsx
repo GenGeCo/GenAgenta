@@ -8,6 +8,7 @@ import MapView from '../components/MapView';
 import DetailPanel from '../components/DetailPanel';
 import TimeSlider from '../components/TimeSlider';
 import PinModal from '../components/PinModal';
+import UserMenu from '../components/UserMenu';
 import type { Neurone, Sinapsi, FiltriMappa } from '../types';
 
 export default function Dashboard() {
@@ -127,13 +128,7 @@ export default function Dashboard() {
             </button>
           ) : null}
 
-          <span style={{ color: 'var(--text-secondary)', fontSize: '14px' }}>
-            {user?.nome}
-          </span>
-
-          <button className="btn btn-secondary" onClick={logout}>
-            Esci
-          </button>
+          {user && <UserMenu user={user} onLogout={logout} />}
         </header>
 
         {/* Area contenuto */}

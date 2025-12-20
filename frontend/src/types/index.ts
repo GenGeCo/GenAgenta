@@ -64,6 +64,10 @@ export interface User {
   email: string;
   nome: string;
   ruolo: 'admin' | 'commerciale';
+  ruolo_azienda?: 'admin' | 'membro';
+  azienda_id?: string;
+  nome_azienda?: string;
+  codice_pairing?: string;
   has_pin: boolean;
 }
 
