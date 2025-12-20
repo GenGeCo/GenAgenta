@@ -62,6 +62,7 @@ export function useAuth() {
       personalAccess: false,
       isLoading: false,
     });
+    window.location.href = '/genagenta/login';
   }, []);
 
   const verifyPin = useCallback(async (pin: string) => {
