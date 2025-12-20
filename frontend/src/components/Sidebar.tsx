@@ -58,7 +58,7 @@ export default function Sidebar({
           </select>
         </div>
 
-        <div className="form-group" style={{ marginBottom: 0 }}>
+        <div className="form-group" style={{ marginBottom: '8px' }}>
           <label className="form-label" style={{ fontSize: '12px' }}>Cerca</label>
           <input
             type="search"
@@ -66,6 +66,34 @@ export default function Sidebar({
             placeholder="Nome, indirizzo..."
             style={{ fontSize: '13px', padding: '6px 8px' }}
           />
+        </div>
+
+        {/* Toggle connessioni */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginTop: '8px' }}>
+          <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', cursor: 'pointer' }}>
+            <input
+              type="checkbox"
+              checked={filtri.mostraConnessioni}
+              onChange={(e) => onFiltriChange({ ...filtri, mostraConnessioni: e.target.checked })}
+            />
+            Mostra connessioni
+          </label>
+          <label style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            fontSize: '12px',
+            cursor: 'pointer',
+            opacity: filtri.mostraConnessioni ? 1 : 0.5,
+          }}>
+            <input
+              type="checkbox"
+              checked={filtri.soloConnessioniSelezionate}
+              onChange={(e) => onFiltriChange({ ...filtri, soloConnessioniSelezionate: e.target.checked })}
+              disabled={!filtri.mostraConnessioni}
+            />
+            Solo del selezionato
+          </label>
         </div>
       </div>
 

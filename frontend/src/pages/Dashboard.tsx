@@ -30,6 +30,8 @@ export default function Dashboard() {
     valoreMin: null,
     raggio: null,
     centro: null,
+    mostraConnessioni: true,
+    soloConnessioniSelezionate: false,
   });
 
   // Carica dati

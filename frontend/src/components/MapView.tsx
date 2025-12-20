@@ -225,12 +225,23 @@ export default function MapView({
       },
     });
 
-    // Sinapsi
-    const sinapsiFiltered = sinapsi.filter((s) => {
+    // Sinapsi - applica filtri visibilità
+    let sinapsiFiltered = sinapsi.filter((s) => {
       if (filtri.dataInizio && s.data_fine && s.data_fine < filtri.dataInizio) return false;
       if (filtri.dataFine && s.data_inizio > filtri.dataFine) return false;
       return s.lat_da && s.lng_da && s.lat_a && s.lng_a;
     });
+
+    // Nascondi tutte le connessioni se il flag è disattivato
+    if (!filtri.mostraConnessioni) {
+      sinapsiFiltered = [];
+    }
+    // Mostra solo connessioni del neurone selezionato
+    else if (filtri.soloConnessioniSelezionate && selectedId) {
+      sinapsiFiltered = sinapsiFiltered.filter(
+        (s) => s.neurone_da === selectedId || s.neurone_a === selectedId
+      );
+    }
 
     if (sinapsiFiltered.length > 0) {
       const sinapsiFeatures = sinapsiFiltered.map((s) => ({
@@ -277,6 +288,8 @@ export default function MapView({
 
     // Event handlers (solo una volta)
     if (!handlersAdded.current) {
+      let clickTimeout: ReturnType<typeof setTimeout> | null = null;
+
       m.on('mouseenter', 'neuroni-3d', (e) => {
         m.getCanvas().style.cursor = 'pointer';
         if (e.features && e.features[0] && popup.current) {
@@ -293,12 +306,33 @@ export default function MapView({
         popup.current?.remove();
       });
 
+      // Click singolo: solo seleziona (senza zoom)
       m.on('click', 'neuroni-3d', (e) => {
         if (e.features && e.features[0]) {
           const id = e.features[0].properties?.id;
           const neurone = neuroniRef.current.find(n => n.id === id);
-          if (neurone) {
-            onSelectNeurone(neurone);
+
+          // Aspetta per vedere se è un doppio click
+          if (clickTimeout) {
+            clearTimeout(clickTimeout);
+            clickTimeout = null;
+            // È un doppio click - zoom
+            if (neurone?.lat && neurone?.lng) {
+              m.flyTo({
+                center: [neurone.lng, neurone.lat],
+                zoom: 16,
+                pitch: 60,
+                duration: 1000,
+              });
+            }
+          } else {
+            clickTimeout = setTimeout(() => {
+              clickTimeout = null;
+              // È un click singolo - solo seleziona
+              if (neurone) {
+                onSelectNeurone(neurone);
+              }
+            }, 250);
           }
         }
       });
@@ -308,19 +342,8 @@ export default function MapView({
 
   }, [neuroni, sinapsi, selectedId, mapReady, filtri, getSinapsiCount, onSelectNeurone]);
 
-  // Centra su neurone selezionato
-  useEffect(() => {
-    if (!map.current || !selectedId) return;
-    const neurone = neuroni.find((n) => n.id === selectedId);
-    if (neurone?.lat && neurone?.lng) {
-      map.current.flyTo({
-        center: [neurone.lng, neurone.lat],
-        zoom: 15,
-        pitch: 60,
-        duration: 1000,
-      });
-    }
-  }, [selectedId, neuroni]);
+  // Non fare più zoom automatico sulla selezione
+  // Lo zoom si fa solo con doppio click
 
   return (
     <div style={{ position: 'relative', width: '100%', height: '100%' }}>

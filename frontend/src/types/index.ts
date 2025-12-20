@@ -83,6 +83,8 @@ export interface FiltriMappa {
   valoreMin: number | null;
   raggio: number | null;
   centro: { lat: number; lng: number } | null;
+  mostraConnessioni: boolean;
+  soloConnessioniSelezionate: boolean;
 }
 
 export interface DashboardStats {
