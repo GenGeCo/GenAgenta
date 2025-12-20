@@ -4,8 +4,8 @@ import { useEffect, useRef, useState } from 'react';
 import mapboxgl from 'mapbox-gl';
 import type { Neurone, Sinapsi, FiltriMappa } from '../types';
 
-// Token Mapbox (da mettere in .env in produzione)
-mapboxgl.accessToken = import.meta.env.VITE_MAPBOX_TOKEN || 'pk.eyJ1IjoiZGVtby1nZW5hZ2VudGEiLCJhIjoiY2x0ZXN0MTIzIn0.demo';
+// Token Mapbox
+mapboxgl.accessToken = import.meta.env.VITE_MAPBOX_TOKEN || 'pk.eyJ1IjoiZ2VuYWdlbnRhIiwiYSI6ImNtamR6a3UwazBjNHEzZnF4aWxhYzlqMmUifQ.0RcP-1pxFW7rHYvVoJQG5g';
 
 interface MapViewProps {
   neuroni: Neurone[];
