@@ -339,7 +339,8 @@ export default function MapView({
   }, [selectedId, neuroni]);
 
   return (
-    <div className="map-container" ref={mapContainer}>
+    <div style={{ position: 'relative', width: '100%', height: '100%' }}>
+      <div className="map-container" ref={mapContainer} style={{ width: '100%', height: '100%' }} />
       {/* Legenda */}
       <div style={{
         position: 'absolute',
@@ -350,7 +351,8 @@ export default function MapView({
         borderRadius: '8px',
         boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
         fontSize: '12px',
-        zIndex: 1,
+        zIndex: 10,
+        pointerEvents: 'none',
       }}>
         <div style={{ fontWeight: 600, marginBottom: '8px' }}>Legenda</div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
