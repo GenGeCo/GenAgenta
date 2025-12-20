@@ -23,9 +23,9 @@ const COLORI_TIPO: Record<string, string> = {
 };
 
 // Genera un poligono circolare (per cilindri)
-function createCirclePolygon(lng: number, lat: number, radiusMeters: number, sides: number = 32): number[][] {
+function createCirclePolygon(lng: number, lat: number, radiusMeters: number, sides: number = 24): number[][] {
   const coords: number[][] = [];
-  const earthRadius = 6371000; // metri
+  const earthRadius = 6371000;
 
   for (let i = 0; i <= sides; i++) {
     const angle = (i / sides) * 2 * Math.PI;
@@ -54,28 +54,25 @@ function createSquarePolygon(lng: number, lat: number, sizeMeters: number): numb
     [lng + dLng, lat - dLat],
     [lng + dLng, lat + dLat],
     [lng - dLng, lat + dLat],
-    [lng - dLng, lat - dLat], // chiudi il poligono
+    [lng - dLng, lat - dLat],
   ];
 }
 
 // Calcola altezza basata sui dati
 function calculateHeight(neurone: Neurone, sinapsiCount: number): number {
-  const baseHeight = 50; // altezza minima in metri
-  const maxHeight = 500; // altezza massima
+  const baseHeight = 100;
+  const maxHeight = 800;
 
   let value = 0;
 
   if (neurone.tipo === 'impresa') {
-    // Per imprese: basato su fatturato
     const fatturato = (neurone.dati_extra as { fatturato_annuo?: number })?.fatturato_annuo || 0;
-    value = fatturato / 1000; // 1000€ = 1 metro
+    value = fatturato / 500;
   } else if (neurone.tipo === 'luogo') {
-    // Per cantieri: basato su importo lavori
     const importo = (neurone.dati_extra as { importo_lavori?: number })?.importo_lavori || 0;
-    value = importo / 500; // 500€ = 1 metro
+    value = importo / 300;
   } else {
-    // Per persone: basato su numero di connessioni
-    value = sinapsiCount * 30; // 30 metri per connessione
+    value = sinapsiCount * 50;
   }
 
   return Math.min(Math.max(baseHeight + value, baseHeight), maxHeight);
@@ -93,13 +90,12 @@ export default function MapView({
   const popup = useRef<mapboxgl.Popup | null>(null);
   const [mapReady, setMapReady] = useState(false);
   const neuroniRef = useRef<Neurone[]>(neuroni);
+  const handlersAdded = useRef(false);
 
-  // Mantieni riferimento aggiornato ai neuroni
   useEffect(() => {
     neuroniRef.current = neuroni;
   }, [neuroni]);
 
-  // Conta sinapsi per neurone
   const getSinapsiCount = useCallback((neuroneId: string) => {
     return sinapsi.filter(s => s.neurone_da === neuroneId || s.neurone_a === neuroneId).length;
   }, [sinapsi]);
@@ -111,16 +107,15 @@ export default function MapView({
     map.current = new mapboxgl.Map({
       container: mapContainer.current,
       style: 'mapbox://styles/mapbox/light-v11',
-      center: [9.19, 45.46], // Milano
-      zoom: 11,
-      pitch: 45,
+      center: [9.19, 45.46],
+      zoom: 12,
+      pitch: 60,
       bearing: -17.6,
       antialias: true,
     });
 
     map.current.addControl(new mapboxgl.NavigationControl(), 'top-right');
 
-    // Crea popup riutilizzabile
     popup.current = new mapboxgl.Popup({
       closeButton: false,
       closeOnClick: false,
@@ -128,6 +123,7 @@ export default function MapView({
     });
 
     map.current.on('load', () => {
+      console.log('Mappa caricata');
       setMapReady(true);
     });
 
@@ -144,31 +140,38 @@ export default function MapView({
 
     const m = map.current;
 
-    // Rimuovi layer e source esistenti
-    ['neuroni-3d', 'neuroni-outline', 'neuroni-labels'].forEach(layerId => {
-      if (m.getLayer(layerId)) m.removeLayer(layerId);
-    });
-    if (m.getSource('neuroni')) m.removeSource('neuroni');
-
-    ['sinapsi-lines'].forEach(layerId => {
-      if (m.getLayer(layerId)) m.removeLayer(layerId);
-    });
-    if (m.getSource('sinapsi')) m.removeSource('sinapsi');
+    console.log('=== DEBUG MapView ===');
+    console.log('Neuroni ricevuti:', neuroni.length);
+    console.log('Sinapsi ricevute:', sinapsi.length);
 
     // Filtra neuroni con coordinate
     const neuroniConCoord = neuroni.filter((n) => n.lat && n.lng);
+    console.log('Neuroni con coordinate:', neuroniConCoord.length);
 
-    console.log('Neuroni totali:', neuroni.length, 'Con coordinate:', neuroniConCoord.length);
     if (neuroniConCoord.length > 0) {
-      console.log('Primo neurone:', neuroniConCoord[0]);
+      console.log('Esempio neurone:', JSON.stringify(neuroniConCoord[0], null, 2));
     }
 
-    if (neuroniConCoord.length === 0) return;
+    // Rimuovi source e layer esistenti
+    try {
+      if (m.getLayer('neuroni-3d')) m.removeLayer('neuroni-3d');
+      if (m.getLayer('neuroni-outline')) m.removeLayer('neuroni-outline');
+      if (m.getSource('neuroni')) m.removeSource('neuroni');
+      if (m.getLayer('sinapsi-lines')) m.removeLayer('sinapsi-lines');
+      if (m.getSource('sinapsi')) m.removeSource('sinapsi');
+    } catch (e) {
+      console.log('Errore rimozione layer:', e);
+    }
 
-    // Crea GeoJSON per neuroni (poligoni 3D)
+    if (neuroniConCoord.length === 0) {
+      console.log('Nessun neurone con coordinate, esco');
+      return;
+    }
+
+    // Crea GeoJSON per neuroni
     const neuroniFeatures = neuroniConCoord.map((neurone) => {
       const isLuogo = neurone.tipo === 'luogo';
-      const baseSize = isLuogo ? 80 : 60; // metri - più grandi per essere visibili
+      const baseSize = isLuogo ? 100 : 80;
       const height = calculateHeight(neurone, getSinapsiCount(neurone.id));
 
       const polygon = isLuogo
@@ -181,10 +184,10 @@ export default function MapView({
           id: neurone.id,
           nome: neurone.nome,
           tipo: neurone.tipo,
-          categorie: neurone.categorie.join(', '),
-          color: COLORI_TIPO[neurone.tipo],
+          categorie: Array.isArray(neurone.categorie) ? neurone.categorie.join(', ') : String(neurone.categorie),
+          color: COLORI_TIPO[neurone.tipo] || '#888888',
           height: height,
-          selected: neurone.id === selectedId,
+          base_height: 0,
         },
         geometry: {
           type: 'Polygon' as const,
@@ -193,16 +196,23 @@ export default function MapView({
       };
     });
 
-    // Aggiungi source neuroni
+    console.log('Features create:', neuroniFeatures.length);
+    if (neuroniFeatures.length > 0) {
+      console.log('Prima feature:', JSON.stringify(neuroniFeatures[0], null, 2));
+    }
+
+    const geojsonData = {
+      type: 'FeatureCollection' as const,
+      features: neuroniFeatures,
+    };
+
+    // Aggiungi source
     m.addSource('neuroni', {
       type: 'geojson',
-      data: {
-        type: 'FeatureCollection',
-        features: neuroniFeatures,
-      },
+      data: geojsonData,
     });
 
-    // Layer 3D extrusion
+    // Layer 3D
     m.addLayer({
       id: 'neuroni-3d',
       type: 'fill-extrusion',
@@ -210,39 +220,24 @@ export default function MapView({
       paint: {
         'fill-extrusion-color': ['get', 'color'],
         'fill-extrusion-height': ['get', 'height'],
-        'fill-extrusion-base': 0,
-        'fill-extrusion-opacity': 0.85,
-        'fill-extrusion-vertical-gradient': true,
+        'fill-extrusion-base': ['get', 'base_height'],
+        'fill-extrusion-opacity': 0.9,
       },
     });
 
-    // Layer outline per selezione
-    m.addLayer({
-      id: 'neuroni-outline',
-      type: 'line',
-      source: 'neuroni',
-      paint: {
-        'line-color': [
-          'case',
-          ['get', 'selected'], '#1e293b',
-          'rgba(255,255,255,0.5)'
-        ],
-        'line-width': [
-          'case',
-          ['get', 'selected'], 3,
-          1
-        ],
-      },
+    console.log('Layer neuroni-3d aggiunto');
+
+    // Sinapsi
+    const sinapsiFiltered = sinapsi.filter((s) => {
+      if (filtri.dataInizio && s.data_fine && s.data_fine < filtri.dataInizio) return false;
+      if (filtri.dataFine && s.data_inizio > filtri.dataFine) return false;
+      return s.lat_da && s.lng_da && s.lat_a && s.lng_a;
     });
 
-    // Sinapsi (linee)
-    const sinapsiFeatures = sinapsi
-      .filter((s) => {
-        if (filtri.dataInizio && s.data_fine && s.data_fine < filtri.dataInizio) return false;
-        if (filtri.dataFine && s.data_inizio > filtri.dataFine) return false;
-        return s.lat_da && s.lng_da && s.lat_a && s.lng_a;
-      })
-      .map((s) => ({
+    console.log('Sinapsi con coordinate:', sinapsiFiltered.length);
+
+    if (sinapsiFiltered.length > 0) {
+      const sinapsiFeatures = sinapsiFiltered.map((s) => ({
         type: 'Feature' as const,
         properties: {
           id: s.id,
@@ -253,13 +248,12 @@ export default function MapView({
         geometry: {
           type: 'LineString' as const,
           coordinates: [
-            [s.lng_da!, s.lat_da!],
-            [s.lng_a!, s.lat_a!],
+            [Number(s.lng_da), Number(s.lat_da)],
+            [Number(s.lng_a), Number(s.lat_a)],
           ],
         },
       }));
 
-    if (sinapsiFeatures.length > 0) {
       m.addSource('sinapsi', {
         type: 'geojson',
         data: {
@@ -268,7 +262,6 @@ export default function MapView({
         },
       });
 
-      // Inserisci le linee sotto i neuroni 3D
       m.addLayer({
         id: 'sinapsi-lines',
         type: 'line',
@@ -280,58 +273,50 @@ export default function MapView({
             ['==', ['get', 'certezza'], 'probabile'], '#eab308',
             '#94a3b8',
           ],
-          'line-width': [
-            'interpolate',
-            ['linear'],
-            ['get', 'valore'],
-            0, 2,
-            10000, 4,
-            100000, 8,
-          ],
-          'line-opacity': 0.7,
+          'line-width': 3,
+          'line-opacity': 0.8,
         },
-      }, 'neuroni-3d'); // inserisci prima del layer neuroni
+      });
+
+      console.log('Layer sinapsi-lines aggiunto');
     }
 
-    // Event handlers
-    m.on('mouseenter', 'neuroni-3d', (e) => {
-      m.getCanvas().style.cursor = 'pointer';
-
-      if (e.features && e.features[0]) {
-        const props = e.features[0].properties;
-        const coordinates = e.lngLat;
-
-        popup.current!
-          .setLngLat(coordinates)
-          .setHTML(`
-            <strong>${props?.nome}</strong><br/>
-            <span style="color: #64748b; font-size: 12px;">${props?.categorie}</span>
-          `)
-          .addTo(m);
-      }
-    });
-
-    m.on('mouseleave', 'neuroni-3d', () => {
-      m.getCanvas().style.cursor = '';
-      popup.current!.remove();
-    });
-
-    m.on('click', 'neuroni-3d', (e) => {
-      if (e.features && e.features[0]) {
-        const id = e.features[0].properties?.id;
-        const neurone = neuroniRef.current.find(n => n.id === id);
-        if (neurone) {
-          onSelectNeurone(neurone);
+    // Event handlers (solo una volta)
+    if (!handlersAdded.current) {
+      m.on('mouseenter', 'neuroni-3d', (e) => {
+        m.getCanvas().style.cursor = 'pointer';
+        if (e.features && e.features[0] && popup.current) {
+          const props = e.features[0].properties;
+          popup.current
+            .setLngLat(e.lngLat)
+            .setHTML(`<strong>${props?.nome}</strong><br/><span style="color:#64748b;font-size:12px">${props?.categorie}</span>`)
+            .addTo(m);
         }
-      }
-    });
+      });
+
+      m.on('mouseleave', 'neuroni-3d', () => {
+        m.getCanvas().style.cursor = '';
+        popup.current?.remove();
+      });
+
+      m.on('click', 'neuroni-3d', (e) => {
+        if (e.features && e.features[0]) {
+          const id = e.features[0].properties?.id;
+          const neurone = neuroniRef.current.find(n => n.id === id);
+          if (neurone) {
+            onSelectNeurone(neurone);
+          }
+        }
+      });
+
+      handlersAdded.current = true;
+    }
 
   }, [neuroni, sinapsi, selectedId, mapReady, filtri, getSinapsiCount, onSelectNeurone]);
 
   // Centra su neurone selezionato
   useEffect(() => {
     if (!map.current || !selectedId) return;
-
     const neurone = neuroni.find((n) => n.id === selectedId);
     if (neurone?.lat && neurone?.lng) {
       map.current.flyTo({
@@ -345,7 +330,7 @@ export default function MapView({
 
   return (
     <div style={{ position: 'relative', width: '100%', height: '100%' }}>
-      <div className="map-container" ref={mapContainer} style={{ width: '100%', height: '100%' }} />
+      <div ref={mapContainer} style={{ width: '100%', height: '100%' }} />
       {/* Legenda */}
       <div style={{
         position: 'absolute',
