@@ -1,7 +1,7 @@
 // GenAgenTa - Login Page
 
 import { useState, FormEvent } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 
 export default function Login() {
@@ -94,6 +94,18 @@ export default function Login() {
 
         <p style={{
           marginTop: '24px',
+          fontSize: '14px',
+          color: 'var(--text-secondary)',
+          textAlign: 'center'
+        }}>
+          Non hai un account?{' '}
+          <Link to="/register" style={{ color: 'var(--primary)' }}>
+            Registrati
+          </Link>
+        </p>
+
+        <p style={{
+          marginTop: '16px',
           fontSize: '12px',
           color: 'var(--text-secondary)',
           textAlign: 'center'

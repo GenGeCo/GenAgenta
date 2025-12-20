@@ -73,6 +73,18 @@ class ApiClient {
     const { data } = await this.client.post('/auth/verify-pin', { pin });
     this.setToken(data.token);
     return data;
+}
+
+  async register(params: {
+    email: string;
+    password: string;
+    nome: string;
+    nome_azienda?: string;
+    codice_azienda?: string;
+  }): Promise<{ token: string; user: User; azienda: { id: string; nome: string; codice_pairing: string } }> {
+    const { data } = await this.client.post('/auth/register', params);
+    this.setToken(data.token);
+    return data;
   }
 
   logout() {
