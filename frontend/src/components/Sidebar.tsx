@@ -9,6 +9,7 @@ interface SidebarProps {
   filtri: FiltriMappa;
   onFiltriChange: (filtri: FiltriMappa) => void;
   loading: boolean;
+  onAddNeurone?: () => void;
 }
 
 export default function Sidebar({
@@ -18,6 +19,7 @@ export default function Sidebar({
   filtri,
   onFiltriChange,
   loading,
+  onAddNeurone,
 }: SidebarProps) {
   // Raggruppa per tipo
   const neuroniPerTipo = {
@@ -30,12 +32,36 @@ export default function Sidebar({
     <aside className="sidebar">
       {/* Logo e titolo */}
       <div style={{ padding: '16px', borderBottom: '1px solid var(--border-color)' }}>
-        <h2 style={{ fontSize: '20px', fontWeight: 700, color: 'var(--color-primary)' }}>
-          GenAgenTa
-        </h2>
-        <p style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
-          Rete Neurale Commerciale
-        </p>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div>
+            <h2 style={{ fontSize: '20px', fontWeight: 700, color: 'var(--color-primary)' }}>
+              GenAgenTa
+            </h2>
+            <p style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
+              Rete Neurale Commerciale
+            </p>
+          </div>
+          {onAddNeurone && (
+            <button
+              onClick={onAddNeurone}
+              className="btn btn-primary"
+              style={{
+                width: '40px',
+                height: '40px',
+                borderRadius: '50%',
+                padding: 0,
+                fontSize: '24px',
+                lineHeight: 1,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+              title="Aggiungi persona, impresa o cantiere"
+            >
+              +
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Filtri */}

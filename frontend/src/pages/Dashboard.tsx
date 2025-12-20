@@ -10,6 +10,7 @@ import TimeSlider from '../components/TimeSlider';
 import PinModal from '../components/PinModal';
 import UserMenu from '../components/UserMenu';
 import InvitePopup from '../components/InvitePopup';
+import NeuroneFormModal from '../components/NeuroneFormModal';
 import type { Neurone, Sinapsi, FiltriMappa } from '../types';
 
 interface PendingInvite {
@@ -27,6 +28,7 @@ export default function Dashboard() {
   const [sinapsi, setSinapsi] = useState<Sinapsi[]>([]);
   const [selectedNeurone, setSelectedNeurone] = useState<Neurone | null>(null);
   const [showPinModal, setShowPinModal] = useState(false);
+  const [showNeuroneForm, setShowNeuroneForm] = useState(false);
   const [loading, setLoading] = useState(true);
   const [pendingInvite, setPendingInvite] = useState<PendingInvite | null>(null);
 
@@ -124,6 +126,7 @@ export default function Dashboard() {
         filtri={filtri}
         onFiltriChange={setFiltri}
         loading={loading}
+        onAddNeurone={() => setShowNeuroneForm(true)}
       />
 
       {/* Main content */}
@@ -221,6 +224,18 @@ export default function Dashboard() {
             window.location.reload(); // Ricarica per aggiornare dati azienda
           }}
           onDecline={() => setPendingInvite(null)}
+        />
+      )}
+
+      {/* Form nuovo neurone */}
+      {showNeuroneForm && (
+        <NeuroneFormModal
+          onSave={(neurone) => {
+            setNeuroni([neurone, ...neuroni]);
+            setShowNeuroneForm(false);
+            setSelectedNeurone(neurone);
+          }}
+          onClose={() => setShowNeuroneForm(false)}
         />
       )}
     </div>
