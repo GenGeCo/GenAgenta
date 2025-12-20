@@ -58,24 +58,24 @@ function createSquarePolygon(lng: number, lat: number, sizeMeters: number): numb
   ];
 }
 
-// Calcola altezza basata sui dati
+// Calcola altezza basata sui dati (ridotta del 30%)
 function calculateHeight(neurone: Neurone, sinapsiCount: number): number {
-  const baseHeight = 50;
-  const maxHeight = 500;
+  const baseHeight = 35;  // era 50
+  const maxHeight = 350;  // era 500
 
   let value = 0;
 
   if (neurone.tipo === 'impresa') {
-    // Fatturato: ogni 10.000€ = 10m di altezza
+    // Fatturato: ogni 15.000€ = 10m di altezza
     const fatturato = (neurone.dati_extra as { fatturato_annuo?: number })?.fatturato_annuo || 0;
-    value = fatturato / 1000;
+    value = fatturato / 1500;
   } else if (neurone.tipo === 'luogo') {
-    // Importo lavori: ogni 5.000€ = 10m di altezza
+    // Importo lavori: ogni 7.500€ = 10m di altezza
     const importo = (neurone.dati_extra as { importo_lavori?: number })?.importo_lavori || 0;
-    value = importo / 500;
+    value = importo / 750;
   } else {
-    // Persone: ogni connessione = 30m
-    value = sinapsiCount * 30;
+    // Persone: ogni connessione = 20m
+    value = sinapsiCount * 20;
   }
 
   return Math.min(Math.max(baseHeight + value, baseHeight), maxHeight);
@@ -163,7 +163,7 @@ export default function MapView({
     // Crea GeoJSON per neuroni
     const neuroniFeatures = neuroniConCoord.map((neurone) => {
       const isLuogo = neurone.tipo === 'luogo';
-      const baseSize = isLuogo ? 80 : 60; // metri - dimensione base dei poligoni
+      const baseSize = isLuogo ? 105 : 80; // metri - +30% (era 80/60)
       const height = calculateHeight(neurone, getSinapsiCount(neurone.id));
 
       const polygon = isLuogo
@@ -208,7 +208,20 @@ export default function MapView({
         'fill-extrusion-color': ['get', 'color'],
         'fill-extrusion-height': ['get', 'height'],
         'fill-extrusion-base': 0,
-        'fill-extrusion-opacity': 0.85,
+        'fill-extrusion-opacity': 0.9,
+        'fill-extrusion-vertical-gradient': true, // Gradiente verticale (più chiaro in alto)
+      },
+    });
+
+    // Layer bordo 2D alla base per definire meglio le forme
+    m.addLayer({
+      id: 'neuroni-outline',
+      type: 'line',
+      source: 'neuroni',
+      paint: {
+        'line-color': '#1e293b', // Grigio scuro
+        'line-width': 2,
+        'line-opacity': 0.6,
       },
     });
 
