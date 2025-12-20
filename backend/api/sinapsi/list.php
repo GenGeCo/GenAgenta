@@ -22,8 +22,13 @@ $where = [];
 $params = [];
 
 // Filtro visibilità
+// - Senza PIN: solo connessioni aziendali
+// - Con PIN: connessioni aziendali + le PROPRIE connessioni personali (non quelle di altri utenti!)
 if (!$hasPersonalAccess) {
     $where[] = "s.livello = 'aziendale'";
+} else {
+    $where[] = "(s.livello = 'aziendale' OR (s.livello = 'personale' AND s.creato_da = ?))";
+    $params[] = $user['user_id'];
 }
 
 // Filtro tipo connessione

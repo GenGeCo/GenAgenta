@@ -37,8 +37,13 @@ if (!$sinapsi) {
 }
 
 // Controllo visibilità
-if ($sinapsi['livello'] === 'personale' && !$hasPersonalAccess) {
-    errorResponse('Accesso non autorizzato', 403);
+// Le sinapsi personali sono visibili SOLO al proprietario con PIN valido
+if ($sinapsi['livello'] === 'personale') {
+    $isOwner = $sinapsi['creato_da'] === $user['user_id'];
+
+    if (!$hasPersonalAccess || !$isOwner) {
+        errorResponse('Accesso non autorizzato', 403);
+    }
 }
 
 jsonResponse($sinapsi);

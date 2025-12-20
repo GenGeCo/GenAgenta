@@ -26,8 +26,13 @@ $where = [];
 $params = [];
 
 // Filtro visibilità
+// - Senza PIN: solo dati aziendali
+// - Con PIN: dati aziendali + i PROPRI dati personali (non quelli di altri utenti!)
 if (!$hasPersonalAccess) {
     $where[] = "visibilita = 'aziendale'";
+} else {
+    $where[] = "(visibilita = 'aziendale' OR (visibilita = 'personale' AND creato_da = ?))";
+    $params[] = $user['user_id'];
 }
 
 // Filtro tipo

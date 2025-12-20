@@ -25,16 +25,21 @@ if (!$neurone) {
 }
 
 // Controllo visibilità
-if ($neurone['visibilita'] === 'personale' && !$hasPersonalAccess) {
-    // Restituisci versione anonimizzata
-    jsonResponse([
-        'id' => $neurone['id'],
-        'nome' => 'Fonte anonima',
-        'tipo' => $neurone['tipo'],
-        'categorie' => ['altro'],
-        'visibilita' => 'personale',
-        'is_hidden' => true
-    ]);
+// I neuroni personali sono visibili SOLO al proprietario con PIN valido
+if ($neurone['visibilita'] === 'personale') {
+    $isOwner = $neurone['creato_da'] === $user['user_id'];
+
+    if (!$hasPersonalAccess || !$isOwner) {
+        // Restituisci versione anonimizzata
+        jsonResponse([
+            'id' => $neurone['id'],
+            'nome' => 'Fonte anonima',
+            'tipo' => $neurone['tipo'],
+            'categorie' => ['altro'],
+            'visibilita' => 'personale',
+            'is_hidden' => true
+        ]);
+    }
 }
 
 // Decodifica JSON
