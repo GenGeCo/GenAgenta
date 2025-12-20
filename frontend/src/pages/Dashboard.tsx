@@ -12,7 +12,7 @@ import UserMenu from '../components/UserMenu';
 import type { Neurone, Sinapsi, FiltriMappa } from '../types';
 
 export default function Dashboard() {
-  const { user, personalAccess, verifyPin, exitPersonalMode, logout } = useAuth();
+  const { user, personalAccess, verifyPin, exitPersonalMode, logout, updateUser } = useAuth();
 
   // State
   const [neuroni, setNeuroni] = useState<Neurone[]>([]);
@@ -128,7 +128,7 @@ export default function Dashboard() {
             </button>
           ) : null}
 
-          {user && <UserMenu user={user} onLogout={logout} />}
+          {user && <UserMenu user={user} onLogout={logout} onUserUpdate={updateUser} />}
         </header>
 
         {/* Area contenuto */}

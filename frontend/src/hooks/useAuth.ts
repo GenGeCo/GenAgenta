@@ -76,6 +76,13 @@ export function useAuth() {
     setState((s) => ({ ...s, personalAccess: false }));
   }, []);
 
+  const updateUser = useCallback((updates: Partial<typeof state.user>) => {
+    setState((s) => ({
+      ...s,
+      user: s.user ? { ...s.user, ...updates } : null,
+    }));
+  }, []);
+
   return {
     user: state.user,
     isAuthenticated: !!state.user,
@@ -85,5 +92,6 @@ export function useAuth() {
     logout,
     verifyPin,
     exitPersonalMode,
+    updateUser,
   };
 }
