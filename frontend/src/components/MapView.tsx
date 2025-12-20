@@ -155,6 +155,7 @@ export default function MapView({
     // Rimuovi source e layer esistenti
     try {
       if (m.getLayer('neuroni-3d')) m.removeLayer('neuroni-3d');
+      if (m.getLayer('neuroni-2d')) m.removeLayer('neuroni-2d');
       if (m.getLayer('neuroni-outline')) m.removeLayer('neuroni-outline');
       if (m.getSource('neuroni')) m.removeSource('neuroni');
       if (m.getLayer('sinapsi-lines')) m.removeLayer('sinapsi-lines');
@@ -214,23 +215,35 @@ export default function MapView({
       data: geojsonData,
     });
 
-    // Layer 3D - usando valori numerici diretti invece di expressions
+    // Layer 2D per debug - questo DEVE apparire
+    m.addLayer({
+      id: 'neuroni-2d',
+      type: 'fill',
+      source: 'neuroni',
+      paint: {
+        'fill-color': ['get', 'color'],
+        'fill-opacity': 0.7,
+      },
+    });
+    console.log('Layer neuroni-2d (fill) aggiunto');
+
+    // Layer 3D extrusion
     m.addLayer({
       id: 'neuroni-3d',
       type: 'fill-extrusion',
       source: 'neuroni',
       paint: {
         'fill-extrusion-color': ['get', 'color'],
-        'fill-extrusion-height': ['to-number', ['get', 'height']],
+        'fill-extrusion-height': 200, // altezza fissa per test
         'fill-extrusion-base': 0,
         'fill-extrusion-opacity': 0.9,
       },
     });
 
-    // Verifica che il layer esista
-    const layer = m.getLayer('neuroni-3d');
-    console.log('Layer neuroni-3d esiste:', !!layer);
-    console.log('Layer neuroni-3d aggiunto');
+    // Verifica che i layer esistano
+    console.log('Layer neuroni-2d esiste:', !!m.getLayer('neuroni-2d'));
+    console.log('Layer neuroni-3d esiste:', !!m.getLayer('neuroni-3d'));
+    console.log('Layers aggiunti');
 
     // Sinapsi
     const sinapsiFiltered = sinapsi.filter((s) => {
