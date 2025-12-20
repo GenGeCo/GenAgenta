@@ -193,6 +193,15 @@ class ApiClient {
     return data;
   }
 
+  async uploadFoto(file: File): Promise<{ success: boolean; foto_url: string }> {
+    const formData = new FormData();
+    formData.append('foto', file);
+    const { data } = await this.client.post('/users/upload-foto', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return data;
+  }
+
   async changePassword(params: {
     password_attuale: string;
     nuova_password: string;

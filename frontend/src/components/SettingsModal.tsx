@@ -1,6 +1,6 @@
 // GenAgenTa - Settings Modal Component
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { api } from '../utils/api';
 import type { User } from '../types';
 
@@ -24,10 +24,13 @@ type Tab = 'profilo' | 'password' | 'team';
 
 export default function SettingsModal({ user, onClose, onUserUpdate }: SettingsModalProps) {
   const [activeTab, setActiveTab] = useState<Tab>('profilo');
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Profilo state
   const [nome, setNome] = useState(user.nome);
   const [fotoUrl, setFotoUrl] = useState(user.foto_url || '');
+  const [fotoPreview, setFotoPreview] = useState<string | null>(null);
+  const [uploadingFoto, setUploadingFoto] = useState(false);
   const [savingProfile, setSavingProfile] = useState(false);
   const [profileMessage, setProfileMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
@@ -64,12 +67,51 @@ export default function SettingsModal({ user, onClose, onUserUpdate }: SettingsM
     }
   };
 
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validazione client-side
+    if (file.size > 2 * 1024 * 1024) {
+      setProfileMessage({ type: 'error', text: 'File troppo grande (max 2MB)' });
+      return;
+    }
+
+    if (!['image/jpeg', 'image/png', 'image/gif', 'image/webp'].includes(file.type)) {
+      setProfileMessage({ type: 'error', text: 'Tipo file non permesso. Usa JPG, PNG, GIF o WebP' });
+      return;
+    }
+
+    // Preview locale
+    const reader = new FileReader();
+    reader.onload = (e) => setFotoPreview(e.target?.result as string);
+    reader.readAsDataURL(file);
+
+    // Upload
+    setUploadingFoto(true);
+    setProfileMessage(null);
+    try {
+      const result = await api.uploadFoto(file);
+      setFotoUrl(result.foto_url);
+      setFotoPreview(null);
+      onUserUpdate({ foto_url: result.foto_url });
+      setProfileMessage({ type: 'success', text: 'Foto caricata!' });
+    } catch (error: unknown) {
+      const err = error as { response?: { data?: { error?: string } } };
+      setProfileMessage({ type: 'error', text: err.response?.data?.error || 'Errore caricamento foto' });
+      setFotoPreview(null);
+    } finally {
+      setUploadingFoto(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
   const handleSaveProfile = async () => {
     setSavingProfile(true);
     setProfileMessage(null);
     try {
-      await api.updateProfile({ nome, foto_url: fotoUrl || undefined });
-      onUserUpdate({ nome, foto_url: fotoUrl || undefined });
+      await api.updateProfile({ nome });
+      onUserUpdate({ nome });
       setProfileMessage({ type: 'success', text: 'Profilo aggiornato!' });
     } catch (error: unknown) {
       const err = error as { response?: { data?: { error?: string } } };
@@ -219,27 +261,66 @@ export default function SettingsModal({ user, onClose, onUserUpdate }: SettingsM
           {/* TAB: Profilo */}
           {activeTab === 'profilo' && (
             <div>
-              {/* Avatar preview */}
+              {/* Avatar con upload */}
               <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '24px' }}>
-                <div
-                  style={{
-                    width: '80px',
-                    height: '80px',
-                    borderRadius: '50%',
-                    background: fotoUrl ? `url(${fotoUrl}) center/cover` : 'linear-gradient(135deg, var(--primary), #8b5cf6)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontSize: '24px',
-                    fontWeight: 600,
-                    color: 'white',
-                  }}
-                >
-                  {!fotoUrl && getInitials(nome)}
+                <div style={{ position: 'relative' }}>
+                  <div
+                    style={{
+                      width: '80px',
+                      height: '80px',
+                      borderRadius: '50%',
+                      background: (fotoPreview || fotoUrl)
+                        ? `url(${fotoPreview || fotoUrl}) center/cover`
+                        : 'linear-gradient(135deg, var(--primary), #8b5cf6)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontSize: '24px',
+                      fontWeight: 600,
+                      color: 'white',
+                      opacity: uploadingFoto ? 0.5 : 1,
+                    }}
+                  >
+                    {!(fotoPreview || fotoUrl) && getInitials(nome)}
+                  </div>
+                  {uploadingFoto && (
+                    <div style={{
+                      position: 'absolute',
+                      inset: 0,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}>
+                      <div style={{ fontSize: '12px' }}>...</div>
+                    </div>
+                  )}
                 </div>
                 <div>
                   <div style={{ fontWeight: 600, fontSize: '16px' }}>{nome}</div>
-                  <div style={{ color: 'var(--text-secondary)', fontSize: '13px' }}>{user.email}</div>
+                  <div style={{ color: 'var(--text-secondary)', fontSize: '13px', marginBottom: '8px' }}>{user.email}</div>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/jpeg,image/png,image/gif,image/webp"
+                    onChange={handleFileSelect}
+                    style={{ display: 'none' }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={uploadingFoto}
+                    style={{
+                      padding: '6px 12px',
+                      background: 'var(--bg-primary)',
+                      border: '1px solid var(--border-color)',
+                      borderRadius: '6px',
+                      color: 'var(--text-primary)',
+                      cursor: 'pointer',
+                      fontSize: '12px',
+                    }}
+                  >
+                    {uploadingFoto ? 'Caricamento...' : 'Cambia foto'}
+                  </button>
                 </div>
               </div>
 
@@ -252,20 +333,6 @@ export default function SettingsModal({ user, onClose, onUserUpdate }: SettingsM
                   onChange={(e) => setNome(e.target.value)}
                   placeholder="Il tuo nome"
                 />
-              </div>
-
-              <div className="form-group">
-                <label className="form-label">URL foto profilo (opzionale)</label>
-                <input
-                  type="url"
-                  className="form-input"
-                  value={fotoUrl}
-                  onChange={(e) => setFotoUrl(e.target.value)}
-                  placeholder="https://esempio.com/foto.jpg"
-                />
-                <p style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '4px' }}>
-                  Puoi usare un URL di Gravatar, Google, o qualsiasi immagine pubblica
-                </p>
               </div>
 
               {profileMessage && (

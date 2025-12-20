@@ -39,6 +39,7 @@ $routes = [
     // Users (profilo)
     'PUT:users/profile' => 'users/profile.php',
     'PUT:users/password' => 'users/password.php',
+    'POST:users/upload-foto' => 'users/upload-foto.php',
 
     // Azienda
     'GET:azienda/membri' => 'azienda/membri.php',
