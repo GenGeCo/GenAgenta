@@ -206,25 +206,30 @@ export default function MapView({
       features: neuroniFeatures,
     };
 
+    console.log('GeoJSON data:', JSON.stringify(geojsonData, null, 2).substring(0, 2000));
+
     // Aggiungi source
     m.addSource('neuroni', {
       type: 'geojson',
       data: geojsonData,
     });
 
-    // Layer 3D
+    // Layer 3D - usando valori numerici diretti invece di expressions
     m.addLayer({
       id: 'neuroni-3d',
       type: 'fill-extrusion',
       source: 'neuroni',
       paint: {
         'fill-extrusion-color': ['get', 'color'],
-        'fill-extrusion-height': ['get', 'height'],
-        'fill-extrusion-base': ['get', 'base_height'],
+        'fill-extrusion-height': ['to-number', ['get', 'height']],
+        'fill-extrusion-base': 0,
         'fill-extrusion-opacity': 0.9,
       },
     });
 
+    // Verifica che il layer esista
+    const layer = m.getLayer('neuroni-3d');
+    console.log('Layer neuroni-3d esiste:', !!layer);
     console.log('Layer neuroni-3d aggiunto');
 
     // Sinapsi
