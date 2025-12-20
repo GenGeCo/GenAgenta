@@ -1,4 +1,4 @@
-// GenAgenTa - Map View Component (Mapbox GL JS) - 3D Native Layers
+// GenAgenTa - Map View Component (Mapbox GL JS) - 3D Native Layers v2
 
 import { useEffect, useRef, useState, useCallback } from 'react';
 import mapboxgl from 'mapbox-gl';
