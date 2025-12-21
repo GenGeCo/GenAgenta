@@ -224,6 +224,11 @@ export default function Dashboard() {
                   }
                 }
               }}
+              onDelete={() => {
+                // Rimuovi il neurone dalla lista
+                setNeuroni(neuroni.filter(n => n.id !== selectedNeurone.id));
+                setSelectedNeurone(null);
+              }}
             />
           )}
         </div>

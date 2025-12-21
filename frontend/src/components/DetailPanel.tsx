@@ -10,13 +10,47 @@ interface DetailPanelProps {
   personalAccess: boolean;
   onClose: () => void;
   onSelectNeurone?: (id: string) => void;
+  onDelete?: () => void;
 }
 
-export default function DetailPanel({ neurone, personalAccess, onClose, onSelectNeurone }: DetailPanelProps) {
+export default function DetailPanel({ neurone, personalAccess, onClose, onSelectNeurone, onDelete }: DetailPanelProps) {
   const [sinapsi, setSinapsi] = useState<Sinapsi[]>([]);
   const [note, setNote] = useState<NotaPersonale[]>([]);
   const [activeTab, setActiveTab] = useState<'info' | 'connessioni' | 'note'>('info');
   const [loading, setLoading] = useState(true);
+
+  // Stato per eliminazione con doppio avviso
+  const [deleteStep, setDeleteStep] = useState<0 | 1 | 2>(0); // 0=no, 1=primo avviso, 2=conferma finale
+  const [deleting, setDeleting] = useState(false);
+
+  // Handler eliminazione
+  const handleDelete = async () => {
+    if (deleteStep === 0) {
+      setDeleteStep(1);
+      return;
+    }
+    if (deleteStep === 1) {
+      setDeleteStep(2);
+      return;
+    }
+    // Step 2: eliminazione effettiva
+    setDeleting(true);
+    try {
+      await api.deleteNeurone(neurone.id);
+      onDelete?.();
+      onClose();
+    } catch (error) {
+      console.error('Errore eliminazione:', error);
+      alert('Errore durante l\'eliminazione');
+    } finally {
+      setDeleting(false);
+      setDeleteStep(0);
+    }
+  };
+
+  const cancelDelete = () => {
+    setDeleteStep(0);
+  };
 
   // Carica sinapsi e note
   useEffect(() => {
@@ -70,20 +104,80 @@ export default function DetailPanel({ neurone, personalAccess, onClose, onSelect
             ))}
           </div>
         </div>
-        <button
-          onClick={onClose}
-          style={{
-            background: 'none',
-            border: 'none',
-            fontSize: '24px',
-            cursor: 'pointer',
-            color: 'var(--text-secondary)',
-            lineHeight: 1,
-          }}
-        >
-          &times;
-        </button>
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+          {/* Bottone Elimina */}
+          <button
+            onClick={handleDelete}
+            disabled={deleting}
+            style={{
+              background: deleteStep > 0 ? '#ef4444' : 'transparent',
+              border: deleteStep > 0 ? 'none' : '1px solid #ef4444',
+              color: deleteStep > 0 ? 'white' : '#ef4444',
+              padding: '6px 12px',
+              borderRadius: '6px',
+              fontSize: '12px',
+              cursor: 'pointer',
+              fontWeight: 500,
+            }}
+          >
+            {deleting ? '...' : deleteStep === 0 ? 'Elimina' : deleteStep === 1 ? 'Conferma?' : 'ELIMINA!'}
+          </button>
+          {deleteStep > 0 && (
+            <button
+              onClick={cancelDelete}
+              style={{
+                background: 'transparent',
+                border: '1px solid var(--border-color)',
+                color: 'var(--text-secondary)',
+                padding: '6px 10px',
+                borderRadius: '6px',
+                fontSize: '12px',
+                cursor: 'pointer',
+              }}
+            >
+              Annulla
+            </button>
+          )}
+          <button
+            onClick={onClose}
+            style={{
+              background: 'none',
+              border: 'none',
+              fontSize: '24px',
+              cursor: 'pointer',
+              color: 'var(--text-secondary)',
+              lineHeight: 1,
+            }}
+          >
+            &times;
+          </button>
+        </div>
       </div>
+
+      {/* Avviso eliminazione */}
+      {deleteStep > 0 && (
+        <div style={{
+          padding: '12px 16px',
+          background: deleteStep === 1 ? '#fef3c7' : '#fee2e2',
+          borderBottom: '1px solid var(--border-color)',
+          fontSize: '13px',
+          color: deleteStep === 1 ? '#92400e' : '#b91c1c',
+        }}>
+          {deleteStep === 1 ? (
+            <>
+              <strong>Attenzione!</strong> Stai per eliminare "{neurone.nome}".
+              {sinapsi.length > 0 && ` Verranno eliminate anche ${sinapsi.length} connessioni.`}
+              {note.length > 0 && ` E ${note.length} note personali.`}
+              <br />Clicca di nuovo per confermare.
+            </>
+          ) : (
+            <>
+              <strong>ULTIMA CONFERMA!</strong> L'eliminazione è irreversibile.
+              <br />Clicca "ELIMINA!" per procedere o "Annulla" per tornare indietro.
+            </>
+          )}
+        </div>
+      )}
 
       {/* Tabs */}
       <div style={{
