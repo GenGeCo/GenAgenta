@@ -64,10 +64,14 @@ $stmt = $db->prepare('
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 ');
 
+// DEBUG TEMPORANEO: usa direttamente $data['tipo'] per bypassare la validazione
+$tipoFinale = $data['tipo']; // Provo direttamente dal payload
+error_log("DEBUG create.php: tipoFinale=$tipoFinale (da data), tipoNome=$tipoNome (da validazione)");
+
 $params = [
     $id,
     $data['nome'],
-    $tipoNome,
+    $tipoFinale,  // Uso direttamente il tipo dal payload
     json_encode($data['categorie']),
     $visibilita,
     $data['lat'] ?? null,
