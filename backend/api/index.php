@@ -77,6 +77,10 @@ $routes = [
     // Tipi Sinapsi
     'GET:tipi-sinapsi' => 'tipi-sinapsi/list.php',
     'POST:tipi-sinapsi' => 'tipi-sinapsi/create.php',
+
+    // Famiglie Prodotto
+    'GET:famiglie-prodotto' => 'famiglie-prodotto/list.php',
+    'POST:famiglie-prodotto' => 'famiglie-prodotto/create.php',
 ];
 
 // Match route con parametri
@@ -149,6 +153,13 @@ if (!$handler) {
         switch ($method) {
             case 'PUT': $handler = 'tipi-sinapsi/update.php'; break;
             case 'DELETE': $handler = 'tipi-sinapsi/delete.php'; break;
+        }
+    } elseif (preg_match('/^famiglie-prodotto\/([a-zA-Z0-9-]+)$/', $path, $matches)) {
+        $params['id'] = $matches[1];
+        switch ($method) {
+            case 'GET': $handler = 'famiglie-prodotto/get.php'; break;
+            case 'PUT': $handler = 'famiglie-prodotto/update.php'; break;
+            case 'DELETE': $handler = 'famiglie-prodotto/delete.php'; break;
         }
     }
 }

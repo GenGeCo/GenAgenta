@@ -140,6 +140,28 @@ CREATE TABLE note_personali (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- =====================================================
+-- FAMIGLIE PRODOTTO (Gerarchiche)
+-- =====================================================
+CREATE TABLE famiglie_prodotto (
+    id CHAR(36) PRIMARY KEY,
+    nome VARCHAR(100) NOT NULL,
+    parent_id CHAR(36) DEFAULT NULL,  -- Per gerarchia (padre -> figlio)
+    descrizione TEXT DEFAULT NULL,
+    ordine INT DEFAULT 0,
+    visibilita ENUM('aziendale', 'personale') DEFAULT 'aziendale',
+    azienda_id CHAR(36) DEFAULT NULL,
+    creato_da CHAR(36) DEFAULT NULL,
+    data_creazione TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    data_modifica TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+
+    FOREIGN KEY (parent_id) REFERENCES famiglie_prodotto(id) ON DELETE CASCADE,
+    INDEX idx_parent (parent_id),
+    INDEX idx_azienda (azienda_id),
+    INDEX idx_visibilita (visibilita),
+    INDEX idx_ordine (ordine)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- =====================================================
 -- DATI INIZIALI - Utente admin
 -- =====================================================
 -- Password: admin123 (da cambiare!)

@@ -1,7 +1,7 @@
 // GenAgenTa - API Client
 
 import axios, { AxiosInstance, AxiosError } from 'axios';
-import type { Neurone, Sinapsi, NotaPersonale, User, DashboardStats, TipoNeuroneConfig, Categoria, TipoSinapsiConfig, FormaNeurone, Visibilita } from '../types';
+import type { Neurone, Sinapsi, NotaPersonale, User, DashboardStats, TipoNeuroneConfig, Categoria, TipoSinapsiConfig, FormaNeurone, Visibilita, FamigliaProdotto } from '../types';
 
 const API_BASE = import.meta.env.PROD
   ? '/genagenta/backend/api/index.php'
@@ -371,6 +371,48 @@ class ApiClient {
 
   async deleteTipoSinapsi(id: string): Promise<{ success: boolean }> {
     const { data } = await this.client.delete(`/tipi-sinapsi/${id}`);
+    return data;
+  }
+
+  // =====================================================
+  // Famiglie Prodotto (gerarchiche)
+  // =====================================================
+  async getFamiglieProdotto(params?: {
+    parent_id?: string | null;
+    flat?: boolean;
+  }): Promise<{ data: FamigliaProdotto[] }> {
+    const { data } = await this.client.get('/famiglie-prodotto', { params });
+    return data;
+  }
+
+  async getFamigliaProdotto(id: string): Promise<FamigliaProdotto> {
+    const { data } = await this.client.get(`/famiglie-prodotto/${id}`);
+    return data;
+  }
+
+  async createFamigliaProdotto(famiglia: {
+    nome: string;
+    parent_id?: string | null;
+    descrizione?: string;
+    visibilita?: Visibilita;
+    ordine?: number;
+  }): Promise<{ id: string; message: string }> {
+    const { data } = await this.client.post('/famiglie-prodotto', famiglia);
+    return data;
+  }
+
+  async updateFamigliaProdotto(id: string, famiglia: {
+    nome?: string;
+    parent_id?: string | null;
+    descrizione?: string;
+    ordine?: number;
+  }): Promise<{ success: boolean }> {
+    const { data } = await this.client.put(`/famiglie-prodotto/${id}`, famiglia);
+    return data;
+  }
+
+  async deleteFamigliaProdotto(id: string): Promise<{ success: boolean; deleted_children: number }> {
+    const { data } = await this.client.delete(`/famiglie-prodotto/${id}`);
     return data;
   }
 }

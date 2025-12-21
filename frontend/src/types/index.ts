@@ -185,3 +185,20 @@ export interface TipoSinapsiConfig {
   num_sinapsi?: number;
   data_creazione: string;
 }
+
+// Famiglia prodotto gerarchica
+export interface FamigliaProdotto {
+  id: string;
+  nome: string;
+  parent_id: string | null;
+  descrizione: string | null;
+  ordine: number;
+  visibilita: Visibilita;
+  azienda_id: string | null;
+  creato_da: string | null;
+  num_figli?: number;
+  parent_nome?: string;
+  children?: FamigliaProdotto[];
+  path?: { id: string; nome: string }[];
+  data_creazione: string;
+}
