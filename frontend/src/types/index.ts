@@ -1,6 +1,7 @@
 // GenAgenTa - Type definitions
 
-export type TipoNeurone = 'persona' | 'impresa' | 'luogo';
+// I tipi neurone sono ora configurabili dal database, quindi usiamo string
+export type TipoNeurone = string;
 export type Visibilita = 'aziendale' | 'personale';
 export type Certezza = 'certo' | 'probabile' | 'ipotesi';
 export type Livello = 'aziendale' | 'personale';

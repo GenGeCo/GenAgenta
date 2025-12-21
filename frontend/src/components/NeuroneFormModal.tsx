@@ -213,7 +213,7 @@ export default function NeuroneFormModal({
       return;
     }
 
-    // Trova nomi per backward compatibility
+    // Trova nomi per il salvataggio
     const tipoNome = tipiNeurone.find(t => t.id === tipoId)?.nome || '';
     const categoriaNome = categorieDB.find(c => c.id === categoriaId)?.nome || '';
     const tipoLower = tipoNome.toLowerCase();
@@ -232,8 +232,8 @@ export default function NeuroneFormModal({
     try {
       const payload = {
         nome: nome.trim(),
-        tipo: tipoLower as 'persona' | 'impresa' | 'luogo',
-        categorie: [categoriaNome.toLowerCase()],
+        tipo: tipoNome, // Invia il nome esatto del tipo (es. "Cantiere", non "cantiere")
+        categorie: [categoriaNome],  // Anche categoria con nome esatto
         visibilita,
         indirizzo: indirizzo || null,
         lat: lat || null,
