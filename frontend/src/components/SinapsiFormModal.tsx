@@ -82,33 +82,44 @@ export default function SinapsiFormModal({
     loadData();
   }, []);
 
-  // Cerca neuroni
-  useEffect(() => {
-    if (searchTerm.length < 2) {
-      setNeuroni([]);
-      return;
-    }
+  // Stato per tutti i neuroni (caricati una volta)
+  const [tuttiNeuroni, setTuttiNeuroni] = useState<NeuroneOption[]>([]);
 
-    const search = async () => {
+  // Carica tutti i neuroni all'avvio
+  useEffect(() => {
+    const loadNeuroni = async () => {
       setLoading(true);
       try {
-        const { data } = await api.getNeuroni({ search: searchTerm, limit: 10 });
+        const { data } = await api.getNeuroni({ limit: 200 });
         // Escludi il neurone corrente
-        setNeuroni(
+        setTuttiNeuroni(
           data
             .filter((n) => n.id !== neuroneCorrente.id)
             .map((n) => ({ id: n.id, nome: n.nome, tipo: n.tipo }))
         );
       } catch (err) {
-        console.error('Errore ricerca neuroni:', err);
+        console.error('Errore caricamento neuroni:', err);
       } finally {
         setLoading(false);
       }
     };
+    loadNeuroni();
+  }, [neuroneCorrente.id]);
 
-    const timeoutId = setTimeout(search, 300);
-    return () => clearTimeout(timeoutId);
-  }, [searchTerm, neuroneCorrente.id]);
+  // Filtra neuroni in tempo reale (locale)
+  useEffect(() => {
+    if (!searchTerm.trim()) {
+      setNeuroni(tuttiNeuroni);
+      return;
+    }
+    const termLower = searchTerm.toLowerCase();
+    setNeuroni(
+      tuttiNeuroni.filter(n =>
+        n.nome.toLowerCase().includes(termLower) ||
+        n.tipo.toLowerCase().includes(termLower)
+      )
+    );
+  }, [searchTerm, tuttiNeuroni]);
 
   // Salvataggio
   const handleSubmit = async (e: React.FormEvent) => {
@@ -231,58 +242,80 @@ export default function SinapsiFormModal({
 
           {/* Ricerca neurone collegato */}
           <div className="form-group">
-            <label className="form-label">Collega a</label>
-            {selectedNeuroneName && !searchTerm ? (
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <span className="badge badge-persona">{selectedNeuroneName}</span>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setNeuroneCollegato('');
-                    setSearchTerm('');
-                  }}
-                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-secondary)' }}
-                >
-                  &times;
-                </button>
-              </div>
-            ) : (
-              <>
-                <input
-                  type="text"
-                  className="form-input"
-                  placeholder="Cerca neurone..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                />
-                {loading && <p style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Ricerca...</p>}
-                {neuroni.length > 0 && (
-                  <div style={{ marginTop: '8px', border: '1px solid var(--border-color)', borderRadius: '4px', maxHeight: '150px', overflow: 'auto' }}>
-                    {neuroni.map((n) => (
-                      <div
-                        key={n.id}
-                        onClick={() => {
-                          setNeuroneCollegato(n.id);
-                          setSearchTerm('');
-                        }}
-                        style={{
-                          padding: '8px 12px',
-                          cursor: 'pointer',
-                          borderBottom: '1px solid var(--border-color)',
-                        }}
-                        onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--bg-secondary)')}
-                        onMouseLeave={(e) => (e.currentTarget.style.background = '')}
-                      >
-                        <span style={{ fontWeight: 500 }}>{n.nome}</span>
-                        <span style={{ fontSize: '12px', color: 'var(--text-secondary)', marginLeft: '8px' }}>
-                          ({n.tipo})
-                        </span>
-                      </div>
-                    ))}
+            <label className="form-label">
+              Collega a
+              {neuroneCollegato && (
+                <span style={{ marginLeft: '8px', color: 'var(--primary)', fontWeight: 500 }}>
+                  ✓ {tuttiNeuroni.find(n => n.id === neuroneCollegato)?.nome || selectedNeuroneName}
+                </span>
+              )}
+            </label>
+
+            {/* Campo filtro sempre visibile */}
+            <input
+              type="text"
+              className="form-input"
+              placeholder={loading ? 'Caricamento...' : `Filtra tra ${tuttiNeuroni.length} neuroni...`}
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              disabled={loading}
+            />
+
+            {/* Lista neuroni sempre visibile */}
+            <div style={{
+              marginTop: '8px',
+              border: '1px solid var(--border-color)',
+              borderRadius: '4px',
+              maxHeight: '200px',
+              overflow: 'auto',
+              background: 'var(--bg-primary)'
+            }}>
+              {loading ? (
+                <div style={{ padding: '12px', textAlign: 'center', color: 'var(--text-secondary)' }}>
+                  Caricamento neuroni...
+                </div>
+              ) : neuroni.length === 0 ? (
+                <div style={{ padding: '12px', textAlign: 'center', color: 'var(--text-secondary)' }}>
+                  Nessun neurone trovato
+                </div>
+              ) : (
+                neuroni.map((n) => (
+                  <div
+                    key={n.id}
+                    onClick={() => {
+                      setNeuroneCollegato(n.id);
+                      setSearchTerm('');
+                    }}
+                    style={{
+                      padding: '8px 12px',
+                      cursor: 'pointer',
+                      borderBottom: '1px solid var(--border-color)',
+                      background: n.id === neuroneCollegato ? 'var(--primary)' : 'transparent',
+                      color: n.id === neuroneCollegato ? 'white' : 'inherit',
+                    }}
+                    onMouseEnter={(e) => {
+                      if (n.id !== neuroneCollegato) {
+                        e.currentTarget.style.background = 'var(--bg-secondary)';
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      if (n.id !== neuroneCollegato) {
+                        e.currentTarget.style.background = 'transparent';
+                      }
+                    }}
+                  >
+                    <span style={{ fontWeight: 500 }}>{n.nome}</span>
+                    <span style={{
+                      fontSize: '12px',
+                      marginLeft: '8px',
+                      opacity: 0.7
+                    }}>
+                      ({n.tipo})
+                    </span>
                   </div>
-                )}
-              </>
-            )}
+                ))
+              )}
+            </div>
           </div>
 
           {/* Tipo connessione */}
