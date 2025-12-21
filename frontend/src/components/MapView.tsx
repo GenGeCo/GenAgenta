@@ -241,12 +241,9 @@ export default function MapView({
       // Layer non esistenti, ignora
     }
 
-    // DEBUG: log PRIMA del check per vedere i dati
-    console.log('DEBUG MapView:', {
-      neuroniCaricati: neuroniConCoord.map(n => ({ nome: n.nome, tipo: n.tipo })),
-      tipiDisponibili: tipiNeurone.map(t => ({ nome: t.nome, forma: t.forma })),
-      tipiCount: tipiNeurone.length
-    });
+    // DEBUG: log PRIMA del check per vedere i dati (stringificato per leggibilità)
+    console.log('DEBUG neuroni:', JSON.stringify(neuroniConCoord.map(n => ({ nome: n.nome, tipo: n.tipo }))));
+    console.log('DEBUG tipi:', JSON.stringify(tipiNeurone.map(t => ({ nome: t.nome, forma: t.forma }))));
 
     // Aspetta che tipiNeurone sia caricato per determinare le forme corrette
     if (neuroniConCoord.length === 0 || tipiNeurone.length === 0) return;
