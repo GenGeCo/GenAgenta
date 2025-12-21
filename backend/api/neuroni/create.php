@@ -15,28 +15,45 @@ foreach ($required as $field) {
     }
 }
 
-// Valida tipo
-$tipiValidi = ['persona', 'impresa', 'luogo'];
-if (!in_array($data['tipo'], $tipiValidi)) {
-    errorResponse('Tipo non valido. Valori: ' . implode(', ', $tipiValidi), 400);
+// Valida tipo - deve esistere nella tabella tipi_neurone
+$db = getDB();
+$aziendaId = $user['azienda_id'] ?? null;
+$hasPersonalAccess = ($user['personal_access'] ?? false) === true;
+
+// Cerca il tipo per nome o ID (supporta sia il nome che l'UUID)
+$sqlTipo = "
+    SELECT id, nome FROM tipi_neurone
+    WHERE (id = ? OR nome = ?)
+    AND (
+        (visibilita = 'aziendale' AND azienda_id = ?)
+        " . ($hasPersonalAccess ? "OR (visibilita = 'personale' AND creato_da = ?)" : "") . "
+    )
+";
+$paramsTipo = [$data['tipo'], $data['tipo'], $aziendaId];
+if ($hasPersonalAccess) {
+    $paramsTipo[] = $user['user_id'];
 }
+$stmtTipo = $db->prepare($sqlTipo);
+$stmtTipo->execute($paramsTipo);
+$tipoRow = $stmtTipo->fetch();
+
+if (!$tipoRow) {
+    errorResponse('Tipo non valido o non accessibile', 400);
+}
+// Usa il nome del tipo per salvare nel DB (per retrocompatibilità)
+$tipoNome = $tipoRow['nome'];
 
 // Valida categorie (deve essere array)
 if (!is_array($data['categorie'])) {
     errorResponse('Categorie deve essere un array', 400);
 }
 
-$db = getDB();
-
 $id = generateUUID();
 $visibilita = $data['visibilita'] ?? 'aziendale';
 
 // Se visibilità personale, richiede accesso personale
-if ($visibilita === 'personale') {
-    $hasPersonalAccess = ($user['personal_access'] ?? false) === true;
-    if (!$hasPersonalAccess) {
-        errorResponse('Accesso personale richiesto per creare neuroni privati', 403);
-    }
+if ($visibilita === 'personale' && !$hasPersonalAccess) {
+    errorResponse('Accesso personale richiesto per creare neuroni privati', 403);
 }
 
 $stmt = $db->prepare('
@@ -47,7 +64,7 @@ $stmt = $db->prepare('
 $stmt->execute([
     $id,
     $data['nome'],
-    $data['tipo'],
+    $tipoNome,
     json_encode($data['categorie']),
     $visibilita,
     $data['lat'] ?? null,
