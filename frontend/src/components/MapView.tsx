@@ -16,6 +16,7 @@ interface MapViewProps {
   pickingMode?: boolean;
   onPickPosition?: (lat: number, lng: number) => void;
   flyToPosition?: { lat: number; lng: number } | null;
+  pickedPosition?: { lat: number; lng: number } | null;
 }
 
 // Colori per tipo neurone
@@ -93,10 +94,12 @@ export default function MapView({
   pickingMode = false,
   onPickPosition,
   flyToPosition,
+  pickedPosition,
 }: MapViewProps) {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
   const popup = useRef<mapboxgl.Popup | null>(null);
+  const markerRef = useRef<mapboxgl.Marker | null>(null);
   const [mapReady, setMapReady] = useState(false);
   const neuroniRef = useRef<Neurone[]>(neuroni);
   const handlersAdded = useRef(false);
@@ -169,6 +172,53 @@ export default function MapView({
       duration: 1500,
     });
   }, [flyToPosition, mapReady]);
+
+  // Cambia cursore in picking mode
+  useEffect(() => {
+    if (!map.current || !mapReady) return;
+
+    const canvas = map.current.getCanvas();
+    if (pickingMode) {
+      canvas.style.cursor = 'crosshair';
+    } else {
+      canvas.style.cursor = '';
+    }
+  }, [pickingMode, mapReady]);
+
+  // Mostra marker temporaneo quando si seleziona posizione
+  useEffect(() => {
+    if (!map.current || !mapReady) return;
+
+    // Rimuovi marker esistente
+    if (markerRef.current) {
+      markerRef.current.remove();
+      markerRef.current = null;
+    }
+
+    // Crea nuovo marker se c'è una posizione
+    if (pickedPosition) {
+      // Crea elemento HTML per il marker (spillo rosso)
+      const el = document.createElement('div');
+      el.innerHTML = `
+        <svg width="30" height="40" viewBox="0 0 30 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M15 0C6.716 0 0 6.716 0 15c0 10.5 15 25 15 25s15-14.5 15-25C30 6.716 23.284 0 15 0z" fill="#ef4444"/>
+          <circle cx="15" cy="14" r="6" fill="white"/>
+        </svg>
+      `;
+      el.style.cursor = 'pointer';
+
+      markerRef.current = new mapboxgl.Marker({ element: el, anchor: 'bottom' })
+        .setLngLat([pickedPosition.lng, pickedPosition.lat])
+        .addTo(map.current);
+    }
+
+    return () => {
+      if (markerRef.current) {
+        markerRef.current.remove();
+        markerRef.current = null;
+      }
+    };
+  }, [pickedPosition, mapReady]);
 
   // Aggiorna layer quando cambiano i dati
   useEffect(() => {
