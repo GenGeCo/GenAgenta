@@ -1,4 +1,4 @@
-// GenAgenTa - Form per creare/modificare Neurone (Drawer dall'alto)
+// GenAgenTa - Form per creare/modificare Neurone
 
 import { useState, useEffect } from 'react';
 import { api } from '../utils/api';
@@ -30,6 +30,7 @@ export default function NeuroneFormModal({
   isPickingMap = false,
 }: NeuroneFormModalProps) {
   const isEdit = !!neurone;
+  const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
 
   const [tipo, setTipo] = useState<TipoNeurone>(neurone?.tipo || 'persona');
   const [nome, setNome] = useState(neurone?.nome || '');
@@ -46,6 +47,13 @@ export default function NeuroneFormModal({
   const [gettingGps, setGettingGps] = useState(false);
   const [lat, setLat] = useState<number | null>(neurone?.lat || null);
   const [lng, setLng] = useState<number | null>(neurone?.lng || null);
+
+  // Rileva resize
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth <= 768);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   // Aggiorna posizione quando viene selezionata dalla mappa
   useEffect(() => {
@@ -174,7 +182,7 @@ export default function NeuroneFormModal({
     }
   };
 
-  // Se siamo in modalità picking, mostra solo una barra minimizzata
+  // Se siamo in modalità picking, mostra solo barra in alto
   if (isPickingMap) {
     return (
       <div
@@ -212,82 +220,159 @@ export default function NeuroneFormModal({
     );
   }
 
-  // Drawer normale dall'alto
-  return (
-    <div
-      style={{
-        position: 'fixed',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        zIndex: 2000,
-        display: 'flex',
-        flexDirection: 'column',
-      }}
-    >
-      {/* Drawer dall'alto - max 60% altezza */}
+  // MOBILE: Drawer dall'alto compatto
+  if (isMobile) {
+    return (
       <div
         style={{
-          background: 'var(--bg-secondary)',
-          maxHeight: '60vh',
-          overflow: 'hidden',
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          zIndex: 2000,
           display: 'flex',
           flexDirection: 'column',
-          boxShadow: '0 4px 20px rgba(0,0,0,0.3)',
-          borderRadius: '0 0 16px 16px',
         }}
       >
-        {/* Header compatto */}
         <div
           style={{
-            padding: '12px 16px',
-            borderBottom: '1px solid var(--border-color)',
+            background: 'var(--bg-secondary)',
+            maxHeight: '55vh',
+            overflow: 'hidden',
             display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            flexShrink: 0,
+            flexDirection: 'column',
+            boxShadow: '0 4px 20px rgba(0,0,0,0.3)',
+            borderRadius: '0 0 12px 12px',
           }}
         >
-          <h2 style={{ fontSize: '16px', fontWeight: 600, margin: 0 }}>
-            {isEdit ? 'Modifica' : 'Nuovo'} {tipo === 'persona' ? 'Persona' : tipo === 'impresa' ? 'Impresa' : 'Cantiere'}
-          </h2>
-          <button
-            onClick={onClose}
-            style={{
-              background: 'transparent',
-              border: 'none',
-              fontSize: '20px',
-              cursor: 'pointer',
-              color: 'var(--text-secondary)',
-              padding: '4px 8px',
-            }}
-          >
-            ✕
-          </button>
-        </div>
+          {/* Header */}
+          <div style={{ padding: '10px 14px', borderBottom: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
+            <h2 style={{ fontSize: '15px', fontWeight: 600, margin: 0 }}>
+              {isEdit ? 'Modifica' : 'Nuovo'} {tipo === 'persona' ? 'Persona' : tipo === 'impresa' ? 'Impresa' : 'Cantiere'}
+            </h2>
+            <button onClick={onClose} style={{ background: 'transparent', border: 'none', fontSize: '18px', cursor: 'pointer', color: 'var(--text-secondary)', padding: '2px 6px' }}>✕</button>
+          </div>
 
-        {/* Form scrollabile */}
-        <div style={{ padding: '12px 16px', overflowY: 'auto', flex: 1 }}>
-          {/* Tipo - pulsanti compatti */}
-          <div style={{ marginBottom: '12px' }}>
-            <div style={{ display: 'flex', gap: '6px' }}>
+          {/* Form compatto */}
+          <div style={{ padding: '10px 14px', overflowY: 'auto', flex: 1 }}>
+            {/* Tipo */}
+            <div style={{ display: 'flex', gap: '4px', marginBottom: '10px' }}>
               {(['persona', 'impresa', 'luogo'] as TipoNeurone[]).map((t) => (
                 <button
                   key={t}
                   type="button"
                   onClick={() => { setTipo(t); setCategorie([]); }}
-                  style={{
-                    flex: 1,
-                    padding: '8px',
-                    border: 'none',
-                    borderRadius: '8px',
-                    fontSize: '13px',
-                    fontWeight: tipo === t ? 600 : 400,
-                    cursor: 'pointer',
-                    background: tipo === t ? 'var(--primary)' : 'var(--bg-primary)',
-                    color: tipo === t ? 'white' : 'var(--text-primary)',
-                  }}
+                  style={{ flex: 1, padding: '6px', border: 'none', borderRadius: '6px', fontSize: '12px', fontWeight: tipo === t ? 600 : 400, cursor: 'pointer', background: tipo === t ? 'var(--primary)' : 'var(--bg-primary)', color: tipo === t ? 'white' : 'var(--text-primary)' }}
+                >
+                  {t === 'persona' ? 'Persona' : t === 'impresa' ? 'Impresa' : 'Cantiere'}
+                </button>
+              ))}
+            </div>
+
+            {/* Nome */}
+            <input type="text" className="form-input" value={nome} onChange={(e) => setNome(e.target.value)} placeholder="Nome *" style={{ fontSize: '13px', marginBottom: '8px', padding: '8px 10px' }} />
+
+            {/* Categorie */}
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '3px', marginBottom: '8px' }}>
+              {CATEGORIE_SUGGERITE[tipo].slice(0, 6).map((cat) => (
+                <button key={cat} type="button" onClick={() => toggleCategoria(cat)} style={{ padding: '3px 6px', borderRadius: '8px', border: 'none', fontSize: '10px', cursor: 'pointer', background: categorie.includes(cat) ? 'var(--primary)' : 'var(--bg-primary)', color: categorie.includes(cat) ? 'white' : 'var(--text-primary)' }}>
+                  {cat}
+                </button>
+              ))}
+            </div>
+
+            {/* Posizione */}
+            <div style={{ display: 'flex', gap: '4px', marginBottom: '8px' }}>
+              <input type="text" className="form-input" value={indirizzo} onChange={(e) => { setIndirizzo(e.target.value); setLat(null); setLng(null); }} placeholder="Indirizzo..." style={{ flex: 1, fontSize: '12px', padding: '6px 8px' }} />
+              <button type="button" onClick={handleGeocoding} disabled={geocoding || !indirizzo.trim()} style={{ padding: '6px 8px', border: 'none', borderRadius: '6px', background: 'var(--bg-primary)', cursor: 'pointer', fontSize: '12px' }}>{geocoding ? '...' : '🔍'}</button>
+            </div>
+            <div style={{ display: 'flex', gap: '4px', marginBottom: '8px' }}>
+              <button type="button" onClick={handleGetGps} disabled={gettingGps} style={{ flex: 1, padding: '6px', border: 'none', borderRadius: '6px', background: 'var(--bg-primary)', cursor: 'pointer', fontSize: '11px' }}>{gettingGps ? '...' : '📍 GPS'}</button>
+              {onRequestMapPick && (
+                <button type="button" onClick={onRequestMapPick} style={{ flex: 1, padding: '6px', border: 'none', borderRadius: '6px', background: 'var(--primary)', color: 'white', cursor: 'pointer', fontSize: '11px', fontWeight: 600 }}>🗺️ Mappa</button>
+              )}
+            </div>
+            {lat && lng && <div style={{ fontSize: '10px', color: 'var(--text-secondary)', marginBottom: '6px' }}>📍 {lat.toFixed(4)}, {lng.toFixed(4)}</div>}
+
+            {/* Contatti */}
+            <div style={{ display: 'flex', gap: '4px', marginBottom: '8px' }}>
+              <input type="tel" className="form-input" value={telefono} onChange={(e) => setTelefono(e.target.value)} placeholder="Telefono" style={{ flex: 1, fontSize: '12px', padding: '6px 8px' }} />
+              <input type="email" className="form-input" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email" style={{ flex: 1, fontSize: '12px', padding: '6px 8px' }} />
+            </div>
+
+            {/* Visibilita */}
+            <div style={{ display: 'flex', gap: '10px', fontSize: '11px', marginBottom: '6px' }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '3px', cursor: 'pointer' }}>
+                <input type="radio" name="visibilita" checked={visibilita === 'aziendale'} onChange={() => setVisibilita('aziendale')} /> Aziendale
+              </label>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '3px', cursor: 'pointer' }}>
+                <input type="radio" name="visibilita" checked={visibilita === 'personale'} onChange={() => setVisibilita('personale')} /> Personale
+              </label>
+            </div>
+
+            {error && <div style={{ padding: '6px', borderRadius: '4px', background: 'rgba(239,68,68,0.1)', color: '#ef4444', fontSize: '11px' }}>{error}</div>}
+          </div>
+
+          {/* Footer */}
+          <div style={{ padding: '10px 14px', borderTop: '1px solid var(--border-color)', display: 'flex', gap: '6px', flexShrink: 0 }}>
+            <button onClick={onClose} style={{ flex: 1, padding: '8px', border: '1px solid var(--border-color)', borderRadius: '6px', background: 'transparent', cursor: 'pointer', fontSize: '13px' }}>Annulla</button>
+            <button onClick={handleSubmit} disabled={saving} style={{ flex: 1, padding: '8px', border: 'none', borderRadius: '6px', background: 'var(--primary)', color: 'white', cursor: 'pointer', fontSize: '13px', fontWeight: 600 }}>{saving ? '...' : 'Salva'}</button>
+          </div>
+        </div>
+
+        {/* Sfondo cliccabile per chiudere */}
+        <div style={{ flex: 1, background: 'rgba(0,0,0,0.3)' }} onClick={onClose} />
+      </div>
+    );
+  }
+
+  // DESKTOP: Modale classico
+  return (
+    <div
+      style={{
+        position: 'fixed',
+        inset: 0,
+        background: 'rgba(0, 0, 0, 0.5)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        zIndex: 2000,
+      }}
+      onClick={(e) => e.target === e.currentTarget && onClose()}
+    >
+      <div
+        style={{
+          background: 'var(--bg-secondary)',
+          borderRadius: '12px',
+          width: '450px',
+          maxHeight: '80vh',
+          overflow: 'hidden',
+          display: 'flex',
+          flexDirection: 'column',
+          boxShadow: '0 8px 32px rgba(0,0,0,0.3)',
+        }}
+      >
+        {/* Header */}
+        <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <h2 style={{ fontSize: '18px', fontWeight: 600, margin: 0 }}>
+            {isEdit ? 'Modifica' : 'Nuovo'} {tipo === 'persona' ? 'Persona' : tipo === 'impresa' ? 'Impresa' : 'Cantiere'}
+          </h2>
+          <button onClick={onClose} style={{ background: 'transparent', border: 'none', fontSize: '22px', cursor: 'pointer', color: 'var(--text-secondary)', padding: '4px 8px' }}>✕</button>
+        </div>
+
+        {/* Form */}
+        <div style={{ padding: '20px', overflowY: 'auto', flex: 1 }}>
+          {/* Tipo */}
+          <div style={{ marginBottom: '16px' }}>
+            <label style={{ fontSize: '13px', fontWeight: 500, marginBottom: '6px', display: 'block', color: 'var(--text-secondary)' }}>Tipo</label>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              {(['persona', 'impresa', 'luogo'] as TipoNeurone[]).map((t) => (
+                <button
+                  key={t}
+                  type="button"
+                  onClick={() => { setTipo(t); setCategorie([]); }}
+                  style={{ flex: 1, padding: '10px', border: 'none', borderRadius: '8px', fontSize: '14px', fontWeight: tipo === t ? 600 : 400, cursor: 'pointer', background: tipo === t ? 'var(--primary)' : 'var(--bg-primary)', color: tipo === t ? 'white' : 'var(--text-primary)' }}
                 >
                   {t === 'persona' ? 'Persona' : t === 'impresa' ? 'Impresa' : 'Cantiere'}
                 </button>
@@ -296,227 +381,77 @@ export default function NeuroneFormModal({
           </div>
 
           {/* Nome */}
-          <div style={{ marginBottom: '12px' }}>
-            <input
-              type="text"
-              className="form-input"
-              value={nome}
-              onChange={(e) => setNome(e.target.value)}
-              placeholder={tipo === 'persona' ? 'Nome persona *' : tipo === 'impresa' ? 'Nome impresa *' : 'Nome cantiere *'}
-              style={{ fontSize: '14px' }}
-            />
+          <div style={{ marginBottom: '16px' }}>
+            <label style={{ fontSize: '13px', fontWeight: 500, marginBottom: '6px', display: 'block', color: 'var(--text-secondary)' }}>Nome *</label>
+            <input type="text" className="form-input" value={nome} onChange={(e) => setNome(e.target.value)} placeholder={tipo === 'persona' ? 'Mario Rossi' : tipo === 'impresa' ? 'Colorificio Rossi S.r.l.' : 'Cantiere Via Roma 1'} />
           </div>
 
-          {/* Categorie - chips */}
-          <div style={{ marginBottom: '12px' }}>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', marginBottom: '6px' }}>
+          {/* Categorie */}
+          <div style={{ marginBottom: '16px' }}>
+            <label style={{ fontSize: '13px', fontWeight: 500, marginBottom: '6px', display: 'block', color: 'var(--text-secondary)' }}>Categorie *</label>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: '8px' }}>
               {CATEGORIE_SUGGERITE[tipo].map((cat) => (
-                <button
-                  key={cat}
-                  type="button"
-                  onClick={() => toggleCategoria(cat)}
-                  style={{
-                    padding: '4px 8px',
-                    borderRadius: '10px',
-                    border: 'none',
-                    fontSize: '11px',
-                    cursor: 'pointer',
-                    background: categorie.includes(cat) ? 'var(--primary)' : 'var(--bg-primary)',
-                    color: categorie.includes(cat) ? 'white' : 'var(--text-primary)',
-                  }}
-                >
+                <button key={cat} type="button" onClick={() => toggleCategoria(cat)} style={{ padding: '5px 10px', borderRadius: '12px', border: 'none', fontSize: '12px', cursor: 'pointer', background: categorie.includes(cat) ? 'var(--primary)' : 'var(--bg-primary)', color: categorie.includes(cat) ? 'white' : 'var(--text-primary)' }}>
                   {cat}
                 </button>
               ))}
             </div>
-            <div style={{ display: 'flex', gap: '6px' }}>
-              <input
-                type="text"
-                className="form-input"
-                value={categoriaCustom}
-                onChange={(e) => setCategoriaCustom(e.target.value)}
-                placeholder="Altra categoria..."
-                onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addCategoriaCustom())}
-                style={{ flex: 1, fontSize: '13px', padding: '6px 10px' }}
-              />
-              <button
-                type="button"
-                onClick={addCategoriaCustom}
-                disabled={!categoriaCustom.trim()}
-                style={{
-                  padding: '6px 12px',
-                  border: 'none',
-                  borderRadius: '6px',
-                  background: 'var(--bg-primary)',
-                  cursor: 'pointer',
-                }}
-              >
-                +
-              </button>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <input type="text" className="form-input" value={categoriaCustom} onChange={(e) => setCategoriaCustom(e.target.value)} placeholder="Altra categoria..." onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addCategoriaCustom())} style={{ flex: 1 }} />
+              <button type="button" onClick={addCategoriaCustom} disabled={!categoriaCustom.trim()} style={{ padding: '8px 14px', border: 'none', borderRadius: '8px', background: 'var(--bg-primary)', cursor: 'pointer' }}>+</button>
             </div>
           </div>
 
           {/* Posizione */}
-          <div style={{ marginBottom: '12px' }}>
-            <div style={{ display: 'flex', gap: '6px', marginBottom: '6px' }}>
-              <input
-                type="text"
-                className="form-input"
-                value={indirizzo}
-                onChange={(e) => { setIndirizzo(e.target.value); setLat(null); setLng(null); }}
-                placeholder="Indirizzo..."
-                style={{ flex: 1, fontSize: '13px', padding: '6px 10px' }}
-              />
-              <button
-                type="button"
-                onClick={handleGeocoding}
-                disabled={geocoding || !indirizzo.trim()}
-                style={{
-                  padding: '6px 10px',
-                  border: 'none',
-                  borderRadius: '6px',
-                  background: 'var(--bg-primary)',
-                  cursor: 'pointer',
-                  fontSize: '14px',
-                }}
-              >
-                {geocoding ? '...' : '🔍'}
-              </button>
+          <div style={{ marginBottom: '16px' }}>
+            <label style={{ fontSize: '13px', fontWeight: 500, marginBottom: '6px', display: 'block', color: 'var(--text-secondary)' }}>Posizione</label>
+            <div style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
+              <input type="text" className="form-input" value={indirizzo} onChange={(e) => { setIndirizzo(e.target.value); setLat(null); setLng(null); }} placeholder="Via Roma 1, Milano" style={{ flex: 1 }} />
+              <button type="button" onClick={handleGeocoding} disabled={geocoding || !indirizzo.trim()} style={{ padding: '8px 12px', border: 'none', borderRadius: '8px', background: 'var(--bg-primary)', cursor: 'pointer' }}>{geocoding ? '...' : '🔍'}</button>
             </div>
-            <div style={{ display: 'flex', gap: '6px' }}>
-              <button
-                type="button"
-                onClick={handleGetGps}
-                disabled={gettingGps}
-                style={{
-                  flex: 1,
-                  padding: '8px',
-                  border: 'none',
-                  borderRadius: '6px',
-                  background: 'var(--bg-primary)',
-                  cursor: 'pointer',
-                  fontSize: '12px',
-                }}
-              >
-                {gettingGps ? 'Localizzazione...' : '📍 GPS'}
-              </button>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <button type="button" onClick={handleGetGps} disabled={gettingGps} style={{ flex: 1, padding: '10px', border: 'none', borderRadius: '8px', background: 'var(--bg-primary)', cursor: 'pointer', fontSize: '13px' }}>{gettingGps ? 'Localizzazione...' : '📍 Posizione GPS'}</button>
               {onRequestMapPick && (
-                <button
-                  type="button"
-                  onClick={onRequestMapPick}
-                  style={{
-                    flex: 1,
-                    padding: '8px',
-                    border: 'none',
-                    borderRadius: '6px',
-                    background: 'var(--primary)',
-                    color: 'white',
-                    cursor: 'pointer',
-                    fontSize: '12px',
-                    fontWeight: 600,
-                  }}
-                >
-                  🗺️ Scegli su mappa
-                </button>
+                <button type="button" onClick={onRequestMapPick} style={{ flex: 1, padding: '10px', border: 'none', borderRadius: '8px', background: 'var(--primary)', color: 'white', cursor: 'pointer', fontSize: '13px', fontWeight: 600 }}>🗺️ Scegli su mappa</button>
               )}
             </div>
-            {lat && lng && (
-              <div style={{ marginTop: '6px', fontSize: '11px', color: 'var(--text-secondary)' }}>
-                Coordinate: {lat.toFixed(5)}, {lng.toFixed(5)}
-              </div>
-            )}
+            {lat && lng && <div style={{ marginTop: '8px', fontSize: '12px', color: 'var(--text-secondary)' }}>Coordinate: {lat.toFixed(5)}, {lng.toFixed(5)}</div>}
           </div>
 
-          {/* Contatti in riga */}
-          <div style={{ display: 'flex', gap: '6px', marginBottom: '12px' }}>
-            <input
-              type="tel"
-              className="form-input"
-              value={telefono}
-              onChange={(e) => setTelefono(e.target.value)}
-              placeholder="Telefono"
-              style={{ flex: 1, fontSize: '13px', padding: '6px 10px' }}
-            />
-            <input
-              type="email"
-              className="form-input"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="Email"
-              style={{ flex: 1, fontSize: '13px', padding: '6px 10px' }}
-            />
-          </div>
-
-          {/* Visibilita inline */}
-          <div style={{ display: 'flex', gap: '12px', marginBottom: '12px', fontSize: '12px' }}>
-            <label style={{ display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer' }}>
-              <input
-                type="radio"
-                name="visibilita"
-                checked={visibilita === 'aziendale'}
-                onChange={() => setVisibilita('aziendale')}
-              />
-              Aziendale
-            </label>
-            <label style={{ display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer' }}>
-              <input
-                type="radio"
-                name="visibilita"
-                checked={visibilita === 'personale'}
-                onChange={() => setVisibilita('personale')}
-              />
-              Personale
-            </label>
-          </div>
-
-          {error && (
-            <div style={{ padding: '8px', borderRadius: '6px', background: 'rgba(239,68,68,0.1)', color: '#ef4444', fontSize: '12px', marginBottom: '8px' }}>
-              {error}
+          {/* Contatti */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '16px' }}>
+            <div>
+              <label style={{ fontSize: '13px', fontWeight: 500, marginBottom: '6px', display: 'block', color: 'var(--text-secondary)' }}>Telefono</label>
+              <input type="tel" className="form-input" value={telefono} onChange={(e) => setTelefono(e.target.value)} placeholder="+39 333 1234567" />
             </div>
-          )}
+            <div>
+              <label style={{ fontSize: '13px', fontWeight: 500, marginBottom: '6px', display: 'block', color: 'var(--text-secondary)' }}>Email</label>
+              <input type="email" className="form-input" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="email@esempio.it" />
+            </div>
+          </div>
+
+          {/* Visibilita */}
+          <div style={{ marginBottom: '16px' }}>
+            <label style={{ fontSize: '13px', fontWeight: 500, marginBottom: '6px', display: 'block', color: 'var(--text-secondary)' }}>Visibilita</label>
+            <div style={{ display: 'flex', gap: '16px' }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', fontSize: '14px' }}>
+                <input type="radio" name="visibilita" checked={visibilita === 'aziendale'} onChange={() => setVisibilita('aziendale')} /> Aziendale (visibile ai colleghi)
+              </label>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', fontSize: '14px' }}>
+                <input type="radio" name="visibilita" checked={visibilita === 'personale'} onChange={() => setVisibilita('personale')} /> Personale (solo tu)
+              </label>
+            </div>
+          </div>
+
+          {error && <div style={{ padding: '10px', borderRadius: '8px', background: 'rgba(239,68,68,0.1)', color: '#ef4444', fontSize: '13px' }}>{error}</div>}
         </div>
 
-        {/* Footer con pulsanti */}
-        <div style={{ padding: '12px 16px', borderTop: '1px solid var(--border-color)', display: 'flex', gap: '8px', flexShrink: 0 }}>
-          <button
-            onClick={onClose}
-            style={{
-              flex: 1,
-              padding: '10px',
-              border: '1px solid var(--border-color)',
-              borderRadius: '8px',
-              background: 'transparent',
-              cursor: 'pointer',
-              fontSize: '14px',
-            }}
-          >
-            Annulla
-          </button>
-          <button
-            onClick={handleSubmit}
-            disabled={saving}
-            style={{
-              flex: 1,
-              padding: '10px',
-              border: 'none',
-              borderRadius: '8px',
-              background: 'var(--primary)',
-              color: 'white',
-              cursor: 'pointer',
-              fontSize: '14px',
-              fontWeight: 600,
-            }}
-          >
-            {saving ? 'Salvataggio...' : 'Salva'}
-          </button>
+        {/* Footer */}
+        <div style={{ padding: '16px 20px', borderTop: '1px solid var(--border-color)', display: 'flex', gap: '12px' }}>
+          <button onClick={onClose} style={{ flex: 1, padding: '12px', border: '1px solid var(--border-color)', borderRadius: '8px', background: 'transparent', cursor: 'pointer', fontSize: '14px' }}>Annulla</button>
+          <button onClick={handleSubmit} disabled={saving} style={{ flex: 1, padding: '12px', border: 'none', borderRadius: '8px', background: 'var(--primary)', color: 'white', cursor: 'pointer', fontSize: '14px', fontWeight: 600 }}>{saving ? 'Salvataggio...' : 'Salva'}</button>
         </div>
       </div>
-
-      {/* Area sotto il drawer - cliccabile per chiudere */}
-      <div
-        style={{ flex: 1, background: 'rgba(0,0,0,0.3)' }}
-        onClick={onClose}
-      />
     </div>
   );
 }
