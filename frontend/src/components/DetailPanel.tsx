@@ -281,6 +281,11 @@ function ConnessioniTab({
                   </div>
                   <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
                     {s.tipo_connessione.replace(/_/g, ' ')}
+                    {s.prodotto_nome && (
+                      <span style={{ marginLeft: '6px', background: 'var(--bg-tertiary)', padding: '2px 6px', borderRadius: '4px' }}>
+                        📦 {s.prodotto_nome}
+                      </span>
+                    )}
                   </div>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>

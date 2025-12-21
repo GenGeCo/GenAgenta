@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { api } from '../utils/api';
-import type { Neurone, Sinapsi, Certezza, Livello, TipoSinapsiConfig } from '../types';
+import type { Neurone, Sinapsi, Certezza, Livello, TipoSinapsiConfig, FamigliaProdotto } from '../types';
 
 interface SinapsiFormModalProps {
   neuroneCorrente: Neurone;
@@ -49,29 +49,37 @@ export default function SinapsiFormModal({
   const [dataVerifica, setDataVerifica] = useState(sinapsiDaModificare?.data_verifica || '');
   const [livello, setLivello] = useState<Livello>(sinapsiDaModificare?.livello || 'aziendale');
   const [note, setNote] = useState(sinapsiDaModificare?.note || '');
+  const [famigliaProdottoId, setFamigliaProdottoId] = useState<string | null>(
+    sinapsiDaModificare?.famiglia_prodotto_id || null
+  );
 
   // Data state
   const [neuroni, setNeuroni] = useState<NeuroneOption[]>([]);
   const [tipiSinapsi, setTipiSinapsi] = useState<TipoSinapsiConfig[]>([]);
+  const [famiglieProdotto, setFamiglieProdotto] = useState<FamigliaProdotto[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Carica tipi sinapsi
+  // Carica tipi sinapsi e famiglie prodotto
   useEffect(() => {
-    const loadTipiSinapsi = async () => {
+    const loadData = async () => {
       try {
-        const { data } = await api.getTipiSinapsi();
-        setTipiSinapsi(data);
-        if (data.length > 0 && !tipoConnessione) {
-          setTipoConnessione(data[0].nome);
+        const [tipiRes, famiglieRes] = await Promise.all([
+          api.getTipiSinapsi(),
+          api.getFamiglieProdotto()
+        ]);
+        setTipiSinapsi(tipiRes.data);
+        if (tipiRes.data.length > 0 && !tipoConnessione) {
+          setTipoConnessione(tipiRes.data[0].nome);
         }
+        setFamiglieProdotto(famiglieRes.data);
       } catch (err) {
-        console.error('Errore caricamento tipi sinapsi:', err);
+        console.error('Errore caricamento dati:', err);
       }
     };
-    loadTipiSinapsi();
+    loadData();
   }, []);
 
   // Cerca neuroni
@@ -118,6 +126,7 @@ export default function SinapsiFormModal({
         neurone_da: direzione === 'uscita' ? neuroneCorrente.id : neuroneCollegato,
         neurone_a: direzione === 'uscita' ? neuroneCollegato : neuroneCorrente.id,
         tipo_connessione: tipoConnessione,
+        famiglia_prodotto_id: famigliaProdottoId || null,
         data_inizio: dataInizio,
         data_fine: dataFine || null,
         valore: valore ? parseFloat(valore) : null,
@@ -152,6 +161,15 @@ export default function SinapsiFormModal({
         ? sinapsiDaModificare.nome_a
         : sinapsiDaModificare.nome_da
       : '');
+
+  // Flatten famiglie prodotto per select
+  const flattenFamiglie = (items: FamigliaProdotto[], level = 0): { id: string; nome: string; level: number }[] => {
+    return items.flatMap(item => [
+      { id: item.id, nome: item.nome, level },
+      ...(item.children ? flattenFamiglie(item.children, level + 1) : [])
+    ]);
+  };
+  const flatFamiglie = flattenFamiglie(famiglieProdotto);
 
   return (
     <div
@@ -283,6 +301,25 @@ export default function SinapsiFormModal({
               ))}
             </select>
           </div>
+
+          {/* Prodotto coinvolto */}
+          {flatFamiglie.length > 0 && (
+            <div className="form-group">
+              <label className="form-label">Prodotto (opzionale)</label>
+              <select
+                className="form-input"
+                value={famigliaProdottoId || ''}
+                onChange={(e) => setFamigliaProdottoId(e.target.value || null)}
+              >
+                <option value="">-- Nessun prodotto --</option>
+                {flatFamiglie.map((f) => (
+                  <option key={f.id} value={f.id}>
+                    {'  '.repeat(f.level)}{f.nome}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
 
           {/* Certezza con icone */}
           <div className="form-group">

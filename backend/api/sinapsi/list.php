@@ -73,7 +73,7 @@ $stmt = $db->prepare($countSql);
 $stmt->execute($params);
 $total = $stmt->fetch()['total'];
 
-// Query con JOIN per nomi
+// Query con JOIN per nomi e prodotto
 $sql = "
     SELECT
         s.*,
@@ -84,10 +84,12 @@ $sql = "
         n_a.nome as nome_a,
         n_a.tipo as tipo_a,
         n_a.lat as lat_a,
-        n_a.lng as lng_a
+        n_a.lng as lng_a,
+        fp.nome as prodotto_nome
     FROM sinapsi s
     JOIN neuroni n_da ON s.neurone_da = n_da.id
     JOIN neuroni n_a ON s.neurone_a = n_a.id
+    LEFT JOIN famiglie_prodotto fp ON s.famiglia_prodotto_id = fp.id
     $whereClause
     ORDER BY s.data_inizio DESC
     LIMIT ? OFFSET ?

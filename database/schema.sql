@@ -69,6 +69,18 @@ CREATE TABLE neuroni (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- =====================================================
+-- NEURONI_CATEGORIE (Relazione N:N per categorie multiple)
+-- =====================================================
+CREATE TABLE neuroni_categorie (
+    neurone_id CHAR(36) NOT NULL,
+    categoria_id CHAR(36) NOT NULL,
+    PRIMARY KEY (neurone_id, categoria_id),
+    FOREIGN KEY (neurone_id) REFERENCES neuroni(id) ON DELETE CASCADE,
+    FOREIGN KEY (categoria_id) REFERENCES categorie(id) ON DELETE CASCADE,
+    INDEX idx_neuroni_categorie_cat (categoria_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- =====================================================
 -- SINAPSI (Connessioni tra neuroni)
 -- =====================================================
 CREATE TABLE sinapsi (
@@ -76,6 +88,7 @@ CREATE TABLE sinapsi (
     neurone_da CHAR(36) NOT NULL,
     neurone_a CHAR(36) NOT NULL,
     tipo_connessione VARCHAR(100) NOT NULL,
+    famiglia_prodotto_id CHAR(36) DEFAULT NULL,  -- Prodotto coinvolto nella relazione
     /*
         Tipi connessione:
         - Cantiere: progetta, dirige_lavori, costruisce, subappalta, fornisce,
@@ -105,15 +118,18 @@ CREATE TABLE sinapsi (
 
     -- Audit
     creato_da CHAR(36) DEFAULT NULL,
+    azienda_id CHAR(36) DEFAULT NULL,
     data_creazione TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     data_modifica TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 
     FOREIGN KEY (neurone_da) REFERENCES neuroni(id) ON DELETE CASCADE,
     FOREIGN KEY (neurone_a) REFERENCES neuroni(id) ON DELETE CASCADE,
+    FOREIGN KEY (famiglia_prodotto_id) REFERENCES famiglie_prodotto(id) ON DELETE SET NULL,
 
     INDEX idx_neurone_da (neurone_da),
     INDEX idx_neurone_a (neurone_a),
     INDEX idx_tipo_conn (tipo_connessione),
+    INDEX idx_prodotto (famiglia_prodotto_id),
     INDEX idx_periodo (data_inizio, data_fine),
     INDEX idx_livello (livello),
     INDEX idx_certezza (certezza),

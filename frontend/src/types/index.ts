@@ -30,6 +30,7 @@ export interface Sinapsi {
   neurone_da: string;
   neurone_a: string;
   tipo_connessione: string;
+  famiglia_prodotto_id: string | null;  // Prodotto coinvolto nella relazione
   data_inizio: string;
   data_fine: string | null;
   valore: number | null;
@@ -48,6 +49,7 @@ export interface Sinapsi {
   tipo_a?: TipoNeurone;
   lat_a?: number;
   lng_a?: number;
+  prodotto_nome?: string;  // Nome del prodotto (da JOIN)
 }
 
 export interface NotaPersonale {

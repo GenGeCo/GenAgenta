@@ -38,8 +38,8 @@ if ($livello === 'personale') {
 }
 
 $stmt = $db->prepare('
-    INSERT INTO sinapsi (id, neurone_da, neurone_a, tipo_connessione, data_inizio, data_fine, valore, certezza, fonte, data_verifica, livello, note, creato_da, azienda_id)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO sinapsi (id, neurone_da, neurone_a, tipo_connessione, famiglia_prodotto_id, data_inizio, data_fine, valore, certezza, fonte, data_verifica, livello, note, creato_da, azienda_id)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 ');
 
 $stmt->execute([
@@ -47,6 +47,7 @@ $stmt->execute([
     $data['neurone_da'],
     $data['neurone_a'],
     $data['tipo_connessione'],
+    $data['famiglia_prodotto_id'] ?? null,
     $data['data_inizio'],
     $data['data_fine'] ?? null,
     $data['valore'] ?? null,
