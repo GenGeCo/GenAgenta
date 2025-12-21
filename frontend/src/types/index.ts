@@ -34,6 +34,8 @@ export interface Sinapsi {
   data_fine: string | null;
   valore: number | null;
   certezza: Certezza;
+  fonte: string | null;  // "visto sul cantiere", "me l'ha detto Mario"
+  data_verifica: string | null;  // Quando l'ipotesi è stata confermata
   livello: Livello;
   note: string | null;
   data_creazione: string;

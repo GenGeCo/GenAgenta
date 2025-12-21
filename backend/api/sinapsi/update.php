@@ -35,7 +35,7 @@ if ($sinapsi['livello'] === 'personale') {
 $updates = [];
 $params = [];
 
-$allowedFields = ['tipo_connessione', 'data_inizio', 'data_fine', 'valore', 'certezza', 'livello', 'note'];
+$allowedFields = ['tipo_connessione', 'data_inizio', 'data_fine', 'valore', 'certezza', 'fonte', 'data_verifica', 'livello', 'note'];
 
 foreach ($allowedFields as $field) {
     if (array_key_exists($field, $data)) {

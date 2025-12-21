@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { api } from '../utils/api';
 import type { Neurone, Sinapsi, NotaPersonale } from '../types';
+import SinapsiFormModal from './SinapsiFormModal';
 
 interface DetailPanelProps {
   neurone: Neurone;
@@ -122,8 +123,12 @@ export default function DetailPanel({ neurone, personalAccess, onClose, onSelect
             {activeTab === 'connessioni' && (
               <ConnessioniTab
                 sinapsi={sinapsi}
-                neuroneId={neurone.id}
+                neurone={neurone}
+                personalAccess={personalAccess}
                 onSelectNeurone={onSelectNeurone}
+                onSinapsiChange={() => {
+                  api.getNeuroneSinapsi(neurone.id).then((res) => setSinapsi(res.data));
+                }}
               />
             )}
             {activeTab === 'note' && (
@@ -194,74 +199,155 @@ function InfoRow({ label, value }: { label: string; value: string }) {
 // Tab Connessioni
 function ConnessioniTab({
   sinapsi,
-  neuroneId,
+  neurone,
+  personalAccess,
   onSelectNeurone,
+  onSinapsiChange,
 }: {
   sinapsi: Sinapsi[];
-  neuroneId: string;
+  neurone: Neurone;
+  personalAccess: boolean;
   onSelectNeurone?: (id: string) => void;
+  onSinapsiChange: () => void;
 }) {
-  if (sinapsi.length === 0) {
-    return <p style={{ color: 'var(--text-secondary)' }}>Nessuna connessione</p>;
-  }
+  const [showForm, setShowForm] = useState(false);
+  const [editingSinapsi, setEditingSinapsi] = useState<Sinapsi | undefined>(undefined);
+
+  const handleAddClick = () => {
+    setEditingSinapsi(undefined);
+    setShowForm(true);
+  };
+
+  const handleEditClick = (s: Sinapsi, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setEditingSinapsi(s);
+    setShowForm(true);
+  };
+
+  // Icona certezza
+  const getCertezzaIcon = (certezza: string) => {
+    switch (certezza) {
+      case 'ipotesi':
+        return '🔴';
+      case 'probabile':
+        return '🟡';
+      case 'certo':
+        return '🟢';
+      default:
+        return '';
+    }
+  };
 
   return (
     <div>
-      {sinapsi.map((s) => {
-        const isOutgoing = s.neurone_da === neuroneId;
-        const altroNome = isOutgoing ? s.nome_a : s.nome_da;
-        const altroId = isOutgoing ? s.neurone_a : s.neurone_da;
+      {/* Pulsante aggiungi */}
+      <button
+        className="btn btn-primary"
+        onClick={handleAddClick}
+        style={{ width: '100%', marginBottom: '16px' }}
+      >
+        + Aggiungi connessione
+      </button>
 
-        return (
-          <div
-            key={s.id}
-            className="card"
-            style={{
-              padding: '12px',
-              cursor: onSelectNeurone ? 'pointer' : 'default',
-              transition: 'background 0.15s',
-            }}
-            onClick={() => onSelectNeurone?.(altroId)}
-            onMouseEnter={(e) => {
-              if (onSelectNeurone) e.currentTarget.style.background = 'var(--bg-secondary)';
-            }}
-            onMouseLeave={(e) => {
-              if (onSelectNeurone) e.currentTarget.style.background = '';
-            }}
-          >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-              <div>
-                <div style={{ fontWeight: 500, marginBottom: '4px', color: 'var(--color-primary)' }}>
-                  {isOutgoing ? '→' : '←'} {altroNome}
+      {sinapsi.length === 0 ? (
+        <p style={{ color: 'var(--text-secondary)' }}>Nessuna connessione</p>
+      ) : (
+        sinapsi.map((s) => {
+          const isOutgoing = s.neurone_da === neurone.id;
+          const altroNome = isOutgoing ? s.nome_a : s.nome_da;
+          const altroId = isOutgoing ? s.neurone_a : s.neurone_da;
+
+          return (
+            <div
+              key={s.id}
+              className="card"
+              style={{
+                padding: '12px',
+                cursor: onSelectNeurone ? 'pointer' : 'default',
+                transition: 'background 0.15s',
+              }}
+              onClick={() => onSelectNeurone?.(altroId)}
+              onMouseEnter={(e) => {
+                if (onSelectNeurone) e.currentTarget.style.background = 'var(--bg-secondary)';
+              }}
+              onMouseLeave={(e) => {
+                if (onSelectNeurone) e.currentTarget.style.background = '';
+              }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                <div>
+                  <div style={{ fontWeight: 500, marginBottom: '4px', color: 'var(--color-primary)' }}>
+                    {isOutgoing ? '→' : '←'} {altroNome}
+                  </div>
+                  <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
+                    {s.tipo_connessione.replace(/_/g, ' ')}
+                  </div>
                 </div>
-                <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
-                  {s.tipo_connessione.replace(/_/g, ' ')}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span title={s.certezza}>
+                    {getCertezzaIcon(s.certezza)}
+                  </span>
+                  <button
+                    onClick={(e) => handleEditClick(s, e)}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      cursor: 'pointer',
+                      fontSize: '14px',
+                      opacity: 0.6,
+                    }}
+                    title="Modifica"
+                  >
+                    ✏️
+                  </button>
                 </div>
               </div>
-              <span className={`badge badge-${s.certezza}`}>
-                {s.certezza}
-              </span>
-            </div>
 
-            <div style={{ marginTop: '8px', fontSize: '12px', color: 'var(--text-secondary)' }}>
-              {s.data_inizio} {s.data_fine ? `→ ${s.data_fine}` : '→ oggi'}
-              {s.valore && ` • €${s.valore.toLocaleString()}`}
-            </div>
-
-            {s.note && (
-              <div style={{
-                marginTop: '8px',
-                padding: '8px',
-                background: 'var(--bg-secondary)',
-                borderRadius: '4px',
-                fontSize: '13px',
-              }}>
-                {s.note}
+              <div style={{ marginTop: '8px', fontSize: '12px', color: 'var(--text-secondary)' }}>
+                {s.data_inizio} {s.data_fine ? `→ ${s.data_fine}` : '→ oggi'}
+                {s.valore && ` • €${s.valore.toLocaleString()}`}
               </div>
-            )}
-          </div>
-        );
-      })}
+
+              {/* Fonte informazione */}
+              {s.fonte && (
+                <div style={{ marginTop: '6px', fontSize: '11px', color: 'var(--text-secondary)', fontStyle: 'italic' }}>
+                  📍 {s.fonte}
+                </div>
+              )}
+
+              {/* Data verifica (se certo) */}
+              {s.certezza === 'certo' && s.data_verifica && (
+                <div style={{ marginTop: '4px', fontSize: '11px', color: 'var(--color-success)' }}>
+                  ✓ Verificato il {s.data_verifica}
+                </div>
+              )}
+
+              {s.note && (
+                <div style={{
+                  marginTop: '8px',
+                  padding: '8px',
+                  background: 'var(--bg-secondary)',
+                  borderRadius: '4px',
+                  fontSize: '13px',
+                }}>
+                  {s.note}
+                </div>
+              )}
+            </div>
+          );
+        })
+      )}
+
+      {/* Modal form */}
+      {showForm && (
+        <SinapsiFormModal
+          neuroneCorrente={neurone}
+          sinapsiDaModificare={editingSinapsi}
+          personalAccess={personalAccess}
+          onClose={() => setShowForm(false)}
+          onSaved={onSinapsiChange}
+        />
+      )}
     </div>
   );
 }

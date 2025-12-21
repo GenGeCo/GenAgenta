@@ -24,6 +24,12 @@ chdir(__DIR__);
 // Pull dal remote
 exec('git pull origin main 2>&1', $output, $return);
 
+// Rimuovi cartella docs (documentazione solo su GitHub, non su server)
+if (is_dir(__DIR__ . '/docs')) {
+    exec('rm -rf ' . escapeshellarg(__DIR__ . '/docs') . ' 2>&1', $docsOutput, $docsReturn);
+    $output[] = 'Cartella docs rimossa: ' . ($docsReturn === 0 ? 'OK' : 'ERRORE');
+}
+
 // Risposta
 header('Content-Type: application/json');
 echo json_encode([

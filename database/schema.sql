@@ -92,8 +92,10 @@ CREATE TABLE sinapsi (
     -- Valore (per spessore linea)
     valore DECIMAL(12, 2) DEFAULT NULL,  -- Es: importo fatturato, valore fornitura
 
-    -- Certezza
+    -- Certezza e verifica
     certezza ENUM('certo', 'probabile', 'ipotesi') DEFAULT 'certo',
+    fonte VARCHAR(255) DEFAULT NULL,  -- "visto sul cantiere", "me l'ha detto Mario"
+    data_verifica DATE DEFAULT NULL,  -- Quando l'ipotesi è stata confermata
 
     -- Visibilità
     livello ENUM('aziendale', 'personale') DEFAULT 'aziendale',
@@ -114,7 +116,8 @@ CREATE TABLE sinapsi (
     INDEX idx_tipo_conn (tipo_connessione),
     INDEX idx_periodo (data_inizio, data_fine),
     INDEX idx_livello (livello),
-    INDEX idx_certezza (certezza)
+    INDEX idx_certezza (certezza),
+    INDEX idx_data_verifica (data_verifica)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- =====================================================
