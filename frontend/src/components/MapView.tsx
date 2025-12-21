@@ -255,6 +255,14 @@ export default function MapView({
     // Funzione per ottenere la forma dal tipo neurone (case-insensitive)
     const getTipoForma = (tipoNome: string): 'quadrato' | 'cerchio' => {
       const tipo = tipiNeurone.find(t => t.nome.toLowerCase() === tipoNome.toLowerCase());
+      // DEBUG: log per capire il problema
+      if (tipoNome.toLowerCase().includes('cantiere')) {
+        console.log('DEBUG getTipoForma:', {
+          tipoNome,
+          tipiNeuroneDisponibili: tipiNeurone.map(t => ({ nome: t.nome, forma: t.forma })),
+          tipoTrovato: tipo ? { nome: tipo.nome, forma: tipo.forma } : null
+        });
+      }
       // Se il tipo ha forma quadrato, triangolo, stella, croce, L, C, W, Z usa quadrato
       // Altrimenti usa cerchio
       if (tipo?.forma && ['quadrato', 'triangolo', 'stella', 'croce', 'L', 'C', 'W', 'Z'].includes(tipo.forma)) {
