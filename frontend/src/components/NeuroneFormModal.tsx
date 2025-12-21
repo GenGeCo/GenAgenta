@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { api } from '../utils/api';
-import type { Neurone } from '../types';
+import type { Neurone, TipoNeuroneConfig, Categoria, FormaNeurone } from '../types';
 
 interface NeuroneFormModalProps {
   neurone?: Neurone;
@@ -14,12 +14,17 @@ interface NeuroneFormModalProps {
   onPositionFound?: (lat: number, lng: number) => void;
 }
 
-type TipoNeurone = 'persona' | 'impresa' | 'luogo';
-
-const CATEGORIE_SUGGERITE: Record<TipoNeurone, string[]> = {
-  persona: ['imbianchino', 'cartongessista', 'muratore', 'elettricista', 'idraulico', 'architetto', 'geometra', 'ingegnere', 'committente', 'agente'],
-  impresa: ['colorificio', 'ferramenta', 'impresa edile', 'studio tecnico', 'showroom', 'grossista', 'produttore'],
-  luogo: ['cantiere residenziale', 'cantiere commerciale', 'ristrutturazione', 'nuova costruzione', 'manutenzione'],
+// Mappa forme ai simboli visivi
+const formaLabels: Record<FormaNeurone, string> = {
+  cerchio: '●',
+  quadrato: '■',
+  triangolo: '▲',
+  stella: '★',
+  croce: '✚',
+  L: 'L',
+  C: 'C',
+  W: 'W',
+  Z: 'Z'
 };
 
 export default function NeuroneFormModal({
@@ -34,10 +39,15 @@ export default function NeuroneFormModal({
   const isEdit = !!neurone;
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
 
-  const [tipo, setTipo] = useState<TipoNeurone>(neurone?.tipo || 'persona');
+  // Dati dal database
+  const [tipiNeurone, setTipiNeurone] = useState<TipoNeuroneConfig[]>([]);
+  const [categorieDB, setCategorieDB] = useState<Categoria[]>([]);
+  const [loadingTipi, setLoadingTipi] = useState(true);
+
+  // Form state
+  const [tipoId, setTipoId] = useState<string>('');
+  const [categoriaId, setCategoriaId] = useState<string>('');
   const [nome, setNome] = useState(neurone?.nome || '');
-  const [categorie, setCategorie] = useState<string[]>(neurone?.categorie || []);
-  const [categoriaCustom, setCategoriaCustom] = useState('');
   const [indirizzo, setIndirizzo] = useState(neurone?.indirizzo || '');
   const [telefono, setTelefono] = useState(neurone?.telefono || '');
   const [email, setEmail] = useState(neurone?.email || '');
@@ -49,6 +59,56 @@ export default function NeuroneFormModal({
   const [gettingGps, setGettingGps] = useState(false);
   const [lat, setLat] = useState<number | null>(neurone?.lat || null);
   const [lng, setLng] = useState<number | null>(neurone?.lng || null);
+
+  // Carica tipi e categorie dal DB
+  useEffect(() => {
+    loadTipiCategorie();
+  }, []);
+
+  const loadTipiCategorie = async () => {
+    setLoadingTipi(true);
+    try {
+      const [tipiRes, catRes] = await Promise.all([
+        api.getTipiNeurone(),
+        api.getCategorie()
+      ]);
+      setTipiNeurone(tipiRes.data);
+      setCategorieDB(catRes.data);
+
+      // Se stiamo modificando, imposta tipo e categoria correnti
+      if (neurone) {
+        // Cerca il tipo per nome (backward compatibility)
+        const tipoMatch = tipiRes.data.find(t =>
+          t.nome.toLowerCase() === neurone.tipo?.toLowerCase()
+        );
+        if (tipoMatch) {
+          setTipoId(tipoMatch.id);
+          // Cerca la categoria
+          const catMatch = catRes.data.find(c =>
+            c.tipo_id === tipoMatch.id &&
+            neurone.categorie?.includes(c.nome.toLowerCase())
+          );
+          if (catMatch) {
+            setCategoriaId(catMatch.id);
+          }
+        }
+      } else if (tipiRes.data.length > 0) {
+        // Nuovo neurone: seleziona primo tipo di default
+        setTipoId(tipiRes.data[0].id);
+      }
+    } catch (error) {
+      console.error('Errore caricamento tipi:', error);
+      setError('Errore caricamento tipi. Vai in Impostazioni → Categorie per crearli.');
+    } finally {
+      setLoadingTipi(false);
+    }
+  };
+
+  // Categorie filtrate per il tipo selezionato
+  const categoriePerTipo = categorieDB.filter(c => c.tipo_id === tipoId);
+
+  // Tipo selezionato
+  const tipoSelezionato = tipiNeurone.find(t => t.id === tipoId);
 
   // Rileva resize
   useEffect(() => {
@@ -88,7 +148,6 @@ export default function NeuroneFormModal({
         setLat(newLat);
         setLng(newLng);
         setIndirizzo(results[0].display_name);
-        // Sposta la mappa sulla posizione trovata
         onPositionFound?.(newLat, newLng);
       } else {
         setError('Indirizzo non trovato');
@@ -113,7 +172,6 @@ export default function NeuroneFormModal({
         const newLng = position.coords.longitude;
         setLat(newLat);
         setLng(newLng);
-        // Sposta la mappa sulla posizione GPS
         onPositionFound?.(newLat, newLng);
         try {
           const response = await fetch(
@@ -134,39 +192,31 @@ export default function NeuroneFormModal({
     );
   };
 
-  const toggleCategoria = (cat: string) => {
-    if (categorie.includes(cat)) {
-      setCategorie(categorie.filter(c => c !== cat));
-    } else {
-      setCategorie([...categorie, cat]);
-    }
-  };
-
-  const addCategoriaCustom = () => {
-    const cat = categoriaCustom.trim().toLowerCase();
-    if (cat && !categorie.includes(cat)) {
-      setCategorie([...categorie, cat]);
-      setCategoriaCustom('');
-    }
-  };
-
   const handleSubmit = async () => {
     setError('');
     if (!nome.trim()) {
-      setError('Il nome e obbligatorio');
+      setError('Il nome è obbligatorio');
       return;
     }
-    if (categorie.length === 0) {
-      setError('Seleziona almeno una categoria');
+    if (!tipoId) {
+      setError('Seleziona un tipo');
       return;
     }
+    if (!categoriaId) {
+      setError('Seleziona una categoria');
+      return;
+    }
+
+    // Trova nomi per backward compatibility
+    const tipoNome = tipiNeurone.find(t => t.id === tipoId)?.nome || '';
+    const categoriaNome = categorieDB.find(c => c.id === categoriaId)?.nome || '';
 
     setSaving(true);
     try {
       const payload = {
         nome: nome.trim(),
-        tipo,
-        categorie,
+        tipo: tipoNome.toLowerCase() as 'persona' | 'impresa' | 'luogo',
+        categorie: [categoriaNome.toLowerCase()],
         visibilita,
         indirizzo: indirizzo || null,
         lat: lat || null,
@@ -228,6 +278,44 @@ export default function NeuroneFormModal({
     );
   }
 
+  // Messaggio se non ci sono tipi
+  if (!loadingTipi && tipiNeurone.length === 0) {
+    return (
+      <div
+        style={{
+          position: 'fixed',
+          inset: 0,
+          background: 'rgba(0,0,0,0.6)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 2000,
+        }}
+        onClick={onClose}
+      >
+        <div
+          style={{
+            background: 'var(--bg-secondary)',
+            padding: '24px',
+            borderRadius: '12px',
+            maxWidth: '400px',
+            textAlign: 'center',
+          }}
+          onClick={e => e.stopPropagation()}
+        >
+          <h3 style={{ marginBottom: '12px' }}>Configura prima i tipi</h3>
+          <p style={{ color: 'var(--text-secondary)', marginBottom: '16px' }}>
+            Per creare neuroni devi prima definire almeno un tipo e una categoria.
+            Vai in <strong>Impostazioni → Categorie</strong> per configurarli.
+          </p>
+          <button className="btn btn-primary" onClick={onClose}>
+            Ho capito
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   // MOBILE: Drawer dall'alto compatto
   if (isMobile) {
     return (
@@ -246,7 +334,7 @@ export default function NeuroneFormModal({
         <div
           style={{
             background: 'var(--bg-secondary)',
-            maxHeight: '55vh',
+            maxHeight: '60vh',
             overflow: 'hidden',
             display: 'flex',
             flexDirection: 'column',
@@ -257,76 +345,121 @@ export default function NeuroneFormModal({
           {/* Header */}
           <div style={{ padding: '10px 14px', borderBottom: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
             <h2 style={{ fontSize: '15px', fontWeight: 600, margin: 0 }}>
-              {isEdit ? 'Modifica' : 'Nuovo'} {tipo === 'persona' ? 'Persona' : tipo === 'impresa' ? 'Impresa' : 'Cantiere'}
+              {isEdit ? 'Modifica' : 'Nuovo'} {tipoSelezionato ? tipoSelezionato.nome : 'Neurone'}
             </h2>
             <button onClick={onClose} style={{ background: 'transparent', border: 'none', fontSize: '18px', cursor: 'pointer', color: 'var(--text-secondary)', padding: '2px 6px' }}>✕</button>
           </div>
 
-          {/* Form compatto */}
-          <div style={{ padding: '10px 14px', overflowY: 'auto', flex: 1 }}>
-            {/* Tipo */}
-            <div style={{ display: 'flex', gap: '4px', marginBottom: '10px' }}>
-              {(['persona', 'impresa', 'luogo'] as TipoNeurone[]).map((t) => (
-                <button
-                  key={t}
-                  type="button"
-                  onClick={() => { setTipo(t); setCategorie([]); }}
-                  style={{ flex: 1, padding: '6px', border: 'none', borderRadius: '6px', fontSize: '12px', fontWeight: tipo === t ? 600 : 400, cursor: 'pointer', background: tipo === t ? 'var(--primary)' : 'var(--bg-primary)', color: tipo === t ? 'white' : 'var(--text-primary)' }}
-                >
-                  {t === 'persona' ? 'Persona' : t === 'impresa' ? 'Impresa' : 'Cantiere'}
-                </button>
-              ))}
-            </div>
+          {loadingTipi ? (
+            <div style={{ padding: '20px', textAlign: 'center', color: 'var(--text-secondary)' }}>Caricamento...</div>
+          ) : (
+            <>
+              {/* Form compatto */}
+              <div style={{ padding: '10px 14px', overflowY: 'auto', flex: 1 }}>
+                {/* Tipo */}
+                <div style={{ marginBottom: '10px' }}>
+                  <label style={{ fontSize: '11px', color: 'var(--text-secondary)', marginBottom: '4px', display: 'block' }}>Tipo</label>
+                  <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
+                    {tipiNeurone.map((t) => (
+                      <button
+                        key={t.id}
+                        type="button"
+                        onClick={() => { setTipoId(t.id); setCategoriaId(''); }}
+                        style={{
+                          padding: '6px 10px',
+                          border: 'none',
+                          borderRadius: '6px',
+                          fontSize: '12px',
+                          fontWeight: tipoId === t.id ? 600 : 400,
+                          cursor: 'pointer',
+                          background: tipoId === t.id ? 'var(--primary)' : 'var(--bg-primary)',
+                          color: tipoId === t.id ? 'white' : 'var(--text-primary)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '4px',
+                        }}
+                      >
+                        <span>{formaLabels[t.forma]}</span> {t.nome}
+                      </button>
+                    ))}
+                  </div>
+                </div>
 
-            {/* Nome */}
-            <input type="text" className="form-input" value={nome} onChange={(e) => setNome(e.target.value)} placeholder="Nome *" style={{ fontSize: '13px', marginBottom: '8px', padding: '8px 10px' }} />
+                {/* Categoria */}
+                {tipoId && (
+                  <div style={{ marginBottom: '10px' }}>
+                    <label style={{ fontSize: '11px', color: 'var(--text-secondary)', marginBottom: '4px', display: 'block' }}>Categoria</label>
+                    {categoriePerTipo.length === 0 ? (
+                      <p style={{ fontSize: '11px', color: '#f59e0b' }}>Nessuna categoria per questo tipo. Creala in Impostazioni.</p>
+                    ) : (
+                      <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
+                        {categoriePerTipo.map((cat) => (
+                          <button
+                            key={cat.id}
+                            type="button"
+                            onClick={() => setCategoriaId(cat.id)}
+                            style={{
+                              padding: '4px 8px',
+                              borderRadius: '8px',
+                              border: categoriaId === cat.id ? '2px solid white' : 'none',
+                              boxShadow: categoriaId === cat.id ? '0 0 0 2px var(--primary)' : 'none',
+                              fontSize: '11px',
+                              cursor: 'pointer',
+                              background: cat.colore,
+                              color: 'white',
+                              fontWeight: 500,
+                            }}
+                          >
+                            {cat.nome}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
 
-            {/* Categorie */}
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '3px', marginBottom: '8px' }}>
-              {CATEGORIE_SUGGERITE[tipo].slice(0, 6).map((cat) => (
-                <button key={cat} type="button" onClick={() => toggleCategoria(cat)} style={{ padding: '3px 6px', borderRadius: '8px', border: 'none', fontSize: '10px', cursor: 'pointer', background: categorie.includes(cat) ? 'var(--primary)' : 'var(--bg-primary)', color: categorie.includes(cat) ? 'white' : 'var(--text-primary)' }}>
-                  {cat}
-                </button>
-              ))}
-            </div>
+                {/* Nome */}
+                <input type="text" className="form-input" value={nome} onChange={(e) => setNome(e.target.value)} placeholder="Nome *" style={{ fontSize: '13px', marginBottom: '8px', padding: '8px 10px' }} />
 
-            {/* Posizione */}
-            <div style={{ display: 'flex', gap: '4px', marginBottom: '8px' }}>
-              <input type="text" className="form-input" value={indirizzo} onChange={(e) => { setIndirizzo(e.target.value); setLat(null); setLng(null); }} placeholder="Indirizzo..." style={{ flex: 1, fontSize: '12px', padding: '6px 8px' }} />
-              <button type="button" onClick={handleGeocoding} disabled={geocoding || !indirizzo.trim()} style={{ padding: '6px 8px', border: 'none', borderRadius: '6px', background: 'var(--bg-primary)', cursor: 'pointer', fontSize: '12px' }}>{geocoding ? '...' : '🔍'}</button>
-            </div>
-            <div style={{ display: 'flex', gap: '4px', marginBottom: '8px' }}>
-              <button type="button" onClick={handleGetGps} disabled={gettingGps} style={{ flex: 1, padding: '6px', border: 'none', borderRadius: '6px', background: 'var(--bg-primary)', cursor: 'pointer', fontSize: '11px' }}>{gettingGps ? '...' : '📍 GPS'}</button>
-              {onRequestMapPick && (
-                <button type="button" onClick={onRequestMapPick} style={{ flex: 1, padding: '6px', border: 'none', borderRadius: '6px', background: 'var(--primary)', color: 'white', cursor: 'pointer', fontSize: '11px', fontWeight: 600 }}>🗺️ Mappa</button>
-              )}
-            </div>
-            {lat && lng && <div style={{ fontSize: '10px', color: 'var(--text-secondary)', marginBottom: '6px' }}>📍 {lat.toFixed(4)}, {lng.toFixed(4)}</div>}
+                {/* Posizione */}
+                <div style={{ display: 'flex', gap: '4px', marginBottom: '8px' }}>
+                  <input type="text" className="form-input" value={indirizzo} onChange={(e) => { setIndirizzo(e.target.value); setLat(null); setLng(null); }} placeholder="Indirizzo..." style={{ flex: 1, fontSize: '12px', padding: '6px 8px' }} />
+                  <button type="button" onClick={handleGeocoding} disabled={geocoding || !indirizzo.trim()} style={{ padding: '6px 8px', border: 'none', borderRadius: '6px', background: 'var(--bg-primary)', cursor: 'pointer', fontSize: '12px' }}>{geocoding ? '...' : '🔍'}</button>
+                </div>
+                <div style={{ display: 'flex', gap: '4px', marginBottom: '8px' }}>
+                  <button type="button" onClick={handleGetGps} disabled={gettingGps} style={{ flex: 1, padding: '6px', border: 'none', borderRadius: '6px', background: 'var(--bg-primary)', cursor: 'pointer', fontSize: '11px' }}>{gettingGps ? '...' : '📍 GPS'}</button>
+                  {onRequestMapPick && (
+                    <button type="button" onClick={onRequestMapPick} style={{ flex: 1, padding: '6px', border: 'none', borderRadius: '6px', background: 'var(--primary)', color: 'white', cursor: 'pointer', fontSize: '11px', fontWeight: 600 }}>🗺️ Mappa</button>
+                  )}
+                </div>
+                {lat && lng && <div style={{ fontSize: '10px', color: 'var(--text-secondary)', marginBottom: '6px' }}>📍 {lat.toFixed(4)}, {lng.toFixed(4)}</div>}
 
-            {/* Contatti */}
-            <div style={{ display: 'flex', gap: '4px', marginBottom: '8px' }}>
-              <input type="tel" className="form-input" value={telefono} onChange={(e) => setTelefono(e.target.value)} placeholder="Telefono" style={{ flex: 1, fontSize: '12px', padding: '6px 8px' }} />
-              <input type="email" className="form-input" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email" style={{ flex: 1, fontSize: '12px', padding: '6px 8px' }} />
-            </div>
+                {/* Contatti */}
+                <div style={{ display: 'flex', gap: '4px', marginBottom: '8px' }}>
+                  <input type="tel" className="form-input" value={telefono} onChange={(e) => setTelefono(e.target.value)} placeholder="Telefono" style={{ flex: 1, fontSize: '12px', padding: '6px 8px' }} />
+                  <input type="email" className="form-input" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email" style={{ flex: 1, fontSize: '12px', padding: '6px 8px' }} />
+                </div>
 
-            {/* Visibilita */}
-            <div style={{ display: 'flex', gap: '10px', fontSize: '11px', marginBottom: '6px' }}>
-              <label style={{ display: 'flex', alignItems: 'center', gap: '3px', cursor: 'pointer' }}>
-                <input type="radio" name="visibilita" checked={visibilita === 'aziendale'} onChange={() => setVisibilita('aziendale')} /> Aziendale
-              </label>
-              <label style={{ display: 'flex', alignItems: 'center', gap: '3px', cursor: 'pointer' }}>
-                <input type="radio" name="visibilita" checked={visibilita === 'personale'} onChange={() => setVisibilita('personale')} /> Personale
-              </label>
-            </div>
+                {/* Visibilita */}
+                <div style={{ display: 'flex', gap: '10px', fontSize: '11px', marginBottom: '6px' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '3px', cursor: 'pointer' }}>
+                    <input type="radio" name="visibilita" checked={visibilita === 'aziendale'} onChange={() => setVisibilita('aziendale')} /> Aziendale
+                  </label>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '3px', cursor: 'pointer' }}>
+                    <input type="radio" name="visibilita" checked={visibilita === 'personale'} onChange={() => setVisibilita('personale')} /> Personale
+                  </label>
+                </div>
 
-            {error && <div style={{ padding: '6px', borderRadius: '4px', background: 'rgba(239,68,68,0.1)', color: '#ef4444', fontSize: '11px' }}>{error}</div>}
-          </div>
+                {error && <div style={{ padding: '6px', borderRadius: '4px', background: 'rgba(239,68,68,0.1)', color: '#ef4444', fontSize: '11px' }}>{error}</div>}
+              </div>
 
-          {/* Footer */}
-          <div style={{ padding: '10px 14px', borderTop: '1px solid var(--border-color)', display: 'flex', gap: '6px', flexShrink: 0 }}>
-            <button onClick={onClose} style={{ flex: 1, padding: '8px', border: '1px solid var(--border-color)', borderRadius: '6px', background: 'transparent', cursor: 'pointer', fontSize: '13px' }}>Annulla</button>
-            <button onClick={handleSubmit} disabled={saving} style={{ flex: 1, padding: '8px', border: 'none', borderRadius: '6px', background: 'var(--primary)', color: 'white', cursor: 'pointer', fontSize: '13px', fontWeight: 600 }}>{saving ? '...' : 'Salva'}</button>
-          </div>
+              {/* Footer */}
+              <div style={{ padding: '10px 14px', borderTop: '1px solid var(--border-color)', display: 'flex', gap: '6px', flexShrink: 0 }}>
+                <button onClick={onClose} style={{ flex: 1, padding: '8px', border: '1px solid var(--border-color)', borderRadius: '6px', background: 'transparent', cursor: 'pointer', fontSize: '13px' }}>Annulla</button>
+                <button onClick={handleSubmit} disabled={saving} style={{ flex: 1, padding: '8px', border: 'none', borderRadius: '6px', background: 'var(--primary)', color: 'white', cursor: 'pointer', fontSize: '13px', fontWeight: 600 }}>{saving ? '...' : 'Salva'}</button>
+              </div>
+            </>
+          )}
         </div>
 
         {/* Sfondo cliccabile per chiudere */}
@@ -341,7 +474,7 @@ export default function NeuroneFormModal({
       style={{
         position: 'fixed',
         top: 0,
-        left: '280px', // Larghezza sidebar
+        left: '280px',
         bottom: 0,
         width: '380px',
         background: 'var(--bg-secondary)',
@@ -369,101 +502,138 @@ export default function NeuroneFormModal({
         {/* Header */}
         <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <h2 style={{ fontSize: '18px', fontWeight: 600, margin: 0 }}>
-            {isEdit ? 'Modifica' : 'Nuovo'} {tipo === 'persona' ? 'Persona' : tipo === 'impresa' ? 'Impresa' : 'Cantiere'}
+            {isEdit ? 'Modifica' : 'Nuovo'} {tipoSelezionato ? tipoSelezionato.nome : 'Neurone'}
           </h2>
           <button onClick={onClose} style={{ background: 'transparent', border: 'none', fontSize: '22px', cursor: 'pointer', color: 'var(--text-secondary)', padding: '4px 8px' }}>✕</button>
         </div>
 
-        {/* Form */}
-        <div style={{ padding: '20px', overflowY: 'auto', flex: 1 }}>
-          {/* Tipo */}
-          <div style={{ marginBottom: '16px' }}>
-            <label style={{ fontSize: '13px', fontWeight: 500, marginBottom: '6px', display: 'block', color: 'var(--text-secondary)' }}>Tipo</label>
-            <div style={{ display: 'flex', gap: '8px' }}>
-              {(['persona', 'impresa', 'luogo'] as TipoNeurone[]).map((t) => (
-                <button
-                  key={t}
-                  type="button"
-                  onClick={() => { setTipo(t); setCategorie([]); }}
-                  style={{ flex: 1, padding: '10px', border: 'none', borderRadius: '8px', fontSize: '14px', fontWeight: tipo === t ? 600 : 400, cursor: 'pointer', background: tipo === t ? 'var(--primary)' : 'var(--bg-primary)', color: tipo === t ? 'white' : 'var(--text-primary)' }}
-                >
-                  {t === 'persona' ? 'Persona' : t === 'impresa' ? 'Impresa' : 'Cantiere'}
-                </button>
-              ))}
-            </div>
-          </div>
+        {loadingTipi ? (
+          <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-secondary)' }}>Caricamento tipi...</div>
+        ) : (
+          <>
+            {/* Form */}
+            <div style={{ padding: '20px', overflowY: 'auto', flex: 1 }}>
+              {/* Tipo */}
+              <div style={{ marginBottom: '16px' }}>
+                <label style={{ fontSize: '13px', fontWeight: 500, marginBottom: '6px', display: 'block', color: 'var(--text-secondary)' }}>Tipo *</label>
+                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                  {tipiNeurone.map((t) => (
+                    <button
+                      key={t.id}
+                      type="button"
+                      onClick={() => { setTipoId(t.id); setCategoriaId(''); }}
+                      style={{
+                        padding: '10px 16px',
+                        border: 'none',
+                        borderRadius: '8px',
+                        fontSize: '14px',
+                        fontWeight: tipoId === t.id ? 600 : 400,
+                        cursor: 'pointer',
+                        background: tipoId === t.id ? 'var(--primary)' : 'var(--bg-primary)',
+                        color: tipoId === t.id ? 'white' : 'var(--text-primary)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                      }}
+                    >
+                      <span style={{ fontSize: '18px' }}>{formaLabels[t.forma]}</span> {t.nome}
+                    </button>
+                  ))}
+                </div>
+              </div>
 
-          {/* Nome */}
-          <div style={{ marginBottom: '16px' }}>
-            <label style={{ fontSize: '13px', fontWeight: 500, marginBottom: '6px', display: 'block', color: 'var(--text-secondary)' }}>Nome *</label>
-            <input type="text" className="form-input" value={nome} onChange={(e) => setNome(e.target.value)} placeholder={tipo === 'persona' ? 'Mario Rossi' : tipo === 'impresa' ? 'Colorificio Rossi S.r.l.' : 'Cantiere Via Roma 1'} />
-          </div>
-
-          {/* Categorie */}
-          <div style={{ marginBottom: '16px' }}>
-            <label style={{ fontSize: '13px', fontWeight: 500, marginBottom: '6px', display: 'block', color: 'var(--text-secondary)' }}>Categorie *</label>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: '8px' }}>
-              {CATEGORIE_SUGGERITE[tipo].map((cat) => (
-                <button key={cat} type="button" onClick={() => toggleCategoria(cat)} style={{ padding: '5px 10px', borderRadius: '12px', border: 'none', fontSize: '12px', cursor: 'pointer', background: categorie.includes(cat) ? 'var(--primary)' : 'var(--bg-primary)', color: categorie.includes(cat) ? 'white' : 'var(--text-primary)' }}>
-                  {cat}
-                </button>
-              ))}
-            </div>
-            <div style={{ display: 'flex', gap: '8px' }}>
-              <input type="text" className="form-input" value={categoriaCustom} onChange={(e) => setCategoriaCustom(e.target.value)} placeholder="Altra categoria..." onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addCategoriaCustom())} style={{ flex: 1 }} />
-              <button type="button" onClick={addCategoriaCustom} disabled={!categoriaCustom.trim()} style={{ padding: '8px 14px', border: 'none', borderRadius: '8px', background: 'var(--bg-primary)', cursor: 'pointer' }}>+</button>
-            </div>
-          </div>
-
-          {/* Posizione */}
-          <div style={{ marginBottom: '16px' }}>
-            <label style={{ fontSize: '13px', fontWeight: 500, marginBottom: '6px', display: 'block', color: 'var(--text-secondary)' }}>Posizione</label>
-            <div style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
-              <input type="text" className="form-input" value={indirizzo} onChange={(e) => { setIndirizzo(e.target.value); setLat(null); setLng(null); }} placeholder="Via Roma 1, Milano" style={{ flex: 1 }} />
-              <button type="button" onClick={handleGeocoding} disabled={geocoding || !indirizzo.trim()} style={{ padding: '8px 12px', border: 'none', borderRadius: '8px', background: 'var(--bg-primary)', cursor: 'pointer' }}>{geocoding ? '...' : '🔍'}</button>
-            </div>
-            <div style={{ display: 'flex', gap: '8px' }}>
-              <button type="button" onClick={handleGetGps} disabled={gettingGps} style={{ flex: 1, padding: '10px', border: 'none', borderRadius: '8px', background: 'var(--bg-primary)', cursor: 'pointer', fontSize: '13px' }}>{gettingGps ? 'Localizzazione...' : '📍 Posizione GPS'}</button>
-              {onRequestMapPick && (
-                <button type="button" onClick={onRequestMapPick} style={{ flex: 1, padding: '10px', border: 'none', borderRadius: '8px', background: 'var(--primary)', color: 'white', cursor: 'pointer', fontSize: '13px', fontWeight: 600 }}>🗺️ Scegli su mappa</button>
+              {/* Categoria */}
+              {tipoId && (
+                <div style={{ marginBottom: '16px' }}>
+                  <label style={{ fontSize: '13px', fontWeight: 500, marginBottom: '6px', display: 'block', color: 'var(--text-secondary)' }}>Categoria *</label>
+                  {categoriePerTipo.length === 0 ? (
+                    <p style={{ fontSize: '13px', color: '#f59e0b', padding: '12px', background: 'rgba(245, 158, 11, 0.1)', borderRadius: '8px' }}>
+                      Nessuna categoria per questo tipo. Vai in Impostazioni → Categorie per crearne.
+                    </p>
+                  ) : (
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                      {categoriePerTipo.map((cat) => (
+                        <button
+                          key={cat.id}
+                          type="button"
+                          onClick={() => setCategoriaId(cat.id)}
+                          style={{
+                            padding: '8px 14px',
+                            borderRadius: '10px',
+                            border: categoriaId === cat.id ? '2px solid white' : '2px solid transparent',
+                            boxShadow: categoriaId === cat.id ? '0 0 0 2px var(--primary)' : 'none',
+                            fontSize: '13px',
+                            cursor: 'pointer',
+                            background: cat.colore,
+                            color: 'white',
+                            fontWeight: 500,
+                          }}
+                        >
+                          {cat.nome}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
               )}
-            </div>
-            {lat && lng && <div style={{ marginTop: '8px', fontSize: '12px', color: 'var(--text-secondary)' }}>Coordinate: {lat.toFixed(5)}, {lng.toFixed(5)}</div>}
-          </div>
 
-          {/* Contatti */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '16px' }}>
-            <div>
-              <label style={{ fontSize: '13px', fontWeight: 500, marginBottom: '6px', display: 'block', color: 'var(--text-secondary)' }}>Telefono</label>
-              <input type="tel" className="form-input" value={telefono} onChange={(e) => setTelefono(e.target.value)} placeholder="+39 333 1234567" />
-            </div>
-            <div>
-              <label style={{ fontSize: '13px', fontWeight: 500, marginBottom: '6px', display: 'block', color: 'var(--text-secondary)' }}>Email</label>
-              <input type="email" className="form-input" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="email@esempio.it" />
-            </div>
-          </div>
+              {/* Nome */}
+              <div style={{ marginBottom: '16px' }}>
+                <label style={{ fontSize: '13px', fontWeight: 500, marginBottom: '6px', display: 'block', color: 'var(--text-secondary)' }}>Nome *</label>
+                <input type="text" className="form-input" value={nome} onChange={(e) => setNome(e.target.value)} placeholder="Inserisci nome..." />
+              </div>
 
-          {/* Visibilita */}
-          <div style={{ marginBottom: '16px' }}>
-            <label style={{ fontSize: '13px', fontWeight: 500, marginBottom: '6px', display: 'block', color: 'var(--text-secondary)' }}>Visibilita</label>
-            <div style={{ display: 'flex', gap: '16px' }}>
-              <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', fontSize: '14px' }}>
-                <input type="radio" name="visibilita" checked={visibilita === 'aziendale'} onChange={() => setVisibilita('aziendale')} /> Aziendale (visibile ai colleghi)
-              </label>
-              <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', fontSize: '14px' }}>
-                <input type="radio" name="visibilita" checked={visibilita === 'personale'} onChange={() => setVisibilita('personale')} /> Personale (solo tu)
-              </label>
+              {/* Posizione */}
+              <div style={{ marginBottom: '16px' }}>
+                <label style={{ fontSize: '13px', fontWeight: 500, marginBottom: '6px', display: 'block', color: 'var(--text-secondary)' }}>Posizione</label>
+                <div style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
+                  <input type="text" className="form-input" value={indirizzo} onChange={(e) => { setIndirizzo(e.target.value); setLat(null); setLng(null); }} placeholder="Via Roma 1, Milano" style={{ flex: 1 }} />
+                  <button type="button" onClick={handleGeocoding} disabled={geocoding || !indirizzo.trim()} style={{ padding: '8px 12px', border: 'none', borderRadius: '8px', background: 'var(--bg-primary)', cursor: 'pointer' }}>{geocoding ? '...' : '🔍'}</button>
+                </div>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <button type="button" onClick={handleGetGps} disabled={gettingGps} style={{ flex: 1, padding: '10px', border: 'none', borderRadius: '8px', background: 'var(--bg-primary)', cursor: 'pointer', fontSize: '13px' }}>{gettingGps ? 'Localizzazione...' : '📍 Posizione GPS'}</button>
+                  {onRequestMapPick && (
+                    <button type="button" onClick={onRequestMapPick} style={{ flex: 1, padding: '10px', border: 'none', borderRadius: '8px', background: 'var(--primary)', color: 'white', cursor: 'pointer', fontSize: '13px', fontWeight: 600 }}>🗺️ Scegli su mappa</button>
+                  )}
+                </div>
+                {lat && lng && <div style={{ marginTop: '8px', fontSize: '12px', color: 'var(--text-secondary)' }}>Coordinate: {lat.toFixed(5)}, {lng.toFixed(5)}</div>}
+              </div>
+
+              {/* Contatti */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '16px' }}>
+                <div>
+                  <label style={{ fontSize: '13px', fontWeight: 500, marginBottom: '6px', display: 'block', color: 'var(--text-secondary)' }}>Telefono</label>
+                  <input type="tel" className="form-input" value={telefono} onChange={(e) => setTelefono(e.target.value)} placeholder="+39 333 1234567" />
+                </div>
+                <div>
+                  <label style={{ fontSize: '13px', fontWeight: 500, marginBottom: '6px', display: 'block', color: 'var(--text-secondary)' }}>Email</label>
+                  <input type="email" className="form-input" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="email@esempio.it" />
+                </div>
+              </div>
+
+              {/* Visibilita */}
+              <div style={{ marginBottom: '16px' }}>
+                <label style={{ fontSize: '13px', fontWeight: 500, marginBottom: '6px', display: 'block', color: 'var(--text-secondary)' }}>Visibilità</label>
+                <div style={{ display: 'flex', gap: '16px' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', fontSize: '14px' }}>
+                    <input type="radio" name="visibilita" checked={visibilita === 'aziendale'} onChange={() => setVisibilita('aziendale')} /> Aziendale (visibile ai colleghi)
+                  </label>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', fontSize: '14px' }}>
+                    <input type="radio" name="visibilita" checked={visibilita === 'personale'} onChange={() => setVisibilita('personale')} /> Personale (solo tu)
+                  </label>
+                </div>
+              </div>
+
+              {error && <div style={{ padding: '10px', borderRadius: '8px', background: 'rgba(239,68,68,0.1)', color: '#ef4444', fontSize: '13px' }}>{error}</div>}
             </div>
-          </div>
 
-          {error && <div style={{ padding: '10px', borderRadius: '8px', background: 'rgba(239,68,68,0.1)', color: '#ef4444', fontSize: '13px' }}>{error}</div>}
-        </div>
-
-        {/* Footer */}
-        <div style={{ padding: '16px 20px', borderTop: '1px solid var(--border-color)', display: 'flex', gap: '12px' }}>
-          <button onClick={onClose} style={{ flex: 1, padding: '12px', border: '1px solid var(--border-color)', borderRadius: '8px', background: 'transparent', cursor: 'pointer', fontSize: '14px' }}>Annulla</button>
-          <button onClick={handleSubmit} disabled={saving} style={{ flex: 1, padding: '12px', border: 'none', borderRadius: '8px', background: 'var(--primary)', color: 'white', cursor: 'pointer', fontSize: '14px', fontWeight: 600 }}>{saving ? 'Salvataggio...' : 'Salva'}</button>
-        </div>
+            {/* Footer */}
+            <div style={{ padding: '16px 20px', borderTop: '1px solid var(--border-color)', display: 'flex', gap: '12px' }}>
+              <button onClick={onClose} style={{ flex: 1, padding: '12px', border: '1px solid var(--border-color)', borderRadius: '8px', background: 'transparent', cursor: 'pointer', fontSize: '14px' }}>Annulla</button>
+              <button onClick={handleSubmit} disabled={saving} style={{ flex: 1, padding: '12px', border: 'none', borderRadius: '8px', background: 'var(--primary)', color: 'white', cursor: 'pointer', fontSize: '14px', fontWeight: 600 }}>{saving ? 'Salvataggio...' : 'Salva'}</button>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );
