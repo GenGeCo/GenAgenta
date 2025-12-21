@@ -1136,16 +1136,6 @@ export default function SettingsModal({ user, onClose, onUserUpdate }: SettingsM
                       {showNewCategoriaForm && tipiNeurone.length > 0 && (
                         <div style={{ background: 'var(--bg-primary)', padding: '16px', borderRadius: '8px', marginBottom: '16px' }}>
                           <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'flex-end', marginBottom: '12px' }}>
-                            <div style={{ flex: 1, minWidth: '150px' }}>
-                              <label style={{ display: 'block', fontSize: '12px', marginBottom: '4px', color: 'var(--text-secondary)' }}>Nome</label>
-                              <input
-                                type="text"
-                                className="form-input"
-                                value={newCategoriaNome}
-                                onChange={(e) => setNewCategoriaNome(e.target.value)}
-                                placeholder="es: Ingegnere"
-                              />
-                            </div>
                             <div style={{ minWidth: '150px' }}>
                               <label style={{ display: 'block', fontSize: '12px', marginBottom: '4px', color: 'var(--text-secondary)' }}>Tipo</label>
                               <select
@@ -1158,6 +1148,16 @@ export default function SettingsModal({ user, onClose, onUserUpdate }: SettingsM
                                   <option key={t.id} value={t.id}>{t.nome}</option>
                                 ))}
                               </select>
+                            </div>
+                            <div style={{ flex: 1, minWidth: '150px' }}>
+                              <label style={{ display: 'block', fontSize: '12px', marginBottom: '4px', color: 'var(--text-secondary)' }}>Nome Categoria</label>
+                              <input
+                                type="text"
+                                className="form-input"
+                                value={newCategoriaNome}
+                                onChange={(e) => setNewCategoriaNome(e.target.value)}
+                                placeholder="es: Ingegnere"
+                              />
                             </div>
                             <div style={{ minWidth: '120px' }}>
                               <label style={{ display: 'block', fontSize: '12px', marginBottom: '4px', color: 'var(--text-secondary)' }}>Visibilità</label>
