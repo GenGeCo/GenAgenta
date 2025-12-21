@@ -228,6 +228,9 @@ export default function NeuroneFormModal({
       };
     }
 
+    // DEBUG: log cosa viene inviato
+    console.log('DEBUG salvataggio:', JSON.stringify({ tipoId, tipoNome, categoriaNome, tipiDisponibili: tipiNeurone.map(t => t.nome) }));
+
     setSaving(true);
     try {
       const payload = {

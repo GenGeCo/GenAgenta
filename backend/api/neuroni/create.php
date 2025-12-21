@@ -38,10 +38,13 @@ $stmtTipo->execute($paramsTipo);
 $tipoRow = $stmtTipo->fetch();
 
 if (!$tipoRow) {
-    errorResponse('Tipo non valido o non accessibile', 400);
+    // DEBUG: log per capire perché non trova il tipo
+    error_log("DEBUG create.php: tipo non trovato. data[tipo]={$data['tipo']}, azienda_id=$aziendaId");
+    errorResponse('Tipo non valido o non accessibile: ' . $data['tipo'], 400);
 }
 // Usa il nome del tipo per salvare nel DB (per retrocompatibilità)
 $tipoNome = $tipoRow['nome'];
+error_log("DEBUG create.php: tipo trovato. tipoNome=$tipoNome");
 
 // Valida categorie (deve essere array)
 if (!is_array($data['categorie'])) {
