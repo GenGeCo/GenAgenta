@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { api } from '../utils/api';
 import type { User, TipoNeuroneConfig, Categoria, TipoSinapsiConfig, FormaNeurone } from '../types';
+import FamiglieProdottoTab from './FamiglieProdottoTab';
 
 interface SettingsModalProps {
   user: User;
@@ -20,7 +21,7 @@ interface Membro {
   is_me: boolean;
 }
 
-type Tab = 'profilo' | 'password' | 'team' | 'categorie';
+type Tab = 'profilo' | 'password' | 'team' | 'categorie' | 'prodotti';
 
 export default function SettingsModal({ user, onClose, onUserUpdate }: SettingsModalProps) {
   const [activeTab, setActiveTab] = useState<Tab>('profilo');
@@ -507,6 +508,7 @@ export default function SettingsModal({ user, onClose, onUserUpdate }: SettingsM
             { id: 'password' as Tab, label: '🔒 Password' },
             ...(user.azienda_id ? [{ id: 'team' as Tab, label: '👥 Team' }] : []),
             { id: 'categorie' as Tab, label: '🏷️ Categorie' },
+            { id: 'prodotti' as Tab, label: '📦 Prodotti' },
           ].map((tab) => (
             <button
               key={tab.id}
@@ -1442,6 +1444,11 @@ export default function SettingsModal({ user, onClose, onUserUpdate }: SettingsM
                 </>
               )}
             </div>
+          )}
+
+          {/* TAB: Prodotti */}
+          {activeTab === 'prodotti' && (
+            <FamiglieProdottoTab />
           )}
         </div>
       </div>
