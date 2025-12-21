@@ -11,7 +11,7 @@ import PinModal from '../components/PinModal';
 import UserMenu from '../components/UserMenu';
 import InvitePopup from '../components/InvitePopup';
 import NeuroneFormModal from '../components/NeuroneFormModal';
-import type { Neurone, Sinapsi, FiltriMappa, Categoria } from '../types';
+import type { Neurone, Sinapsi, FiltriMappa, Categoria, TipoNeuroneConfig } from '../types';
 
 interface PendingInvite {
   id: string;
@@ -27,6 +27,7 @@ export default function Dashboard() {
   const [neuroni, setNeuroni] = useState<Neurone[]>([]);
   const [sinapsi, setSinapsi] = useState<Sinapsi[]>([]);
   const [categorie, setCategorie] = useState<Categoria[]>([]);
+  const [tipiNeurone, setTipiNeurone] = useState<TipoNeuroneConfig[]>([]);
   const [selectedNeurone, setSelectedNeurone] = useState<Neurone | null>(null);
   const [showPinModal, setShowPinModal] = useState(false);
   const [showNeuroneForm, setShowNeuroneForm] = useState(false);
@@ -68,17 +69,21 @@ export default function Dashboard() {
     checkInvites();
   }, []);
 
-  // Carica categorie una volta all'avvio
+  // Carica tipi e categorie una volta all'avvio
   useEffect(() => {
-    const loadCategorie = async () => {
+    const loadTipiCategorie = async () => {
       try {
-        const catRes = await api.getCategorie();
+        const [tipiRes, catRes] = await Promise.all([
+          api.getTipiNeurone(),
+          api.getCategorie()
+        ]);
+        setTipiNeurone(tipiRes.data);
         setCategorie(catRes.data);
       } catch (error) {
-        console.error('Errore caricamento categorie:', error);
+        console.error('Errore caricamento tipi/categorie:', error);
       }
     };
-    loadCategorie();
+    loadTipiCategorie();
   }, []);
 
   // Carica dati
@@ -185,6 +190,7 @@ export default function Dashboard() {
             neuroni={neuroni}
             sinapsi={sinapsi}
             categorie={categorie}
+            tipiNeurone={tipiNeurone}
             selectedId={selectedNeurone?.id || null}
             onSelectNeurone={handleSelectNeurone}
             filtri={filtri}

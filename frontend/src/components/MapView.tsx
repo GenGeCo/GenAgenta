@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, useCallback } from 'react';
 import mapboxgl from 'mapbox-gl';
-import type { Neurone, Sinapsi, FiltriMappa, Categoria } from '../types';
+import type { Neurone, Sinapsi, FiltriMappa, Categoria, TipoNeuroneConfig } from '../types';
 
 // Token Mapbox
 mapboxgl.accessToken = import.meta.env.VITE_MAPBOX_TOKEN || 'pk.eyJ1IjoiZ2VuYWdlbnRhIiwiYSI6ImNtamR6a3UwazBjNHEzZnF4aWxhYzlqMmUifQ.0RcP-1pxFW7rHYvVoJQG5g';
@@ -11,6 +11,7 @@ interface MapViewProps {
   neuroni: Neurone[];
   sinapsi: Sinapsi[];
   categorie: Categoria[];
+  tipiNeurone: TipoNeuroneConfig[];
   selectedId: string | null;
   onSelectNeurone: (neurone: Neurone) => void;
   filtri: FiltriMappa;
@@ -86,6 +87,7 @@ export default function MapView({
   neuroni,
   sinapsi,
   categorie,
+  tipiNeurone,
   selectedId,
   onSelectNeurone,
   filtri,
@@ -241,21 +243,33 @@ export default function MapView({
 
     if (neuroniConCoord.length === 0) return;
 
-    // Funzione per ottenere il colore dalla prima categoria del neurone
+    // Funzione per ottenere il colore dalla prima categoria del neurone (case-insensitive)
     const getCategoriaColor = (neuroneCategorie: string[]): string => {
       if (!neuroneCategorie || neuroneCategorie.length === 0) return DEFAULT_COLOR;
-      const primaCategoria = neuroneCategorie[0];
-      const cat = categorie.find(c => c.nome === primaCategoria);
+      const primaCategoria = neuroneCategorie[0].toLowerCase();
+      const cat = categorie.find(c => c.nome.toLowerCase() === primaCategoria);
       return cat?.colore || DEFAULT_COLOR;
+    };
+
+    // Funzione per ottenere la forma dal tipo neurone (case-insensitive)
+    const getTipoForma = (tipoNome: string): 'quadrato' | 'cerchio' => {
+      const tipo = tipiNeurone.find(t => t.nome.toLowerCase() === tipoNome.toLowerCase());
+      // Se il tipo ha forma quadrato, triangolo, stella, croce, L, C, W, Z usa quadrato
+      // Altrimenti usa cerchio
+      if (tipo?.forma && ['quadrato', 'triangolo', 'stella', 'croce', 'L', 'C', 'W', 'Z'].includes(tipo.forma)) {
+        return 'quadrato';
+      }
+      return 'cerchio';
     };
 
     // Crea GeoJSON per neuroni
     const neuroniFeatures = neuroniConCoord.map((neurone) => {
-      const isLuogo = neurone.tipo === 'luogo';
-      const baseSize = isLuogo ? 105 : 80; // metri - +30% (era 80/60)
+      const forma = getTipoForma(neurone.tipo);
+      const isQuadrato = forma === 'quadrato';
+      const baseSize = isQuadrato ? 105 : 80; // metri - +30% (era 80/60)
       const height = calculateHeight(neurone, getSinapsiCount(neurone.id));
 
-      const polygon = isLuogo
+      const polygon = isQuadrato
         ? createSquarePolygon(neurone.lng!, neurone.lat!, baseSize)
         : createCirclePolygon(neurone.lng!, neurone.lat!, baseSize / 2, 24);
 
@@ -436,7 +450,7 @@ export default function MapView({
       handlersAdded.current = true;
     }
 
-  }, [neuroni, sinapsi, categorie, selectedId, mapReady, filtri, getSinapsiCount, onSelectNeurone]);
+  }, [neuroni, sinapsi, categorie, tipiNeurone, selectedId, mapReady, filtri, getSinapsiCount, onSelectNeurone]);
 
   // Non fare più zoom automatico sulla selezione
   // Lo zoom si fa solo con doppio click
