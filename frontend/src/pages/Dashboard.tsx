@@ -32,6 +32,10 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [pendingInvite, setPendingInvite] = useState<PendingInvite | null>(null);
 
+  // Stato per selezione posizione su mappa
+  const [mapPickingMode, setMapPickingMode] = useState(false);
+  const [pickedPosition, setPickedPosition] = useState<{ lat: number; lng: number } | null>(null);
+
   // Filtri
   const [filtri, setFiltri] = useState<FiltriMappa>({
     dataInizio: new Date(Date.now() - 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // 1 anno fa
@@ -168,6 +172,11 @@ export default function Dashboard() {
             selectedId={selectedNeurone?.id || null}
             onSelectNeurone={handleSelectNeurone}
             filtri={filtri}
+            pickingMode={mapPickingMode}
+            onPickPosition={(lat, lng) => {
+              setPickedPosition({ lat, lng });
+              setMapPickingMode(false);
+            }}
           />
 
           {/* Pannello dettaglio */}
@@ -234,8 +243,17 @@ export default function Dashboard() {
             setNeuroni([neurone, ...neuroni]);
             setShowNeuroneForm(false);
             setSelectedNeurone(neurone);
+            setPickedPosition(null);
+            setMapPickingMode(false);
           }}
-          onClose={() => setShowNeuroneForm(false)}
+          onClose={() => {
+            setShowNeuroneForm(false);
+            setMapPickingMode(false);
+            setPickedPosition(null);
+          }}
+          onRequestMapPick={() => setMapPickingMode(true)}
+          pickedPosition={pickedPosition}
+          isPickingMap={mapPickingMode}
         />
       )}
     </div>

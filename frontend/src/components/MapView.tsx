@@ -13,6 +13,8 @@ interface MapViewProps {
   selectedId: string | null;
   onSelectNeurone: (neurone: Neurone) => void;
   filtri: FiltriMappa;
+  pickingMode?: boolean;
+  onPickPosition?: (lat: number, lng: number) => void;
 }
 
 // Colori per tipo neurone
@@ -87,6 +89,8 @@ export default function MapView({
   selectedId,
   onSelectNeurone,
   filtri,
+  pickingMode = false,
+  onPickPosition,
 }: MapViewProps) {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
@@ -94,6 +98,14 @@ export default function MapView({
   const [mapReady, setMapReady] = useState(false);
   const neuroniRef = useRef<Neurone[]>(neuroni);
   const handlersAdded = useRef(false);
+  const pickingModeRef = useRef(pickingMode);
+  const onPickPositionRef = useRef(onPickPosition);
+
+  // Aggiorna refs per picking mode
+  useEffect(() => {
+    pickingModeRef.current = pickingMode;
+    onPickPositionRef.current = onPickPosition;
+  }, [pickingMode, onPickPosition]);
 
   useEffect(() => {
     neuroniRef.current = neuroni;
@@ -128,6 +140,13 @@ export default function MapView({
     map.current.on('load', () => {
       console.log('Mappa caricata');
       setMapReady(true);
+    });
+
+    // Click generico sulla mappa per picking mode
+    map.current.on('click', (e) => {
+      if (pickingModeRef.current && onPickPositionRef.current) {
+        onPickPositionRef.current(e.lngLat.lat, e.lngLat.lng);
+      }
     });
 
     return () => {
@@ -306,8 +325,11 @@ export default function MapView({
         popup.current?.remove();
       });
 
-      // Click singolo: solo seleziona (senza zoom)
+      // Click singolo: solo seleziona (senza zoom) - ignora se in picking mode
       m.on('click', 'neuroni-3d', (e) => {
+        // Se siamo in picking mode, non gestire click sui neuroni
+        if (pickingModeRef.current) return;
+
         if (e.features && e.features[0]) {
           const id = e.features[0].properties?.id;
           const neurone = neuroniRef.current.find(n => n.id === id);
@@ -348,6 +370,7 @@ export default function MapView({
   return (
     <div style={{ position: 'relative', width: '100%', height: '100%' }}>
       <div ref={mapContainer} style={{ width: '100%', height: '100%' }} />
+
       {/* Legenda */}
       <div style={{
         position: 'absolute',
