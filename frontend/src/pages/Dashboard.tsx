@@ -137,7 +137,7 @@ export default function Dashboard() {
       <div className="main-content">
         {/* Header */}
         <header className="header">
-          <h1 style={{ fontSize: '18px', fontWeight: 600 }}>GenAgenTa</h1>
+          <h1 style={{ fontSize: '18px', fontWeight: 600 }}>GenAgenTa 1</h1>
 
           <div style={{ flex: 1 }} />
 
