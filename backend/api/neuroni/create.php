@@ -64,7 +64,7 @@ $stmt = $db->prepare('
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 ');
 
-$stmt->execute([
+$params = [
     $id,
     $data['nome'],
     $tipoNome,
@@ -79,6 +79,15 @@ $stmt->execute([
     isset($data['dati_extra']) ? json_encode($data['dati_extra']) : null,
     $user['user_id'],
     $user['azienda_id'] ?? null
-]);
+];
 
-jsonResponse(['id' => $id, 'message' => 'Neurone creato'], 201);
+error_log("DEBUG create.php INSERT params: " . json_encode($params));
+$stmt->execute($params);
+
+// Verifica cosa è stato salvato
+$verifyStmt = $db->prepare('SELECT id, nome, tipo FROM neuroni WHERE id = ?');
+$verifyStmt->execute([$id]);
+$saved = $verifyStmt->fetch();
+error_log("DEBUG create.php DOPO INSERT: " . json_encode($saved));
+
+jsonResponse(['id' => $id, 'message' => 'Neurone creato', 'debug_saved' => $saved], 201);
