@@ -65,6 +65,18 @@ $routes = [
 
     // Stats / Dashboard
     'GET:stats' => 'stats/dashboard.php',
+
+    // Tipi Neurone
+    'GET:tipi-neurone' => 'tipi-neurone/list.php',
+    'POST:tipi-neurone' => 'tipi-neurone/create.php',
+
+    // Categorie
+    'GET:categorie' => 'categorie/list.php',
+    'POST:categorie' => 'categorie/create.php',
+
+    // Tipi Sinapsi
+    'GET:tipi-sinapsi' => 'tipi-sinapsi/list.php',
+    'POST:tipi-sinapsi' => 'tipi-sinapsi/create.php',
 ];
 
 // Match route con parametri
@@ -119,6 +131,24 @@ if (!$handler) {
         $params['id'] = $matches[1];
         if ($method === 'DELETE') {
             $handler = 'azienda/membri.php';
+        }
+    } elseif (preg_match('/^tipi-neurone\/([a-zA-Z0-9-]+)$/', $path, $matches)) {
+        $params['id'] = $matches[1];
+        switch ($method) {
+            case 'PUT': $handler = 'tipi-neurone/update.php'; break;
+            case 'DELETE': $handler = 'tipi-neurone/delete.php'; break;
+        }
+    } elseif (preg_match('/^categorie\/([a-zA-Z0-9-]+)$/', $path, $matches)) {
+        $params['id'] = $matches[1];
+        switch ($method) {
+            case 'PUT': $handler = 'categorie/update.php'; break;
+            case 'DELETE': $handler = 'categorie/delete.php'; break;
+        }
+    } elseif (preg_match('/^tipi-sinapsi\/([a-zA-Z0-9-]+)$/', $path, $matches)) {
+        $params['id'] = $matches[1];
+        switch ($method) {
+            case 'PUT': $handler = 'tipi-sinapsi/update.php'; break;
+            case 'DELETE': $handler = 'tipi-sinapsi/delete.php'; break;
         }
     }
 }

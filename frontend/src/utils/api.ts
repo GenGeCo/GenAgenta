@@ -1,7 +1,7 @@
 // GenAgenTa - API Client
 
 import axios, { AxiosInstance, AxiosError } from 'axios';
-import type { Neurone, Sinapsi, NotaPersonale, User, DashboardStats } from '../types';
+import type { Neurone, Sinapsi, NotaPersonale, User, DashboardStats, TipoNeuroneConfig, Categoria, TipoSinapsiConfig, FormaNeurone, Visibilita } from '../types';
 
 const API_BASE = import.meta.env.PROD
   ? '/genagenta/backend/api/index.php'
@@ -263,6 +263,114 @@ class ApiClient {
 
   async rifiutaInvito(invitoId: string): Promise<{ success: boolean }> {
     const { data } = await this.client.post('/azienda/inviti/rifiuta', { invito_id: invitoId });
+    return data;
+  }
+
+  // =====================================================
+  // Tipi Neurone (forme 3D)
+  // =====================================================
+  async getTipiNeurone(): Promise<{
+    data: TipoNeuroneConfig[];
+    forme_disponibili: FormaNeurone[];
+  }> {
+    const { data } = await this.client.get('/tipi-neurone');
+    return data;
+  }
+
+  async createTipoNeurone(tipo: {
+    nome: string;
+    forma: FormaNeurone;
+    visibilita?: Visibilita;
+    ordine?: number;
+  }): Promise<{ id: string; message: string }> {
+    const { data } = await this.client.post('/tipi-neurone', tipo);
+    return data;
+  }
+
+  async updateTipoNeurone(id: string, tipo: {
+    nome?: string;
+    forma?: FormaNeurone;
+    ordine?: number;
+  }): Promise<{ success: boolean }> {
+    const { data } = await this.client.put(`/tipi-neurone/${id}`, tipo);
+    return data;
+  }
+
+  async deleteTipoNeurone(id: string): Promise<{ success: boolean }> {
+    const { data } = await this.client.delete(`/tipi-neurone/${id}`);
+    return data;
+  }
+
+  // =====================================================
+  // Categorie (colori)
+  // =====================================================
+  async getCategorie(tipoId?: string): Promise<{
+    data: Categoria[];
+    palette: string[];
+  }> {
+    const { data } = await this.client.get('/categorie', {
+      params: tipoId ? { tipo_id: tipoId } : undefined,
+    });
+    return data;
+  }
+
+  async createCategoria(categoria: {
+    tipo_id: string;
+    nome: string;
+    colore: string;
+    visibilita?: Visibilita;
+    ordine?: number;
+  }): Promise<{ id: string; message: string }> {
+    const { data } = await this.client.post('/categorie', categoria);
+    return data;
+  }
+
+  async updateCategoria(id: string, categoria: {
+    nome?: string;
+    colore?: string;
+    ordine?: number;
+  }): Promise<{ success: boolean }> {
+    const { data } = await this.client.put(`/categorie/${id}`, categoria);
+    return data;
+  }
+
+  async deleteCategoria(id: string): Promise<{ success: boolean }> {
+    const { data } = await this.client.delete(`/categorie/${id}`);
+    return data;
+  }
+
+  // =====================================================
+  // Tipi Sinapsi (colori connessioni)
+  // =====================================================
+  async getTipiSinapsi(): Promise<{
+    data: TipoSinapsiConfig[];
+    palette: string[];
+  }> {
+    const { data } = await this.client.get('/tipi-sinapsi');
+    return data;
+  }
+
+  async createTipoSinapsi(tipo: {
+    nome: string;
+    colore: string;
+    visibilita?: Visibilita;
+    ordine?: number;
+  }): Promise<{ id: string; message: string }> {
+    const { data } = await this.client.post('/tipi-sinapsi', tipo);
+    return data;
+  }
+
+  async updateTipoSinapsi(id: string, tipo: {
+    nome?: string;
+    colore?: string;
+    ordine?: number;
+  }): Promise<{ success: boolean }> {
+    const { data } = await this.client.put(`/tipi-sinapsi/${id}`, tipo);
+    return data;
+  }
+
+  async deleteTipoSinapsi(id: string): Promise<{ success: boolean }> {
+    const { data } = await this.client.delete(`/tipi-sinapsi/${id}`);
     return data;
   }
 }

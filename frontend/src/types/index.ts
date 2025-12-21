@@ -139,3 +139,47 @@ export const CATEGORIE_IMPRESA = [
 ] as const;
 
 export const CATEGORIE_LUOGO = ['cantiere', 'condominio'] as const;
+
+// Forme 3D disponibili per i tipi neurone
+export type FormaNeurone = 'cerchio' | 'quadrato' | 'triangolo' | 'stella' | 'croce' | 'L' | 'C' | 'W' | 'Z';
+
+// Tipo neurone personalizzabile (forma sulla mappa)
+export interface TipoNeuroneConfig {
+  id: string;
+  nome: string;
+  forma: FormaNeurone;
+  visibilita: Visibilita;
+  azienda_id: string | null;
+  creato_da: string | null;
+  ordine: number;
+  num_categorie?: number;
+  data_creazione: string;
+}
+
+// Categoria personalizzabile (colore)
+export interface Categoria {
+  id: string;
+  tipo_id: string;
+  nome: string;
+  colore: string;
+  visibilita: Visibilita;
+  azienda_id: string | null;
+  creato_da: string | null;
+  ordine: number;
+  tipo_nome?: string;
+  tipo_forma?: FormaNeurone;
+  data_creazione: string;
+}
+
+// Tipo sinapsi personalizzabile (colore connessione)
+export interface TipoSinapsiConfig {
+  id: string;
+  nome: string;
+  colore: string;
+  visibilita: Visibilita;
+  azienda_id: string | null;
+  creato_da: string | null;
+  ordine: number;
+  num_sinapsi?: number;
+  data_creazione: string;
+}
