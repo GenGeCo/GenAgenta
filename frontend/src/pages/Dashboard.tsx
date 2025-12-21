@@ -35,6 +35,7 @@ export default function Dashboard() {
   // Stato per selezione posizione su mappa
   const [mapPickingMode, setMapPickingMode] = useState(false);
   const [pickedPosition, setPickedPosition] = useState<{ lat: number; lng: number } | null>(null);
+  const [flyToPosition, setFlyToPosition] = useState<{ lat: number; lng: number } | null>(null);
 
   // Filtri
   const [filtri, setFiltri] = useState<FiltriMappa>({
@@ -137,7 +138,7 @@ export default function Dashboard() {
       <div className="main-content">
         {/* Header */}
         <header className="header">
-          <h1 style={{ fontSize: '18px', fontWeight: 600 }}>GenAgenTa 2</h1>
+          <h1 style={{ fontSize: '18px', fontWeight: 600 }}>GenAgenTa 3</h1>
 
           <div style={{ flex: 1 }} />
 
@@ -177,6 +178,7 @@ export default function Dashboard() {
               setPickedPosition({ lat, lng });
               setMapPickingMode(false);
             }}
+            flyToPosition={flyToPosition}
           />
 
           {/* Pannello dettaglio */}
@@ -245,15 +247,18 @@ export default function Dashboard() {
             setSelectedNeurone(neurone);
             setPickedPosition(null);
             setMapPickingMode(false);
+            setFlyToPosition(null);
           }}
           onClose={() => {
             setShowNeuroneForm(false);
             setMapPickingMode(false);
             setPickedPosition(null);
+            setFlyToPosition(null);
           }}
           onRequestMapPick={() => setMapPickingMode(true)}
           pickedPosition={pickedPosition}
           isPickingMap={mapPickingMode}
+          onPositionFound={(lat, lng) => setFlyToPosition({ lat, lng })}
         />
       )}
     </div>

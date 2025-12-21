@@ -15,6 +15,7 @@ interface MapViewProps {
   filtri: FiltriMappa;
   pickingMode?: boolean;
   onPickPosition?: (lat: number, lng: number) => void;
+  flyToPosition?: { lat: number; lng: number } | null;
 }
 
 // Colori per tipo neurone
@@ -91,6 +92,7 @@ export default function MapView({
   filtri,
   pickingMode = false,
   onPickPosition,
+  flyToPosition,
 }: MapViewProps) {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
@@ -155,6 +157,18 @@ export default function MapView({
       map.current = null;
     };
   }, []);
+
+  // Vola a una posizione quando flyToPosition cambia
+  useEffect(() => {
+    if (!map.current || !mapReady || !flyToPosition) return;
+
+    map.current.flyTo({
+      center: [flyToPosition.lng, flyToPosition.lat],
+      zoom: 14,
+      pitch: 60,
+      duration: 1500,
+    });
+  }, [flyToPosition, mapReady]);
 
   // Aggiorna layer quando cambiano i dati
   useEffect(() => {

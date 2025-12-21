@@ -11,6 +11,7 @@ interface NeuroneFormModalProps {
   onRequestMapPick?: () => void;
   pickedPosition?: { lat: number; lng: number } | null;
   isPickingMap?: boolean;
+  onPositionFound?: (lat: number, lng: number) => void;
 }
 
 type TipoNeurone = 'persona' | 'impresa' | 'luogo';
@@ -28,6 +29,7 @@ export default function NeuroneFormModal({
   onRequestMapPick,
   pickedPosition,
   isPickingMap = false,
+  onPositionFound,
 }: NeuroneFormModalProps) {
   const isEdit = !!neurone;
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
@@ -81,9 +83,13 @@ export default function NeuroneFormModal({
       );
       const results = await response.json();
       if (results.length > 0) {
-        setLat(parseFloat(results[0].lat));
-        setLng(parseFloat(results[0].lon));
+        const newLat = parseFloat(results[0].lat);
+        const newLng = parseFloat(results[0].lon);
+        setLat(newLat);
+        setLng(newLng);
         setIndirizzo(results[0].display_name);
+        // Sposta la mappa sulla posizione trovata
+        onPositionFound?.(newLat, newLng);
       } else {
         setError('Indirizzo non trovato');
       }
@@ -107,6 +113,8 @@ export default function NeuroneFormModal({
         const newLng = position.coords.longitude;
         setLat(newLat);
         setLng(newLng);
+        // Sposta la mappa sulla posizione GPS
+        onPositionFound?.(newLat, newLng);
         try {
           const response = await fetch(
             `https://nominatim.openstreetmap.org/reverse?format=json&lat=${newLat}&lon=${newLng}`
