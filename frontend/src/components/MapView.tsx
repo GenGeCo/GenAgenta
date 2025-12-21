@@ -241,7 +241,8 @@ export default function MapView({
       // Layer non esistenti, ignora
     }
 
-    if (neuroniConCoord.length === 0) return;
+    // Aspetta che tipiNeurone sia caricato per determinare le forme corrette
+    if (neuroniConCoord.length === 0 || tipiNeurone.length === 0) return;
 
     // Funzione per ottenere il colore dalla prima categoria del neurone (case-insensitive)
     const getCategoriaColor = (neuroneCategorie: string[]): string => {
