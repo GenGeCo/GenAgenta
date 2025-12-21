@@ -60,6 +60,12 @@ export default function NeuroneFormModal({
   const [lat, setLat] = useState<number | null>(neurone?.lat || null);
   const [lng, setLng] = useState<number | null>(neurone?.lng || null);
 
+  // Campi extra per cantieri (tipo luogo)
+  const datiExtra = neurone?.dati_extra as { data_inizio?: string; data_fine?: string; importo_lavori?: number } | null;
+  const [dataInizioCantiere, setDataInizioCantiere] = useState(datiExtra?.data_inizio || '');
+  const [dataFineCantiere, setDataFineCantiere] = useState(datiExtra?.data_fine || '');
+  const [importoLavori, setImportoLavori] = useState(datiExtra?.importo_lavori?.toString() || '');
+
   // Carica tipi e categorie dal DB
   useEffect(() => {
     loadTipiCategorie();
@@ -210,12 +216,23 @@ export default function NeuroneFormModal({
     // Trova nomi per backward compatibility
     const tipoNome = tipiNeurone.find(t => t.id === tipoId)?.nome || '';
     const categoriaNome = categorieDB.find(c => c.id === categoriaId)?.nome || '';
+    const tipoLower = tipoNome.toLowerCase();
+
+    // Costruisci dati_extra in base al tipo
+    let datiExtraPayload: Record<string, unknown> | null = null;
+    if (tipoLower === 'luogo' || tipoLower === 'cantiere') {
+      datiExtraPayload = {
+        data_inizio: dataInizioCantiere || null,
+        data_fine: dataFineCantiere || null,
+        importo_lavori: importoLavori ? parseFloat(importoLavori) : null,
+      };
+    }
 
     setSaving(true);
     try {
       const payload = {
         nome: nome.trim(),
-        tipo: tipoNome.toLowerCase() as 'persona' | 'impresa' | 'luogo',
+        tipo: tipoLower as 'persona' | 'impresa' | 'luogo',
         categorie: [categoriaNome.toLowerCase()],
         visibilita,
         indirizzo: indirizzo || null,
@@ -223,6 +240,7 @@ export default function NeuroneFormModal({
         lng: lng || null,
         telefono: telefono || null,
         email: email || null,
+        dati_extra: datiExtraPayload,
       };
 
       if (isEdit && neurone) {
@@ -450,6 +468,27 @@ export default function NeuroneFormModal({
                   </label>
                 </div>
 
+                {/* Campi extra per cantieri */}
+                {tipoSelezionato && (tipoSelezionato.nome.toLowerCase() === 'luogo' || tipoSelezionato.nome.toLowerCase() === 'cantiere') && (
+                  <div style={{ marginTop: '10px', padding: '10px', background: 'var(--bg-primary)', borderRadius: '8px' }}>
+                    <label style={{ fontSize: '11px', color: 'var(--text-secondary)', marginBottom: '6px', display: 'block', fontWeight: 500 }}>Periodo cantiere</label>
+                    <div style={{ display: 'flex', gap: '6px', marginBottom: '8px' }}>
+                      <div style={{ flex: 1 }}>
+                        <label style={{ fontSize: '10px', color: 'var(--text-secondary)' }}>Inizio</label>
+                        <input type="date" className="form-input" value={dataInizioCantiere} onChange={(e) => setDataInizioCantiere(e.target.value)} style={{ fontSize: '12px', padding: '6px' }} />
+                      </div>
+                      <div style={{ flex: 1 }}>
+                        <label style={{ fontSize: '10px', color: 'var(--text-secondary)' }}>Fine</label>
+                        <input type="date" className="form-input" value={dataFineCantiere} onChange={(e) => setDataFineCantiere(e.target.value)} style={{ fontSize: '12px', padding: '6px' }} />
+                      </div>
+                    </div>
+                    <div>
+                      <label style={{ fontSize: '10px', color: 'var(--text-secondary)' }}>Importo lavori</label>
+                      <input type="number" className="form-input" value={importoLavori} onChange={(e) => setImportoLavori(e.target.value)} placeholder="50000" style={{ fontSize: '12px', padding: '6px' }} />
+                    </div>
+                  </div>
+                )}
+
                 {error && <div style={{ padding: '6px', borderRadius: '4px', background: 'rgba(239,68,68,0.1)', color: '#ef4444', fontSize: '11px' }}>{error}</div>}
               </div>
 
@@ -616,13 +655,34 @@ export default function NeuroneFormModal({
                 <label style={{ fontSize: '13px', fontWeight: 500, marginBottom: '6px', display: 'block', color: 'var(--text-secondary)' }}>Visibilità</label>
                 <div style={{ display: 'flex', gap: '16px' }}>
                   <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', fontSize: '14px' }}>
-                    <input type="radio" name="visibilita" checked={visibilita === 'aziendale'} onChange={() => setVisibilita('aziendale')} /> Aziendale (visibile ai colleghi)
+                    <input type="radio" name="visibilita-desktop" checked={visibilita === 'aziendale'} onChange={() => setVisibilita('aziendale')} /> Aziendale (visibile ai colleghi)
                   </label>
                   <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', fontSize: '14px' }}>
-                    <input type="radio" name="visibilita" checked={visibilita === 'personale'} onChange={() => setVisibilita('personale')} /> Personale (solo tu)
+                    <input type="radio" name="visibilita-desktop" checked={visibilita === 'personale'} onChange={() => setVisibilita('personale')} /> Personale (solo tu)
                   </label>
                 </div>
               </div>
+
+              {/* Campi extra per cantieri */}
+              {tipoSelezionato && (tipoSelezionato.nome.toLowerCase() === 'luogo' || tipoSelezionato.nome.toLowerCase() === 'cantiere') && (
+                <div style={{ marginBottom: '16px', padding: '16px', background: 'var(--bg-primary)', borderRadius: '10px' }}>
+                  <label style={{ fontSize: '13px', fontWeight: 500, marginBottom: '10px', display: 'block', color: 'var(--text-secondary)' }}>Periodo cantiere</label>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '12px' }}>
+                    <div>
+                      <label style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '4px', display: 'block' }}>Data inizio lavori</label>
+                      <input type="date" className="form-input" value={dataInizioCantiere} onChange={(e) => setDataInizioCantiere(e.target.value)} />
+                    </div>
+                    <div>
+                      <label style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '4px', display: 'block' }}>Data fine lavori</label>
+                      <input type="date" className="form-input" value={dataFineCantiere} onChange={(e) => setDataFineCantiere(e.target.value)} />
+                    </div>
+                  </div>
+                  <div>
+                    <label style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '4px', display: 'block' }}>Importo lavori (€)</label>
+                    <input type="number" className="form-input" value={importoLavori} onChange={(e) => setImportoLavori(e.target.value)} placeholder="Es: 50000" step="100" />
+                  </div>
+                </div>
+              )}
 
               {error && <div style={{ padding: '10px', borderRadius: '8px', background: 'rgba(239,68,68,0.1)', color: '#ef4444', fontSize: '13px' }}>{error}</div>}
             </div>
