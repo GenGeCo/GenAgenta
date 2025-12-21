@@ -335,30 +335,35 @@ export default function NeuroneFormModal({
     );
   }
 
-  // DESKTOP: Modale classico
+  // DESKTOP: Pannello laterale da sinistra (accanto alla sidebar)
   return (
     <div
       style={{
         position: 'fixed',
-        inset: 0,
-        background: 'rgba(0, 0, 0, 0.5)',
+        top: 0,
+        left: '280px', // Larghezza sidebar
+        bottom: 0,
+        width: '380px',
+        background: 'var(--bg-secondary)',
+        boxShadow: '4px 0 20px rgba(0,0,0,0.15)',
+        zIndex: 1500,
         display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        zIndex: 2000,
+        flexDirection: 'column',
+        animation: 'slideInLeft 0.3s ease-out',
       }}
-      onClick={(e) => e.target === e.currentTarget && onClose()}
     >
+      <style>{`
+        @keyframes slideInLeft {
+          from { transform: translateX(-100%); opacity: 0; }
+          to { transform: translateX(0); opacity: 1; }
+        }
+      `}</style>
       <div
         style={{
-          background: 'var(--bg-secondary)',
-          borderRadius: '12px',
-          width: '450px',
-          maxHeight: '80vh',
+          flex: 1,
           overflow: 'hidden',
           display: 'flex',
           flexDirection: 'column',
-          boxShadow: '0 8px 32px rgba(0,0,0,0.3)',
         }}
       >
         {/* Header */}
