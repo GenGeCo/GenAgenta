@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, useCallback } from 'react';
 import mapboxgl from 'mapbox-gl';
-import type { Neurone, Sinapsi, FiltriMappa } from '../types';
+import type { Neurone, Sinapsi, FiltriMappa, Categoria } from '../types';
 
 // Token Mapbox
 mapboxgl.accessToken = import.meta.env.VITE_MAPBOX_TOKEN || 'pk.eyJ1IjoiZ2VuYWdlbnRhIiwiYSI6ImNtamR6a3UwazBjNHEzZnF4aWxhYzlqMmUifQ.0RcP-1pxFW7rHYvVoJQG5g';
@@ -10,6 +10,7 @@ mapboxgl.accessToken = import.meta.env.VITE_MAPBOX_TOKEN || 'pk.eyJ1IjoiZ2VuYWdl
 interface MapViewProps {
   neuroni: Neurone[];
   sinapsi: Sinapsi[];
+  categorie: Categoria[];
   selectedId: string | null;
   onSelectNeurone: (neurone: Neurone) => void;
   filtri: FiltriMappa;
@@ -19,12 +20,8 @@ interface MapViewProps {
   pickedPosition?: { lat: number; lng: number } | null;
 }
 
-// Colori per tipo neurone
-const COLORI_TIPO: Record<string, string> = {
-  persona: '#10b981',
-  impresa: '#3b82f6',
-  luogo: '#f59e0b',
-};
+// Colore di default se la categoria non viene trovata
+const DEFAULT_COLOR = '#64748b';
 
 // Genera un poligono circolare (per cilindri)
 function createCirclePolygon(lng: number, lat: number, radiusMeters: number, sides: number = 24): number[][] {
@@ -88,6 +85,7 @@ function calculateHeight(neurone: Neurone, sinapsiCount: number): number {
 export default function MapView({
   neuroni,
   sinapsi,
+  categorie,
   selectedId,
   onSelectNeurone,
   filtri,
@@ -243,6 +241,14 @@ export default function MapView({
 
     if (neuroniConCoord.length === 0) return;
 
+    // Funzione per ottenere il colore dalla prima categoria del neurone
+    const getCategoriaColor = (neuroneCategorie: string[]): string => {
+      if (!neuroneCategorie || neuroneCategorie.length === 0) return DEFAULT_COLOR;
+      const primaCategoria = neuroneCategorie[0];
+      const cat = categorie.find(c => c.nome === primaCategoria);
+      return cat?.colore || DEFAULT_COLOR;
+    };
+
     // Crea GeoJSON per neuroni
     const neuroniFeatures = neuroniConCoord.map((neurone) => {
       const isLuogo = neurone.tipo === 'luogo';
@@ -253,14 +259,18 @@ export default function MapView({
         ? createSquarePolygon(neurone.lng!, neurone.lat!, baseSize)
         : createCirclePolygon(neurone.lng!, neurone.lat!, baseSize / 2, 24);
 
+      // Usa il colore della prima categoria del neurone
+      const neuroneCategorie = Array.isArray(neurone.categorie) ? neurone.categorie : [];
+      const color = getCategoriaColor(neuroneCategorie);
+
       return {
         type: 'Feature' as const,
         properties: {
           id: neurone.id,
           nome: neurone.nome,
           tipo: neurone.tipo,
-          categorie: Array.isArray(neurone.categorie) ? neurone.categorie.join(', ') : String(neurone.categorie),
-          color: COLORI_TIPO[neurone.tipo] || '#888888',
+          categorie: neuroneCategorie.join(', '),
+          color: color,
           height: height,
           base_height: 0,
         },
@@ -426,7 +436,7 @@ export default function MapView({
       handlersAdded.current = true;
     }
 
-  }, [neuroni, sinapsi, selectedId, mapReady, filtri, getSinapsiCount, onSelectNeurone]);
+  }, [neuroni, sinapsi, categorie, selectedId, mapReady, filtri, getSinapsiCount, onSelectNeurone]);
 
   // Non fare più zoom automatico sulla selezione
   // Lo zoom si fa solo con doppio click
@@ -435,36 +445,36 @@ export default function MapView({
     <div style={{ position: 'relative', width: '100%', height: '100%' }}>
       <div ref={mapContainer} style={{ width: '100%', height: '100%' }} />
 
-      {/* Legenda */}
-      <div style={{
-        position: 'absolute',
-        bottom: '80px',
-        left: '16px',
-        background: 'white',
-        padding: '12px',
-        borderRadius: '8px',
-        boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
-        fontSize: '12px',
-        zIndex: 10,
-        pointerEvents: 'none',
-      }}>
-        <div style={{ fontWeight: 600, marginBottom: '8px' }}>Legenda</div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
-          <div style={{ width: 12, height: 12, borderRadius: '50%', background: COLORI_TIPO.persona }} />
-          <span>Persone (cilindro)</span>
+      {/* Legenda dinamica basata sulle categorie */}
+      {categorie.length > 0 && (
+        <div style={{
+          position: 'absolute',
+          bottom: '80px',
+          left: '16px',
+          background: 'white',
+          padding: '12px',
+          borderRadius: '8px',
+          boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+          fontSize: '12px',
+          zIndex: 10,
+          maxHeight: '200px',
+          overflowY: 'auto',
+        }}>
+          <div style={{ fontWeight: 600, marginBottom: '8px' }}>Categorie</div>
+          {categorie.slice(0, 10).map((cat) => (
+            <div key={cat.id} style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+              <div style={{ width: 12, height: 12, borderRadius: '4px', background: cat.colore, flexShrink: 0 }} />
+              <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '100px' }}>{cat.nome}</span>
+            </div>
+          ))}
+          {categorie.length > 10 && (
+            <div style={{ fontSize: '10px', color: '#64748b' }}>+{categorie.length - 10} altre...</div>
+          )}
+          <div style={{ fontSize: '10px', color: '#64748b', borderTop: '1px solid #e2e8f0', paddingTop: '8px', marginTop: '4px' }}>
+            Altezza = valore/relazioni
+          </div>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
-          <div style={{ width: 12, height: 12, borderRadius: '50%', background: COLORI_TIPO.impresa }} />
-          <span>Imprese (cilindro)</span>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-          <div style={{ width: 12, height: 12, borderRadius: '2px', background: COLORI_TIPO.luogo }} />
-          <span>Cantieri (torre)</span>
-        </div>
-        <div style={{ fontSize: '10px', color: '#64748b', borderTop: '1px solid #e2e8f0', paddingTop: '8px' }}>
-          Altezza = valore/relazioni
-        </div>
-      </div>
+      )}
     </div>
   );
 }

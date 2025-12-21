@@ -11,7 +11,7 @@ import PinModal from '../components/PinModal';
 import UserMenu from '../components/UserMenu';
 import InvitePopup from '../components/InvitePopup';
 import NeuroneFormModal from '../components/NeuroneFormModal';
-import type { Neurone, Sinapsi, FiltriMappa } from '../types';
+import type { Neurone, Sinapsi, FiltriMappa, Categoria } from '../types';
 
 interface PendingInvite {
   id: string;
@@ -26,6 +26,7 @@ export default function Dashboard() {
   // State
   const [neuroni, setNeuroni] = useState<Neurone[]>([]);
   const [sinapsi, setSinapsi] = useState<Sinapsi[]>([]);
+  const [categorie, setCategorie] = useState<Categoria[]>([]);
   const [selectedNeurone, setSelectedNeurone] = useState<Neurone | null>(null);
   const [showPinModal, setShowPinModal] = useState(false);
   const [showNeuroneForm, setShowNeuroneForm] = useState(false);
@@ -65,6 +66,19 @@ export default function Dashboard() {
     };
 
     checkInvites();
+  }, []);
+
+  // Carica categorie una volta all'avvio
+  useEffect(() => {
+    const loadCategorie = async () => {
+      try {
+        const catRes = await api.getCategorie();
+        setCategorie(catRes.data);
+      } catch (error) {
+        console.error('Errore caricamento categorie:', error);
+      }
+    };
+    loadCategorie();
   }, []);
 
   // Carica dati
@@ -170,6 +184,7 @@ export default function Dashboard() {
           <MapView
             neuroni={neuroni}
             sinapsi={sinapsi}
+            categorie={categorie}
             selectedId={selectedNeurone?.id || null}
             onSelectNeurone={handleSelectNeurone}
             filtri={filtri}
