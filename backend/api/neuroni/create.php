@@ -40,8 +40,8 @@ if ($visibilita === 'personale') {
 }
 
 $stmt = $db->prepare('
-    INSERT INTO neuroni (id, nome, tipo, categorie, visibilita, lat, lng, indirizzo, telefono, email, sito_web, dati_extra, creato_da)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO neuroni (id, nome, tipo, categorie, visibilita, lat, lng, indirizzo, telefono, email, sito_web, dati_extra, creato_da, azienda_id)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 ');
 
 $stmt->execute([
@@ -57,7 +57,8 @@ $stmt->execute([
     $data['email'] ?? null,
     $data['sito_web'] ?? null,
     isset($data['dati_extra']) ? json_encode($data['dati_extra']) : null,
-    $user['user_id']
+    $user['user_id'],
+    $user['azienda_id'] ?? null
 ]);
 
 jsonResponse(['id' => $id, 'message' => 'Neurone creato'], 201);

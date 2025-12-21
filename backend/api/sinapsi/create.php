@@ -38,8 +38,8 @@ if ($livello === 'personale') {
 }
 
 $stmt = $db->prepare('
-    INSERT INTO sinapsi (id, neurone_da, neurone_a, tipo_connessione, data_inizio, data_fine, valore, certezza, livello, note, creato_da)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO sinapsi (id, neurone_da, neurone_a, tipo_connessione, data_inizio, data_fine, valore, certezza, livello, note, creato_da, azienda_id)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 ');
 
 $stmt->execute([
@@ -53,7 +53,8 @@ $stmt->execute([
     $data['certezza'] ?? 'certo',
     $livello,
     $data['note'] ?? null,
-    $user['user_id']
+    $user['user_id'],
+    $user['azienda_id'] ?? null
 ]);
 
 jsonResponse(['id' => $id, 'message' => 'Sinapsi creata'], 201);
