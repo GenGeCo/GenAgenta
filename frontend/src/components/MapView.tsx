@@ -241,6 +241,13 @@ export default function MapView({
       // Layer non esistenti, ignora
     }
 
+    // DEBUG: log PRIMA del check per vedere i dati
+    console.log('DEBUG MapView:', {
+      neuroniCaricati: neuroniConCoord.map(n => ({ nome: n.nome, tipo: n.tipo })),
+      tipiDisponibili: tipiNeurone.map(t => ({ nome: t.nome, forma: t.forma })),
+      tipiCount: tipiNeurone.length
+    });
+
     // Aspetta che tipiNeurone sia caricato per determinare le forme corrette
     if (neuroniConCoord.length === 0 || tipiNeurone.length === 0) return;
 
@@ -251,12 +258,6 @@ export default function MapView({
       const cat = categorie.find(c => c.nome.toLowerCase() === primaCategoria);
       return cat?.colore || DEFAULT_COLOR;
     };
-
-    // DEBUG: log tutti i neuroni e tipi disponibili
-    console.log('DEBUG MapView:', {
-      neuroniCaricati: neuroniConCoord.map(n => ({ nome: n.nome, tipo: n.tipo })),
-      tipiDisponibili: tipiNeurone.map(t => ({ nome: t.nome, forma: t.forma }))
-    });
 
     // Funzione per ottenere la forma dal tipo neurone (case-insensitive)
     const getTipoForma = (tipoNome: string): 'quadrato' | 'cerchio' => {
