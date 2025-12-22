@@ -324,10 +324,10 @@ export default function NeuroneFormModal({
           }}
           onClick={e => e.stopPropagation()}
         >
-          <h3 style={{ marginBottom: '12px' }}>Configura prima i tipi</h3>
+          <h3 style={{ marginBottom: '12px' }}>Configura prima le entità</h3>
           <p style={{ color: 'var(--text-secondary)', marginBottom: '16px' }}>
-            Per creare neuroni devi prima definire almeno un tipo e una categoria.
-            Vai in <strong>Impostazioni → Categorie</strong> per configurarli.
+            Per creare entità devi prima definire almeno un tipo e una tipologia.
+            Vai in <strong>Impostazioni → Entità</strong> per configurarli.
           </p>
           <button className="btn btn-primary" onClick={onClose}>
             Ho capito
