@@ -40,6 +40,7 @@ if ($stmt->fetch()) {
 $userId = generateUUID();
 $passwordHash = hashPassword($password);
 $aziendaId = null;
+$teamId = null;
 $ruoloAzienda = 'membro';
 
 // CASO 1: Con codice azienda → unisciti ad azienda esistente
@@ -71,14 +72,27 @@ else {
     }
 
     $aziendaId = generateUUID();
+    $teamId = generateUUID();
     $ruoloAzienda = 'admin';
 
     // Genera codice pairing unico (es: ABC-1X2Y3Z)
     $codicePairing = generateCodicePairing($db);
 
-    // Crea azienda
+    // Crea azienda (sistema legacy)
     $stmt = $db->prepare('INSERT INTO aziende (id, nome, codice_pairing, piano, max_utenti) VALUES (?, ?, ?, ?, ?)');
     $stmt->execute([$aziendaId, $nomeAzienda, $codicePairing, 'free', 3]);
+
+    // Crea team (sistema v2)
+    $stmt = $db->prepare('INSERT INTO team (id, nome, codice_invito, piano, max_utenti) VALUES (?, ?, ?, ?, ?)');
+    $stmt->execute([$teamId, $nomeAzienda, $codicePairing, 'free', 3]);
+}
+// Se si unisce ad azienda esistente, cerca il team corrispondente
+else {
+    // Cerca team con stesso codice invito
+    $stmt = $db->prepare('SELECT id FROM team WHERE codice_invito = ?');
+    $stmt->execute([$codiceAzienda]);
+    $teamRow = $stmt->fetch();
+    $teamId = $teamRow ? $teamRow['id'] : null;
 }
 
 // Crea utente
@@ -88,10 +102,18 @@ $stmt = $db->prepare('
 ');
 $stmt->execute([$userId, $aziendaId, $email, $passwordHash, $nome, 'commerciale', $ruoloAzienda]);
 
-// Genera token JWT
+// Aggiungi utente a team_membri (sistema v2)
+if ($teamId) {
+    $ruoloTeam = ($ruoloAzienda === 'admin') ? 'responsabile' : 'membro';
+    $stmt = $db->prepare('INSERT INTO team_membri (team_id, utente_id, ruolo) VALUES (?, ?, ?)');
+    $stmt->execute([$teamId, $userId, $ruoloTeam]);
+}
+
+// Genera token JWT (include team_id per API v2)
 $token = generateJWT([
     'user_id' => $userId,
     'azienda_id' => $aziendaId,
+    'team_id' => $teamId,
     'email' => $email,
     'nome' => $nome,
     'ruolo' => 'commerciale',
@@ -108,6 +130,7 @@ jsonResponse([
     'user' => [
         'id' => $userId,
         'azienda_id' => $aziendaId,
+        'team_id' => $teamId,
         'email' => $email,
         'nome' => $nome,
         'ruolo' => 'commerciale',

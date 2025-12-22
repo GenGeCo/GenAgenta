@@ -22,10 +22,20 @@ if (!$user || !verifyPassword($password, $user['password_hash'])) {
     errorResponse('Credenziali non valide', 401);
 }
 
-// Genera token JWT (include azienda_id per filtro dati)
+// Cerca team_id dell'utente (sistema v2)
+$teamId = null;
+$stmt = $db->prepare('SELECT team_id FROM team_membri WHERE utente_id = ? LIMIT 1');
+$stmt->execute([$user['id']]);
+$teamRow = $stmt->fetch();
+if ($teamRow) {
+    $teamId = $teamRow['team_id'];
+}
+
+// Genera token JWT (include azienda_id e team_id per filtro dati)
 $token = generateJWT([
     'user_id' => $user['id'],
     'azienda_id' => $user['azienda_id'],
+    'team_id' => $teamId,
     'email' => $user['email'],
     'nome' => $user['nome'],
     'ruolo' => $user['ruolo'],
@@ -37,6 +47,7 @@ jsonResponse([
     'user' => [
         'id' => $user['id'],
         'azienda_id' => $user['azienda_id'],
+        'team_id' => $teamId,
         'email' => $user['email'],
         'nome' => $user['nome'],
         'ruolo' => $user['ruolo'],
