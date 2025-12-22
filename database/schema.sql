@@ -33,7 +33,7 @@ CREATE TABLE utenti (
 CREATE TABLE neuroni (
     id CHAR(36) PRIMARY KEY,
     nome VARCHAR(255) NOT NULL,
-    tipo ENUM('persona', 'impresa', 'luogo') NOT NULL,
+    tipo VARCHAR(100) NOT NULL,  -- Nome del tipo configurato (es. "Persona", "Cantiere")
     categorie JSON NOT NULL,  -- ["imbianchino", "cartongessista"] o ["colorificio"]
     visibilita ENUM('aziendale', 'personale') DEFAULT 'aziendale',
 
