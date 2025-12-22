@@ -22,7 +22,7 @@ require_once __DIR__ . '/../includes/helpers.php';
 
 // Parse URL
 $requestUri = $_SERVER['REQUEST_URI'];
-$basePath = '/genagenta/api_v2';
+$basePath = '/genagenta/backend/api_v2';
 $path = parse_url($requestUri, PHP_URL_PATH);
 $path = str_replace($basePath, '', $path);
 $path = trim($path, '/');
