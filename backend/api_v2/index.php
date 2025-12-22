@@ -19,6 +19,11 @@ require_once __DIR__ . '/../config/config.php';
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../includes/helpers.php';
 
+// Helper function (deve essere prima dell'uso)
+function is_uuid($str) {
+    return preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i', $str);
+}
+
 // Parse URL
 $requestUri = $_SERVER['REQUEST_URI'];
 $basePath = '/genagenta/backend/api_v2';
@@ -84,8 +89,3 @@ $_REQUEST['id'] = $id;
 
 // Include route handler
 require_once __DIR__ . '/' . $routeFile;
-
-// Helper function
-function is_uuid($str) {
-    return preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i', $str);
-}
