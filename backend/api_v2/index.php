@@ -29,6 +29,7 @@ $requestUri = $_SERVER['REQUEST_URI'];
 $basePath = '/genagenta/backend/api_v2';
 $path = parse_url($requestUri, PHP_URL_PATH);
 $path = str_replace($basePath, '', $path);
+$path = str_replace('/index.php', '', $path);
 $path = trim($path, '/');
 $segments = $path ? explode('/', $path) : [];
 
