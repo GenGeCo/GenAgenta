@@ -415,6 +415,50 @@ class ApiClient {
     const { data } = await this.client.delete(`/famiglie-prodotto/${id}`);
     return data;
   }
+
+  // =====================================================
+  // API v2 - Metodi generici per nuova architettura
+  // =====================================================
+
+  private getV2Client() {
+    const baseURL = import.meta.env.PROD
+      ? '/genagenta/backend/api_v2'
+      : '/api_v2';
+
+    const client = axios.create({
+      baseURL,
+      headers: { 'Content-Type': 'application/json' },
+    });
+
+    client.interceptors.request.use((config) => {
+      if (this.token) {
+        config.headers.Authorization = `Bearer ${this.token}`;
+      }
+      return config;
+    });
+
+    return client;
+  }
+
+  async get(path: string, params?: Record<string, unknown>) {
+    const client = this.getV2Client();
+    return client.get(path, { params });
+  }
+
+  async post(path: string, data?: Record<string, unknown>) {
+    const client = this.getV2Client();
+    return client.post(path, data);
+  }
+
+  async put(path: string, data?: Record<string, unknown>) {
+    const client = this.getV2Client();
+    return client.put(path, data);
+  }
+
+  async delete(path: string) {
+    const client = this.getV2Client();
+    return client.delete(path);
+  }
 }
 
 export const api = new ApiClient();
