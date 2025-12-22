@@ -11,8 +11,8 @@
 $user = requireAuth();
 $db = getDB();
 $id = $_REQUEST['id'] ?? null;
-$teamId = $user['team_id'];
-$userId = $user['user_id'];
+$teamId = $user['team_id'] ?? $user['azienda_id'] ?? null;
+$userId = $user['user_id'] ?? $user['id'] ?? null;
 $hasPersonalAccess = ($user['personal_access'] ?? false) === true;
 
 if (!$teamId) {

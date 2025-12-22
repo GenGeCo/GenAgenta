@@ -11,7 +11,7 @@
 $user = requireAuth();
 $db = getDB();
 $id = $_REQUEST['id'] ?? null;
-$teamId = $user['team_id'];
+$teamId = $user['team_id'] ?? $user['azienda_id'] ?? null;
 
 if (!$teamId) {
     errorResponse('Utente non associato a un team', 403);
