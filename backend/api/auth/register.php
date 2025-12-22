@@ -64,6 +64,12 @@ if (!empty($codiceAzienda)) {
 
     $aziendaId = $azienda['id'];
     $ruoloAzienda = 'membro';
+
+    // Cerca team corrispondente (sistema v2)
+    $stmt = $db->prepare('SELECT id FROM team WHERE codice_invito = ?');
+    $stmt->execute([$codiceAzienda]);
+    $teamRow = $stmt->fetch();
+    $teamId = $teamRow ? $teamRow['id'] : null;
 }
 // CASO 2: Senza codice → crea nuova azienda
 else {
@@ -85,14 +91,6 @@ else {
     // Crea team (sistema v2)
     $stmt = $db->prepare('INSERT INTO team (id, nome, codice_invito, piano, max_utenti) VALUES (?, ?, ?, ?, ?)');
     $stmt->execute([$teamId, $nomeAzienda, $codicePairing, 'free', 3]);
-}
-// Se si unisce ad azienda esistente, cerca il team corrispondente
-else {
-    // Cerca team con stesso codice invito
-    $stmt = $db->prepare('SELECT id FROM team WHERE codice_invito = ?');
-    $stmt->execute([$codiceAzienda]);
-    $teamRow = $stmt->fetch();
-    $teamId = $teamRow ? $teamRow['id'] : null;
 }
 
 // Crea utente
