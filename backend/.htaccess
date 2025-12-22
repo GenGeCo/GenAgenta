@@ -8,6 +8,11 @@ RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
 RewriteRule ^api/(.*)$ api/index.php [QSA,L]
 
+# API v2
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^api_v2/(.*)$ api_v2/index.php [QSA,L]
+
 # Sicurezza: blocca accesso a file sensibili
 <FilesMatch "\.(env|sql|md|gitignore)$">
     Order allow,deny
