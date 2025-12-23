@@ -2,7 +2,8 @@
 
 import { useEffect, useRef, useState, useCallback } from 'react';
 import mapboxgl from 'mapbox-gl';
-import type { Neurone, Sinapsi, FiltriMappa, Categoria, TipoNeuroneConfig } from '../types';
+import type { Neurone, Sinapsi, FiltriMappa, Categoria, TipoNeuroneConfig, VenditaProdotto } from '../types';
+import { api } from '../utils/api';
 
 // Token Mapbox
 mapboxgl.accessToken = import.meta.env.VITE_MAPBOX_TOKEN || 'pk.eyJ1IjoiZ2VuYWdlbnRhIiwiYSI6ImNtamR6a3UwazBjNHEzZnF4aWxhYzlqMmUifQ.0RcP-1pxFW7rHYvVoJQG5g';
@@ -135,6 +136,7 @@ export default function MapView({
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
   const popup = useRef<mapboxgl.Popup | null>(null);
+  const salesPopup = useRef<mapboxgl.Popup | null>(null);
   const markerRef = useRef<mapboxgl.Marker | null>(null);
   const [mapReady, setMapReady] = useState(false);
   const [mapStyle, setMapStyle] = useState('light-v11');
@@ -144,6 +146,9 @@ export default function MapView({
   const pickingModeRef = useRef(pickingMode);
   const onPickPositionRef = useRef(onPickPosition);
   const onSelectNeuroneRef = useRef(onSelectNeurone);
+
+  // Colori default per le famiglie prodotto nel popup
+  const coloriProdotti = ['#ef4444', '#f97316', '#eab308', '#22c55e', '#14b8a6', '#3b82f6', '#8b5cf6', '#ec4899'];
 
   // Aggiorna refs per picking mode e callbacks
   useEffect(() => {
@@ -197,6 +202,15 @@ export default function MapView({
       offset: 15,
     });
 
+    // Popup per le vendite (con close button, si chiude cliccando fuori)
+    salesPopup.current = new mapboxgl.Popup({
+      closeButton: true,
+      closeOnClick: true,
+      offset: [0, -20],
+      maxWidth: '280px',
+      className: 'sales-popup',
+    });
+
     map.current.on('load', () => {
       console.log('Mappa caricata');
       setMapReady(true);
@@ -211,6 +225,7 @@ export default function MapView({
 
     return () => {
       popup.current?.remove();
+      salesPopup.current?.remove();
       map.current?.remove();
       map.current = null;
     };
@@ -542,7 +557,7 @@ export default function MapView({
         popup.current?.remove();
       });
 
-      // Click singolo: solo seleziona (senza zoom) - ignora se in picking mode
+      // Click singolo: mostra popup vendite - ignora se in picking mode
       m.on('click', 'neuroni-3d', (e) => {
         // Se siamo in picking mode, non gestire click sui neuroni
         if (pickingModeRef.current) return;
@@ -565,11 +580,108 @@ export default function MapView({
               });
             }
           } else {
-            clickTimeout = setTimeout(() => {
+            clickTimeout = setTimeout(async () => {
               clickTimeout = null;
-              // È un click singolo - solo seleziona
-              if (neurone) {
-                onSelectNeuroneRef.current(neurone);
+              // È un click singolo - mostra popup vendite
+              if (neurone && neurone.lat && neurone.lng && salesPopup.current) {
+                // Chiudi popup hover
+                popup.current?.remove();
+
+                // Mostra popup con loading
+                const loadingHtml = `
+                  <div style="padding: 8px; min-width: 200px;">
+                    <div style="font-weight: 600; font-size: 14px; margin-bottom: 8px;">${neurone.nome}</div>
+                    <div style="color: #64748b; font-size: 12px;">Caricamento...</div>
+                  </div>
+                `;
+                salesPopup.current
+                  .setLngLat([neurone.lng, neurone.lat])
+                  .setHTML(loadingHtml)
+                  .addTo(m);
+
+                // Carica dati vendite
+                try {
+                  const venditeRes = await api.get(`/vendite?neurone_id=${neurone.id}`);
+                  const vendite: VenditaProdotto[] = venditeRes.data.data || [];
+                  const potenziale = venditeRes.data.potenziale || 0;
+                  const totaleVenduto = venditeRes.data.totale_venduto || 0;
+                  const percentuale = potenziale > 0 ? Math.round((totaleVenduto / potenziale) * 100) : 0;
+
+                  // Genera HTML colonne prodotti
+                  let colonneHtml = '';
+                  if (vendite.length > 0 && potenziale > 0) {
+                    colonneHtml = '<div style="display: flex; align-items: flex-end; gap: 3px; height: 50px; margin: 8px 0;">';
+                    vendite.forEach((v, i) => {
+                      const altezza = Math.max((v.importo / potenziale) * 100, 5);
+                      const colore = coloriProdotti[i % coloriProdotti.length];
+                      colonneHtml += `<div title="${v.famiglia_nome || 'Prodotto'}: €${v.importo.toLocaleString('it-IT')}" style="width: 20px; height: ${altezza}%; background: ${colore}; border-radius: 2px 2px 0 0;"></div>`;
+                    });
+                    colonneHtml += '</div>';
+                  }
+
+                  // Genera HTML popup completo
+                  const popupHtml = `
+                    <div style="padding: 8px; min-width: 220px;">
+                      <div style="font-weight: 600; font-size: 14px; margin-bottom: 4px;">${neurone.nome}</div>
+                      <div style="color: #64748b; font-size: 11px; margin-bottom: 8px;">${neurone.tipo} ${neurone.categorie?.length ? '• ' + neurone.categorie.join(', ') : ''}</div>
+
+                      ${potenziale > 0 ? `
+                        <div style="margin-bottom: 4px;">
+                          <div style="display: flex; justify-content: space-between; font-size: 11px; color: #64748b;">
+                            <span>Venduto: €${totaleVenduto.toLocaleString('it-IT')}</span>
+                            <span style="font-weight: 600; color: ${percentuale >= 100 ? '#22c55e' : '#1e293b'};">${percentuale}%</span>
+                          </div>
+                          <div style="height: 6px; background: #e2e8f0; border-radius: 3px; margin-top: 2px;">
+                            <div style="height: 100%; width: ${Math.min(percentuale, 100)}%; background: ${percentuale >= 100 ? '#22c55e' : percentuale >= 50 ? '#eab308' : '#ef4444'}; border-radius: 3px;"></div>
+                          </div>
+                          <div style="font-size: 10px; color: #94a3b8; margin-top: 2px;">Potenziale: €${potenziale.toLocaleString('it-IT')}</div>
+                        </div>
+                        ${colonneHtml}
+                      ` : `
+                        <div style="font-size: 11px; color: #94a3b8; margin-bottom: 8px;">Nessun dato vendite</div>
+                      `}
+
+                      <button id="btn-dettagli-${neurone.id}" style="width: 100%; padding: 8px; background: #3b82f6; color: white; border: none; border-radius: 6px; font-size: 13px; font-weight: 500; cursor: pointer; margin-top: 8px;">
+                        Dettagli →
+                      </button>
+                    </div>
+                  `;
+
+                  salesPopup.current?.setHTML(popupHtml);
+
+                  // Aggiungi event listener al bottone
+                  setTimeout(() => {
+                    const btn = document.getElementById(`btn-dettagli-${neurone.id}`);
+                    if (btn) {
+                      btn.onclick = () => {
+                        salesPopup.current?.remove();
+                        onSelectNeuroneRef.current(neurone);
+                      };
+                    }
+                  }, 50);
+
+                } catch (error) {
+                  console.error('Errore caricamento vendite per popup:', error);
+                  // In caso di errore, mostra comunque il bottone dettagli
+                  const errorHtml = `
+                    <div style="padding: 8px; min-width: 200px;">
+                      <div style="font-weight: 600; font-size: 14px; margin-bottom: 8px;">${neurone.nome}</div>
+                      <button id="btn-dettagli-${neurone.id}" style="width: 100%; padding: 8px; background: #3b82f6; color: white; border: none; border-radius: 6px; font-size: 13px; font-weight: 500; cursor: pointer;">
+                        Dettagli →
+                      </button>
+                    </div>
+                  `;
+                  salesPopup.current?.setHTML(errorHtml);
+                  setTimeout(() => {
+                    const btn = document.getElementById(`btn-dettagli-${neurone.id}`);
+                    if (btn) {
+                      btn.onclick = () => {
+                        salesPopup.current?.remove();
+                        onSelectNeuroneRef.current(neurone);
+                      };
+                    }
+                  }, 50);
+                }
               }
             }, 250);
           }

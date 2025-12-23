@@ -342,6 +342,25 @@ body {
   margin-left: 4px;
 }
 
+/* Popup vendite sulla mappa */
+.sales-popup .mapboxgl-popup-content {
+  padding: 0;
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  overflow: hidden;
+}
+
+.sales-popup .mapboxgl-popup-close-button {
+  font-size: 18px;
+  padding: 4px 8px;
+  color: var(--text-secondary);
+}
+
+.sales-popup .mapboxgl-popup-close-button:hover {
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+}
+
 /* Responsive */
 @media (max-width: 768px) {
   .sidebar {
