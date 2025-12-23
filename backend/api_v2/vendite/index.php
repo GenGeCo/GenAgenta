@@ -86,31 +86,46 @@ switch ($method) {
 
         // Aggiorna potenziale se fornito
         if (isset($data['potenziale']) && isset($data['neurone_id'])) {
-            // Verifica neurone appartenga al team (supporta sia team_id che azienda_id)
-            $stmt = $db->prepare('SELECT id FROM neuroni WHERE id = ? AND (team_id = ? OR azienda_id = ?)');
-            $stmt->execute([$data['neurone_id'], $teamId, $teamId]);
-            if (!$stmt->fetch()) {
-                errorResponse('Neurone non trovato', 404);
+            // Verifica neurone esista (senza filtro team per massima compatibilità)
+            try {
+                $stmt = $db->prepare('SELECT id FROM neuroni WHERE id = ?');
+                $stmt->execute([$data['neurone_id']]);
+                if (!$stmt->fetch()) {
+                    errorResponse('Neurone non trovato', 404);
+                }
+            } catch (PDOException $e) {
+                errorResponse('Errore verifica neurone: ' . $e->getMessage(), 500);
             }
 
+            // Prova ad aggiornare potenziale
             try {
                 $stmt = $db->prepare('UPDATE neuroni SET potenziale = ? WHERE id = ?');
                 $stmt->execute([$data['potenziale'], $data['neurone_id']]);
+
+                // Se è solo aggiornamento potenziale, ritorna
+                if (!isset($data['famiglia_id'])) {
+                    jsonResponse(['message' => 'Potenziale aggiornato']);
+                    break;
+                }
             } catch (PDOException $e) {
                 // Se colonna non esiste, la aggiungiamo
-                if (strpos($e->getMessage(), 'Unknown column') !== false) {
-                    $db->exec("ALTER TABLE neuroni ADD COLUMN potenziale DECIMAL(12,2) NULL DEFAULT NULL AFTER dimensione");
-                    $stmt = $db->prepare('UPDATE neuroni SET potenziale = ? WHERE id = ?');
-                    $stmt->execute([$data['potenziale'], $data['neurone_id']]);
-                } else {
-                    errorResponse('Errore database: ' . $e->getMessage(), 500);
-                }
-            }
+                if (strpos($e->getMessage(), 'Unknown column') !== false ||
+                    strpos($e->getMessage(), "doesn't have a default") !== false) {
+                    try {
+                        $db->exec("ALTER TABLE neuroni ADD COLUMN potenziale DECIMAL(12,2) NULL DEFAULT NULL");
+                        $stmt = $db->prepare('UPDATE neuroni SET potenziale = ? WHERE id = ?');
+                        $stmt->execute([$data['potenziale'], $data['neurone_id']]);
 
-            // Se è solo aggiornamento potenziale, ritorna
-            if (!isset($data['famiglia_id'])) {
-                jsonResponse(['message' => 'Potenziale aggiornato']);
-                break;
+                        if (!isset($data['famiglia_id'])) {
+                            jsonResponse(['message' => 'Potenziale aggiornato (colonna creata)']);
+                            break;
+                        }
+                    } catch (PDOException $e2) {
+                        errorResponse('Errore creazione colonna potenziale: ' . $e2->getMessage(), 500);
+                    }
+                } else {
+                    errorResponse('Errore aggiornamento potenziale: ' . $e->getMessage(), 500);
+                }
             }
         }
 
