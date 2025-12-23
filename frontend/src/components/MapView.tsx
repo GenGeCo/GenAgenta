@@ -268,6 +268,7 @@ export default function MapView({
       if (m.getLayer('neuroni-outline')) m.removeLayer('neuroni-outline');
       if (m.getSource('neuroni')) m.removeSource('neuroni');
       if (m.getLayer('sinapsi-lines')) m.removeLayer('sinapsi-lines');
+      if (m.getLayer('sinapsi-lines-shadow')) m.removeLayer('sinapsi-lines-shadow');
       if (m.getSource('sinapsi')) m.removeSource('sinapsi');
     } catch {
       // Layer non esistenti, ignora
@@ -422,6 +423,31 @@ export default function MapView({
         },
       });
 
+      // Layer ombra/bordo (sotto) - dà profondità alla linea
+      m.addLayer({
+        id: 'sinapsi-lines-shadow',
+        type: 'line',
+        source: 'sinapsi',
+        layout: {
+          'line-z-offset': [
+            'interpolate',
+            ['linear'],
+            ['line-progress'],
+            ...Array.from({ length: 16 }, (_, i) => {
+              const t = i / 15;
+              return [t, 4 * 60 * t * (1 - t) - 3]; // leggermente sotto (-3m)
+            }).flat()
+          ],
+        },
+        paint: {
+          'line-color': '#000000',
+          'line-width': 8,
+          'line-opacity': 0.4,
+          'line-blur': 2,
+        },
+      });
+
+      // Layer principale colorato
       m.addLayer({
         id: 'sinapsi-lines',
         type: 'line',
@@ -431,11 +457,10 @@ export default function MapView({
             'interpolate',
             ['linear'],
             ['line-progress'],
-            ...sinapsiFiltered.length > 0 ?
-              Array.from({ length: 16 }, (_, i) => {
-                const t = i / 15;
-                return [t, 4 * 50 * t * (1 - t)]; // parabola: 0 -> 50 -> 0
-              }).flat() : [0, 0, 1, 0]
+            ...Array.from({ length: 16 }, (_, i) => {
+              const t = i / 15;
+              return [t, 4 * 60 * t * (1 - t)]; // parabola: 0 -> 60m -> 0
+            }).flat()
           ],
         },
         paint: {
@@ -445,8 +470,8 @@ export default function MapView({
             ['==', ['get', 'certezza'], 'probabile'], '#eab308',
             '#94a3b8',
           ],
-          'line-width': 4,
-          'line-opacity': 0.9,
+          'line-width': 5,
+          'line-opacity': 1,
         },
       });
     }
