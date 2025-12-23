@@ -49,13 +49,32 @@ switch ($method) {
 
         $potenziale = $hasPotenziale ? (floatval($neurone['potenziale'] ?? 0)) : 0;
 
-        // Verifica se esiste la colonna data_vendita
+        // Verifica se esiste la tabella vendite_prodotto e la colonna data_vendita
+        $hasTable = false;
         $hasDataVendita = false;
         try {
-            $db->query("SELECT data_vendita FROM vendite_prodotto LIMIT 1");
-            $hasDataVendita = true;
+            $db->query("SELECT 1 FROM vendite_prodotto LIMIT 1");
+            $hasTable = true;
+            // Tabella esiste, ora verifica colonna
+            try {
+                $db->query("SELECT data_vendita FROM vendite_prodotto LIMIT 1");
+                $hasDataVendita = true;
+            } catch (PDOException $e) {
+                // Colonna data_vendita non esiste
+            }
         } catch (PDOException $e) {
-            // Colonna non esiste
+            // Tabella non esiste
+        }
+
+        // Se tabella non esiste, ritorna subito array vuoto
+        if (!$hasTable) {
+            jsonResponse([
+                'data' => [],
+                'potenziale' => $potenziale,
+                'totale_venduto' => 0,
+                'percentuale' => 0
+            ]);
+            break;
         }
 
         try {
@@ -82,17 +101,14 @@ switch ($method) {
                     : 0
             ]);
         } catch (PDOException $e) {
-            // Se tabella non esiste, ritorna array vuoto
-            if (strpos($e->getMessage(), "doesn't exist") !== false) {
-                jsonResponse([
-                    'data' => [],
-                    'potenziale' => $potenziale,
-                    'totale_venduto' => 0,
-                    'percentuale' => 0
-                ]);
-            } else {
-                errorResponse('Errore database: ' . $e->getMessage(), 500);
-            }
+            // Qualsiasi errore, ritorna array vuoto con log
+            error_log('Errore query vendite: ' . $e->getMessage());
+            jsonResponse([
+                'data' => [],
+                'potenziale' => $potenziale,
+                'totale_venduto' => 0,
+                'percentuale' => 0
+            ]);
         }
         break;
 
