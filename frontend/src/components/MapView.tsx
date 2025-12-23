@@ -105,12 +105,17 @@ export default function MapView({
   const handlersAdded = useRef(false);
   const pickingModeRef = useRef(pickingMode);
   const onPickPositionRef = useRef(onPickPosition);
+  const onSelectNeuroneRef = useRef(onSelectNeurone);
 
-  // Aggiorna refs per picking mode
+  // Aggiorna refs per picking mode e callbacks
   useEffect(() => {
     pickingModeRef.current = pickingMode;
     onPickPositionRef.current = onPickPosition;
   }, [pickingMode, onPickPosition]);
+
+  useEffect(() => {
+    onSelectNeuroneRef.current = onSelectNeurone;
+  }, [onSelectNeurone]);
 
   useEffect(() => {
     neuroniRef.current = neuroni;
@@ -445,7 +450,7 @@ export default function MapView({
               clickTimeout = null;
               // È un click singolo - solo seleziona
               if (neurone) {
-                onSelectNeurone(neurone);
+                onSelectNeuroneRef.current(neurone);
               }
             }, 250);
           }
@@ -455,7 +460,7 @@ export default function MapView({
       handlersAdded.current = true;
     }
 
-  }, [neuroni, sinapsi, categorie, tipiNeurone, selectedId, mapReady, filtri, getSinapsiCount, onSelectNeurone]);
+  }, [neuroni, sinapsi, categorie, tipiNeurone, selectedId, mapReady, filtri, getSinapsiCount]);
 
   // Non fare più zoom automatico sulla selezione
   // Lo zoom si fa solo con doppio click
