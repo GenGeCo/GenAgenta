@@ -4,6 +4,18 @@ import { useState, useEffect } from 'react';
 import { api } from '../utils/api';
 import type { Neurone, TipoNeuroneConfig, Categoria, FormaNeurone } from '../types';
 
+// Tipo per i campi personalizzati
+interface CampoPersonalizzato {
+  id: string;
+  tipo_id: string;
+  nome: string;
+  etichetta: string;
+  tipo_dato: 'testo' | 'textarea' | 'numero' | 'data' | 'select' | 'email' | 'telefono' | 'url';
+  opzioni?: string[];
+  obbligatorio: boolean;
+  ordine: number;
+}
+
 interface NeuroneFormModalProps {
   neurone?: Neurone;
   onSave: (neurone: Neurone) => void;
@@ -61,11 +73,16 @@ export default function NeuroneFormModal({
   const [lng, setLng] = useState<number | null>(neurone?.lng != null ? Number(neurone.lng) : null);
   const [dimensione, setDimensione] = useState<string>(neurone?.dimensione != null ? String(neurone.dimensione) : '');
 
-  // Campi extra per cantieri (tipo luogo)
-  const datiExtra = neurone?.dati_extra as { data_inizio?: string; data_fine?: string; importo_lavori?: number } | null;
-  const [dataInizioCantiere, setDataInizioCantiere] = useState(datiExtra?.data_inizio || '');
-  const [dataFineCantiere, setDataFineCantiere] = useState(datiExtra?.data_fine || '');
-  const [importoLavori, setImportoLavori] = useState(datiExtra?.importo_lavori?.toString() || '');
+  // Campi personalizzati dinamici
+  const [campiPersonalizzati, setCampiPersonalizzati] = useState<CampoPersonalizzato[]>([]);
+  const [loadingCampi, setLoadingCampi] = useState(false);
+  // Valori dei campi personalizzati (chiave = nome campo, valore = valore inserito)
+  const datiExtraIniziali = (neurone?.dati_extra as Record<string, unknown>) || {};
+  const [valoriCampi, setValoriCampi] = useState<Record<string, string>>(
+    Object.fromEntries(
+      Object.entries(datiExtraIniziali).map(([k, v]) => [k, v != null ? String(v) : ''])
+    )
+  );
 
   // Carica tipi e categorie dal DB
   useEffect(() => {
@@ -135,6 +152,34 @@ export default function NeuroneFormModal({
 
   // Tipo selezionato
   const tipoSelezionato = tipiNeurone.find(t => t.id === tipoId);
+
+  // Carica campi personalizzati quando cambia il tipo
+  useEffect(() => {
+    if (!tipoId) {
+      setCampiPersonalizzati([]);
+      return;
+    }
+
+    const loadCampi = async () => {
+      setLoadingCampi(true);
+      try {
+        const res = await api.get(`/campi?tipo=${tipoId}`);
+        setCampiPersonalizzati(res.data.data || []);
+      } catch (err) {
+        console.error('Errore caricamento campi:', err);
+        setCampiPersonalizzati([]);
+      } finally {
+        setLoadingCampi(false);
+      }
+    };
+
+    loadCampi();
+  }, [tipoId]);
+
+  // Aggiorna un valore campo personalizzato
+  const updateValoreCampo = (nomeCampo: string, valore: string) => {
+    setValoriCampi(prev => ({ ...prev, [nomeCampo]: valore }));
+  };
 
   // Rileva resize
   useEffect(() => {
@@ -236,20 +281,27 @@ export default function NeuroneFormModal({
     // Trova nomi per il salvataggio
     const tipoNome = tipiNeurone.find(t => t.id === tipoId)?.nome || '';
     const categoriaNome = categorieDB.find(c => c.id === categoriaId)?.nome || '';
-    const tipoLower = tipoNome.toLowerCase();
 
-    // Costruisci dati_extra in base al tipo
+    // Costruisci dati_extra dai campi personalizzati
     let datiExtraPayload: Record<string, unknown> | null = null;
-    if (tipoLower === 'luogo' || tipoLower === 'cantiere') {
-      datiExtraPayload = {
-        data_inizio: dataInizioCantiere || null,
-        data_fine: dataFineCantiere || null,
-        importo_lavori: importoLavori ? parseFloat(importoLavori) : null,
-      };
+    if (campiPersonalizzati.length > 0) {
+      datiExtraPayload = {};
+      for (const campo of campiPersonalizzati) {
+        const valore = valoriCampi[campo.nome];
+        if (valore !== undefined && valore !== '') {
+          // Converti in base al tipo
+          if (campo.tipo_dato === 'numero') {
+            datiExtraPayload[campo.nome] = parseFloat(valore) || null;
+          } else {
+            datiExtraPayload[campo.nome] = valore;
+          }
+        }
+      }
+      // Se non ci sono valori, metti null
+      if (Object.keys(datiExtraPayload).length === 0) {
+        datiExtraPayload = null;
+      }
     }
-
-    // DEBUG: log cosa viene inviato
-    console.log('DEBUG salvataggio:', JSON.stringify({ tipoId, tipoNome, categoriaNome, tipiDisponibili: tipiNeurone.map(t => t.nome) }));
 
     setSaving(true);
     try {
@@ -279,6 +331,107 @@ export default function NeuroneFormModal({
       setError(error.response?.data?.error || 'Errore salvataggio');
     } finally {
       setSaving(false);
+    }
+  };
+
+  // Renderizza un singolo campo personalizzato
+  const renderCampoPersonalizzato = (campo: CampoPersonalizzato, compact = false) => {
+    const valore = valoriCampi[campo.nome] || '';
+    const inputStyle = compact
+      ? { fontSize: '12px', padding: '6px 8px' }
+      : {};
+
+    switch (campo.tipo_dato) {
+      case 'textarea':
+        return (
+          <textarea
+            className="form-input"
+            value={valore}
+            onChange={(e) => updateValoreCampo(campo.nome, e.target.value)}
+            placeholder={campo.etichetta}
+            rows={3}
+            style={{ ...inputStyle, resize: 'vertical' }}
+          />
+        );
+      case 'numero':
+        return (
+          <input
+            type="number"
+            className="form-input"
+            value={valore}
+            onChange={(e) => updateValoreCampo(campo.nome, e.target.value)}
+            placeholder={campo.etichetta}
+            style={inputStyle}
+          />
+        );
+      case 'data':
+        return (
+          <input
+            type="date"
+            className="form-input"
+            value={valore}
+            onChange={(e) => updateValoreCampo(campo.nome, e.target.value)}
+            style={inputStyle}
+          />
+        );
+      case 'email':
+        return (
+          <input
+            type="email"
+            className="form-input"
+            value={valore}
+            onChange={(e) => updateValoreCampo(campo.nome, e.target.value)}
+            placeholder={campo.etichetta}
+            style={inputStyle}
+          />
+        );
+      case 'telefono':
+        return (
+          <input
+            type="tel"
+            className="form-input"
+            value={valore}
+            onChange={(e) => updateValoreCampo(campo.nome, e.target.value)}
+            placeholder={campo.etichetta}
+            style={inputStyle}
+          />
+        );
+      case 'url':
+        return (
+          <input
+            type="url"
+            className="form-input"
+            value={valore}
+            onChange={(e) => updateValoreCampo(campo.nome, e.target.value)}
+            placeholder={campo.etichetta}
+            style={inputStyle}
+          />
+        );
+      case 'select':
+        return (
+          <select
+            className="form-input"
+            value={valore}
+            onChange={(e) => updateValoreCampo(campo.nome, e.target.value)}
+            style={inputStyle}
+          >
+            <option value="">Seleziona...</option>
+            {(campo.opzioni || []).map((opt) => (
+              <option key={opt} value={opt}>{opt}</option>
+            ))}
+          </select>
+        );
+      default: // testo
+        return (
+          <input
+            type="text"
+            className="form-input"
+            value={valore}
+            onChange={(e) => updateValoreCampo(campo.nome, e.target.value)}
+            placeholder={campo.etichetta}
+            style={inputStyle}
+          />
+        );
     }
   };
 
@@ -498,24 +651,26 @@ export default function NeuroneFormModal({
                   <input type="number" className="form-input" value={dimensione} onChange={(e) => setDimensione(e.target.value)} placeholder="Auto" min="10" max="200" step="5" style={{ fontSize: '12px', padding: '6px 8px' }} />
                 </div>
 
-                {/* Campi extra per cantieri */}
-                {tipoSelezionato && (tipoSelezionato.nome.toLowerCase() === 'luogo' || tipoSelezionato.nome.toLowerCase() === 'cantiere') && (
+                {/* Campi personalizzati */}
+                {campiPersonalizzati.length > 0 && (
                   <div style={{ marginTop: '10px', padding: '10px', background: 'var(--bg-primary)', borderRadius: '8px' }}>
-                    <label style={{ fontSize: '11px', color: 'var(--text-secondary)', marginBottom: '6px', display: 'block', fontWeight: 500 }}>Periodo cantiere</label>
-                    <div style={{ display: 'flex', gap: '6px', marginBottom: '8px' }}>
-                      <div style={{ flex: 1 }}>
-                        <label style={{ fontSize: '10px', color: 'var(--text-secondary)' }}>Inizio</label>
-                        <input type="date" className="form-input" value={dataInizioCantiere} onChange={(e) => setDataInizioCantiere(e.target.value)} style={{ fontSize: '12px', padding: '6px' }} />
+                    <label style={{ fontSize: '11px', color: 'var(--text-secondary)', marginBottom: '6px', display: 'block', fontWeight: 500 }}>
+                      Dettagli {tipoSelezionato?.nome || 'entità'}
+                    </label>
+                    {loadingCampi ? (
+                      <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>Caricamento...</div>
+                    ) : (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                        {campiPersonalizzati.map((campo) => (
+                          <div key={campo.id}>
+                            <label style={{ fontSize: '10px', color: 'var(--text-secondary)' }}>
+                              {campo.etichetta}{campo.obbligatorio && ' *'}
+                            </label>
+                            {renderCampoPersonalizzato(campo, true)}
+                          </div>
+                        ))}
                       </div>
-                      <div style={{ flex: 1 }}>
-                        <label style={{ fontSize: '10px', color: 'var(--text-secondary)' }}>Fine</label>
-                        <input type="date" className="form-input" value={dataFineCantiere} onChange={(e) => setDataFineCantiere(e.target.value)} style={{ fontSize: '12px', padding: '6px' }} />
-                      </div>
-                    </div>
-                    <div>
-                      <label style={{ fontSize: '10px', color: 'var(--text-secondary)' }}>Importo lavori</label>
-                      <input type="number" className="form-input" value={importoLavori} onChange={(e) => setImportoLavori(e.target.value)} placeholder="50000" style={{ fontSize: '12px', padding: '6px' }} />
-                    </div>
+                    )}
                   </div>
                 )}
 
@@ -711,24 +866,26 @@ export default function NeuroneFormModal({
                 </div>
               </div>
 
-              {/* Campi extra per cantieri */}
-              {tipoSelezionato && (tipoSelezionato.nome.toLowerCase() === 'luogo' || tipoSelezionato.nome.toLowerCase() === 'cantiere') && (
+              {/* Campi personalizzati */}
+              {campiPersonalizzati.length > 0 && (
                 <div style={{ marginBottom: '16px', padding: '16px', background: 'var(--bg-primary)', borderRadius: '10px' }}>
-                  <label style={{ fontSize: '13px', fontWeight: 500, marginBottom: '10px', display: 'block', color: 'var(--text-secondary)' }}>Periodo cantiere</label>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '12px' }}>
-                    <div>
-                      <label style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '4px', display: 'block' }}>Data inizio lavori</label>
-                      <input type="date" className="form-input" value={dataInizioCantiere} onChange={(e) => setDataInizioCantiere(e.target.value)} />
+                  <label style={{ fontSize: '13px', fontWeight: 500, marginBottom: '10px', display: 'block', color: 'var(--text-secondary)' }}>
+                    Dettagli {tipoSelezionato?.nome || 'entità'}
+                  </label>
+                  {loadingCampi ? (
+                    <div style={{ color: 'var(--text-secondary)' }}>Caricamento campi...</div>
+                  ) : (
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                      {campiPersonalizzati.map((campo) => (
+                        <div key={campo.id} style={campo.tipo_dato === 'textarea' ? { gridColumn: '1 / -1' } : {}}>
+                          <label style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '4px', display: 'block' }}>
+                            {campo.etichetta}{campo.obbligatorio && ' *'}
+                          </label>
+                          {renderCampoPersonalizzato(campo)}
+                        </div>
+                      ))}
                     </div>
-                    <div>
-                      <label style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '4px', display: 'block' }}>Data fine lavori</label>
-                      <input type="date" className="form-input" value={dataFineCantiere} onChange={(e) => setDataFineCantiere(e.target.value)} />
-                    </div>
-                  </div>
-                  <div>
-                    <label style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '4px', display: 'block' }}>Importo lavori (€)</label>
-                    <input type="number" className="form-input" value={importoLavori} onChange={(e) => setImportoLavori(e.target.value)} placeholder="Es: 50000" step="100" />
-                  </div>
+                  )}
                 </div>
               )}
 
