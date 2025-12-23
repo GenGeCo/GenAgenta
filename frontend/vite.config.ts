@@ -12,6 +12,11 @@ export default defineConfig({
   server: {
     port: 5173,
     proxy: {
+      '/api_v2': {
+        target: 'http://localhost:8000',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api_v2/, '/genagenta/backend/api_v2'),
+      },
       '/api': {
         target: 'http://localhost:8000',
         changeOrigin: true,

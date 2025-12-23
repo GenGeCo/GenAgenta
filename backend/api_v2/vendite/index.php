@@ -15,6 +15,50 @@ if (!$teamId) {
     errorResponse('Utente non associato a un team', 403);
 }
 
+// Endpoint debug: GET /vendite/debug
+if ($id === 'debug') {
+    try {
+        // Verifica se esiste la tabella
+        $hasTable = false;
+        try {
+            $db->query("SELECT 1 FROM vendite_prodotto LIMIT 1");
+            $hasTable = true;
+        } catch (PDOException $e) {
+            jsonResponse([
+                'error' => 'Tabella vendite_prodotto non esiste',
+                'message' => $e->getMessage()
+            ]);
+        }
+
+        // Struttura tabella
+        $structure = [];
+        $structStmt = $db->query("DESCRIBE vendite_prodotto");
+        while ($col = $structStmt->fetch()) {
+            $structure[] = $col;
+        }
+
+        // Tutti i record
+        $allRecords = $db->query("SELECT * FROM vendite_prodotto ORDER BY data_vendita DESC LIMIT 50")->fetchAll();
+
+        // Count per neurone
+        $countPerNeurone = $db->query("SELECT neurone_id, COUNT(*) as cnt FROM vendite_prodotto GROUP BY neurone_id")->fetchAll();
+
+        jsonResponse([
+            'table_exists' => $hasTable,
+            'structure' => $structure,
+            'total_records' => count($allRecords),
+            'records' => $allRecords,
+            'count_per_neurone' => $countPerNeurone,
+            'db_info' => [
+                'server_info' => $db->getAttribute(PDO::ATTR_SERVER_INFO),
+                'server_version' => $db->getAttribute(PDO::ATTR_SERVER_VERSION)
+            ]
+        ]);
+    } catch (PDOException $e) {
+        errorResponse('Errore debug: ' . $e->getMessage(), 500);
+    }
+}
+
 switch ($method) {
 
     case 'GET':
@@ -234,11 +278,28 @@ switch ($method) {
                 errorResponse('INSERT non ha inserito righe', 500);
             }
 
+            // Verifica immediata che il dato sia stato salvato
+            $verifyStmt = $db->prepare("SELECT * FROM vendite_prodotto WHERE id = ?");
+            $verifyStmt->execute([$newId]);
+            $savedRecord = $verifyStmt->fetch();
+
+            // Conta vendite per questo neurone
+            $countStmt = $db->prepare("SELECT COUNT(*) as cnt FROM vendite_prodotto WHERE neurone_id = ?");
+            $countStmt->execute([$data['neurone_id']]);
+            $countResult = $countStmt->fetch();
+
             jsonResponse([
                 'id' => $newId,
                 'data_vendita' => $dataVendita,
                 'rows_affected' => $rowCount,
-                'message' => 'Vendita salvata'
+                'message' => 'Vendita salvata',
+                'debug' => [
+                    'neurone_id_inserito' => $data['neurone_id'],
+                    'famiglia_id_inserito' => $data['famiglia_id'],
+                    'importo_inserito' => $data['importo'],
+                    'record_verificato' => $savedRecord,
+                    'vendite_per_questo_neurone' => $countResult['cnt']
+                ]
             ], 201);
         } catch (PDOException $e) {
             // Se colonna data_vendita non esiste, la aggiungiamo
