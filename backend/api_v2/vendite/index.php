@@ -49,14 +49,24 @@ switch ($method) {
 
         $potenziale = $hasPotenziale ? (floatval($neurone['potenziale'] ?? 0)) : 0;
 
+        // Verifica se esiste la colonna data_vendita
+        $hasDataVendita = false;
         try {
-            $stmt = $db->prepare('
+            $db->query("SELECT data_vendita FROM vendite_prodotto LIMIT 1");
+            $hasDataVendita = true;
+        } catch (PDOException $e) {
+            // Colonna non esiste
+        }
+
+        try {
+            $orderBy = $hasDataVendita ? 'v.data_vendita DESC, f.nome ASC' : 'f.nome ASC';
+            $stmt = $db->prepare("
                 SELECT v.*, f.nome as famiglia_nome, f.colore
                 FROM vendite_prodotto v
                 JOIN famiglie_prodotto f ON v.famiglia_id = f.id
                 WHERE v.neurone_id = ?
-                ORDER BY v.data_vendita DESC, f.nome ASC
-            ');
+                ORDER BY $orderBy
+            ");
             $stmt->execute([$neuroneId]);
             $vendite = $stmt->fetchAll();
 
