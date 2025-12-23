@@ -65,6 +65,13 @@ export default function DetailPanel({
     setDeleteStep(0);
   };
 
+  // Quando viene selezionata un'entità dalla mappa, passa automaticamente al tab connessioni
+  useEffect(() => {
+    if (connectionTargetEntity) {
+      setActiveTab('connessioni');
+    }
+  }, [connectionTargetEntity]);
+
   // Carica sinapsi e note
   useEffect(() => {
     const loadData = async () => {
