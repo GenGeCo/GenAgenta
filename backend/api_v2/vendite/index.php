@@ -92,13 +92,23 @@ switch ($method) {
             // Calcola totale venduto
             $totaleVenduto = array_reduce($vendite, fn($sum, $v) => $sum + floatval($v['importo']), 0);
 
+            // Debug: conta record totali nella tabella
+            $debugStmt = $db->query("SELECT COUNT(*) as total FROM vendite_prodotto");
+            $debugTotal = $debugStmt->fetch()['total'];
+
             jsonResponse([
                 'data' => $vendite,
                 'potenziale' => $potenziale,
                 'totale_venduto' => $totaleVenduto,
                 'percentuale' => $potenziale > 0
                     ? round(($totaleVenduto / $potenziale) * 100, 1)
-                    : 0
+                    : 0,
+                'debug' => [
+                    'neurone_id_cercato' => $neuroneId,
+                    'vendite_trovate' => count($vendite),
+                    'vendite_totali_tabella' => $debugTotal,
+                    'hasDataVendita' => $hasDataVendita
+                ]
             ]);
         } catch (PDOException $e) {
             // Qualsiasi errore, ritorna array vuoto con log
@@ -197,6 +207,13 @@ switch ($method) {
         }
 
         try {
+            // Prima prova a rimuovere il constraint UNIQUE se esiste (migrazione)
+            try {
+                $db->exec("ALTER TABLE vendite_prodotto DROP INDEX uk_neurone_famiglia");
+            } catch (PDOException $e3) {
+                // Ignore se non esiste - è normale
+            }
+
             // INSERT normale - permette vendite multiple per stessa famiglia con date diverse
             $stmt = $db->prepare('
                 INSERT INTO vendite_prodotto (id, neurone_id, famiglia_id, importo, data_vendita)
@@ -211,7 +228,18 @@ switch ($method) {
                 $dataVendita
             ]);
 
-            jsonResponse(['id' => $newId, 'data_vendita' => $dataVendita, 'message' => 'Vendita salvata'], 201);
+            // Verifica che l'INSERT sia riuscito
+            $rowCount = $stmt->rowCount();
+            if ($rowCount === 0) {
+                errorResponse('INSERT non ha inserito righe', 500);
+            }
+
+            jsonResponse([
+                'id' => $newId,
+                'data_vendita' => $dataVendita,
+                'rows_affected' => $rowCount,
+                'message' => 'Vendita salvata'
+            ], 201);
         } catch (PDOException $e) {
             // Se colonna data_vendita non esiste, la aggiungiamo
             if (strpos($e->getMessage(), 'Unknown column') !== false && strpos($e->getMessage(), 'data_vendita') !== false) {
