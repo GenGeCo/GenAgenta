@@ -696,18 +696,32 @@ function VenditeTab({
     }
   };
 
-  const saveVendita = async (famigliaId: string, importo: number) => {
+  const saveVendita = async (famigliaId: string, importo: number, dataVendita?: string) => {
     setSaving(true);
     try {
       await api.post('/vendite', {
         neurone_id: neurone.id,
         famiglia_id: famigliaId,
         importo,
+        data_vendita: dataVendita || new Date().toISOString().split('T')[0],
       });
       await loadData();
       onUpdate?.();
     } catch (error) {
       console.error('Errore salvataggio vendita:', error);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const deleteVendita = async (venditaId: string) => {
+    setSaving(true);
+    try {
+      await api.delete(`/vendite/${venditaId}`);
+      await loadData();
+      onUpdate?.();
+    } catch (error) {
+      console.error('Errore eliminazione vendita:', error);
     } finally {
       setSaving(false);
     }
@@ -786,173 +800,237 @@ function VenditeTab({
         </div>
       </div>
 
-      {/* Lista vendite per famiglia */}
-      <div>
-        <h4 style={{ fontSize: '14px', fontWeight: 600, marginBottom: '12px' }}>Vendite per prodotto</h4>
+      {/* Nuova vendita */}
+      <NuovaVenditaForm
+        famiglie={famiglie}
+        coloriDefault={coloriDefault}
+        onSave={saveVendita}
+        saving={saving}
+      />
 
-        {famiglie.length === 0 ? (
+      {/* Lista vendite */}
+      <div style={{ marginTop: '20px' }}>
+        <h4 style={{ fontSize: '14px', fontWeight: 600, marginBottom: '12px' }}>
+          Storico vendite ({vendite.length})
+        </h4>
+
+        {vendite.length === 0 ? (
           <p style={{ color: 'var(--text-secondary)', fontSize: '13px' }}>
-            Nessuna famiglia prodotto definita. Vai in Impostazioni → Prodotti per crearle.
+            Nessuna vendita registrata. Usa il form sopra per aggiungerne una.
           </p>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            {famiglie.filter(f => !f.nome.startsWith('  ')).map((famiglia, index) => {
-              const vendita = vendite.find(v => v.famiglia_id === famiglia.id);
-              const colore = famiglia.colore || coloriDefault[index % coloriDefault.length];
-              const importo = vendita?.importo || 0;
-              const percentualeFamiglia = potenziale > 0 ? (importo / potenziale) * 100 : 0;
+            {vendite.map((vendita, index) => {
+              const famiglia = famiglie.find(f => f.id === vendita.famiglia_id);
+              const colore = vendita.colore || famiglia?.colore || coloriDefault[index % coloriDefault.length];
 
               return (
-                <VenditaRow
-                  key={famiglia.id}
-                  famiglia={famiglia}
-                  colore={colore}
-                  importo={importo}
-                  percentuale={percentualeFamiglia}
-                  onSave={(val) => saveVendita(famiglia.id, val)}
-                  saving={saving}
-                />
+                <div
+                  key={vendita.id}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    padding: '10px 12px',
+                    background: 'var(--bg-primary)',
+                    borderRadius: '6px',
+                    borderLeft: `4px solid ${colore}`,
+                  }}
+                >
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: '13px', fontWeight: 500 }}>
+                      {vendita.famiglia_nome || famiglia?.nome || 'Prodotto'}
+                    </div>
+                    <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
+                      📅 {vendita.data_vendita ? new Date(vendita.data_vendita).toLocaleDateString('it-IT') : '-'}
+                    </div>
+                  </div>
+                  <div style={{ fontSize: '14px', fontWeight: 600, color: colore }}>
+                    €{vendita.importo.toLocaleString('it-IT')}
+                  </div>
+                  <button
+                    onClick={() => deleteVendita(vendita.id)}
+                    disabled={saving}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      color: '#ef4444',
+                      cursor: 'pointer',
+                      padding: '4px',
+                      fontSize: '12px',
+                      opacity: 0.6,
+                    }}
+                    title="Elimina vendita"
+                  >
+                    🗑️
+                  </button>
+                </div>
               );
             })}
           </div>
         )}
       </div>
 
-      {/* Preview visuale */}
-      {potenziale > 0 && vendite.length > 0 && (
-        <div style={{ marginTop: '24px', padding: '16px', background: 'var(--bg-secondary)', borderRadius: '8px' }}>
-          <h4 style={{ fontSize: '13px', fontWeight: 600, marginBottom: '12px', color: 'var(--text-secondary)' }}>
-            Anteprima 3D
-          </h4>
-          <div style={{ display: 'flex', alignItems: 'flex-end', gap: '4px', height: '100px', padding: '0 20px' }}>
-            {famiglie.filter(f => !f.nome.startsWith('  ')).map((famiglia, index) => {
-              const vendita = vendite.find(v => v.famiglia_id === famiglia.id);
-              const colore = famiglia.colore || coloriDefault[index % coloriDefault.length];
-              const importo = vendita?.importo || 0;
-              const altezza = potenziale > 0 ? (importo / potenziale) * 100 : 0;
+      {/* Preview visuale - aggregata per famiglia */}
+      {potenziale > 0 && vendite.length > 0 && (() => {
+        // Aggrega vendite per famiglia
+        const venditePerFamiglia = vendite.reduce((acc, v) => {
+          acc[v.famiglia_id] = (acc[v.famiglia_id] || 0) + v.importo;
+          return acc;
+        }, {} as Record<string, number>);
 
-              if (importo === 0) return null;
+        return (
+          <div style={{ marginTop: '24px', padding: '16px', background: 'var(--bg-secondary)', borderRadius: '8px' }}>
+            <h4 style={{ fontSize: '13px', fontWeight: 600, marginBottom: '12px', color: 'var(--text-secondary)' }}>
+              Anteprima 3D (totale per prodotto)
+            </h4>
+            <div style={{ display: 'flex', alignItems: 'flex-end', gap: '4px', height: '100px', padding: '0 20px' }}>
+              {Object.entries(venditePerFamiglia).map(([famigliaId, totale], index) => {
+                const famiglia = famiglie.find(f => f.id === famigliaId);
+                const colore = famiglia?.colore || coloriDefault[index % coloriDefault.length];
+                const altezza = potenziale > 0 ? (totale / potenziale) * 100 : 0;
 
-              return (
-                <div
-                  key={famiglia.id}
-                  title={`${famiglia.nome}: €${importo.toLocaleString('it-IT')}`}
-                  style={{
-                    width: '24px',
-                    height: `${Math.max(altezza, 5)}%`,
-                    background: colore,
-                    borderRadius: '2px 2px 0 0',
-                    transition: 'height 0.3s ease',
-                  }}
-                />
-              );
-            })}
+                return (
+                  <div
+                    key={famigliaId}
+                    title={`${famiglia?.nome?.trim() || 'Prodotto'}: €${totale.toLocaleString('it-IT')}`}
+                    style={{
+                      width: '24px',
+                      height: `${Math.max(altezza, 5)}%`,
+                      background: colore,
+                      borderRadius: '2px 2px 0 0',
+                      transition: 'height 0.3s ease',
+                    }}
+                  />
+                );
+              })}
+            </div>
+            <div style={{
+              borderTop: '2px dashed var(--border-color)',
+              marginTop: '8px',
+              paddingTop: '8px',
+              fontSize: '11px',
+              color: 'var(--text-secondary)',
+              textAlign: 'center',
+            }}>
+              Linea venduto totale: {percentuale}%
+            </div>
           </div>
-          <div style={{
-            borderTop: '2px dashed var(--border-color)',
-            marginTop: '8px',
-            paddingTop: '8px',
-            fontSize: '11px',
-            color: 'var(--text-secondary)',
-            textAlign: 'center',
-          }}>
-            Linea venduto totale: {percentuale}%
-          </div>
-        </div>
-      )}
+        );
+      })()}
     </div>
   );
 }
 
-// Riga vendita singola famiglia
-function VenditaRow({
-  famiglia,
-  colore,
-  importo,
-  percentuale,
+// Form nuova vendita
+function NuovaVenditaForm({
+  famiglie,
   onSave,
   saving,
 }: {
-  famiglia: FamigliaProdotto;
-  colore: string;
-  importo: number;
-  percentuale: number;
-  onSave: (val: number) => void;
+  famiglie: FamigliaProdotto[];
+  coloriDefault: string[];
+  onSave: (famigliaId: string, importo: number, dataVendita: string) => void;
   saving: boolean;
 }) {
-  const [editing, setEditing] = useState(false);
-  const [tempValue, setTempValue] = useState('');
+  const [famigliaId, setFamigliaId] = useState('');
+  const [importo, setImporto] = useState('');
+  const [dataVendita, setDataVendita] = useState(new Date().toISOString().split('T')[0]);
+  const [expanded, setExpanded] = useState(false);
 
-  const handleSave = () => {
-    const val = parseFloat(tempValue) || 0;
-    onSave(val);
-    setEditing(false);
+  const handleSubmit = () => {
+    if (!famigliaId || !importo) return;
+    onSave(famigliaId, parseFloat(importo), dataVendita);
+    setImporto('');
+    // Mantieni la stessa famiglia e data per inserimenti rapidi
   };
+
+  if (!expanded) {
+    return (
+      <button
+        onClick={() => setExpanded(true)}
+        className="btn btn-primary"
+        style={{ width: '100%', marginBottom: '12px' }}
+      >
+        + Nuova vendita
+      </button>
+    );
+  }
 
   return (
     <div style={{
-      display: 'flex',
-      alignItems: 'center',
-      gap: '8px',
-      padding: '8px 12px',
-      background: 'var(--bg-primary)',
-      borderRadius: '6px',
-      borderLeft: `4px solid ${colore}`,
+      padding: '16px',
+      background: 'var(--bg-secondary)',
+      borderRadius: '8px',
+      marginBottom: '12px',
     }}>
-      <div style={{ flex: 1 }}>
-        <div style={{ fontSize: '13px', fontWeight: 500 }}>{famiglia.nome.trim()}</div>
-        {!editing && (
-          <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
-            {percentuale > 0 ? `${percentuale.toFixed(1)}% del potenziale` : 'Nessuna vendita'}
-          </div>
-        )}
-      </div>
-      {editing ? (
-        <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
-          <span style={{ fontSize: '14px' }}>€</span>
-          <input
-            type="number"
-            className="form-input"
-            value={tempValue}
-            onChange={(e) => setTempValue(e.target.value)}
-            style={{ width: '100px', padding: '4px 8px' }}
-            autoFocus
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') handleSave();
-              if (e.key === 'Escape') setEditing(false);
-            }}
-          />
-          <button
-            onClick={handleSave}
-            disabled={saving}
-            style={{ background: 'var(--primary)', color: 'white', border: 'none', padding: '4px 8px', borderRadius: '4px', fontSize: '12px', cursor: 'pointer' }}
-          >
-            ✓
-          </button>
-          <button
-            onClick={() => setEditing(false)}
-            style={{ background: 'none', border: '1px solid var(--border-color)', padding: '4px 8px', borderRadius: '4px', fontSize: '12px', cursor: 'pointer' }}
-          >
-            ✕
-          </button>
-        </div>
-      ) : (
-        <div
-          onClick={() => { setEditing(true); setTempValue(importo.toString()); }}
-          style={{
-            fontSize: '14px',
-            fontWeight: 600,
-            color: importo > 0 ? colore : 'var(--text-secondary)',
-            cursor: 'pointer',
-            padding: '4px 8px',
-            borderRadius: '4px',
-            background: 'var(--bg-secondary)',
-          }}
-          title="Clicca per modificare"
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+        <h4 style={{ fontSize: '14px', fontWeight: 600 }}>Nuova vendita</h4>
+        <button
+          onClick={() => setExpanded(false)}
+          style={{ background: 'none', border: 'none', fontSize: '18px', cursor: 'pointer', color: 'var(--text-secondary)' }}
         >
-          €{importo.toLocaleString('it-IT')}
+          ✕
+        </button>
+      </div>
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+        {/* Prodotto */}
+        <div>
+          <label style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '4px', display: 'block' }}>
+            Prodotto *
+          </label>
+          <select
+            className="form-input"
+            value={famigliaId}
+            onChange={(e) => setFamigliaId(e.target.value)}
+          >
+            <option value="">Seleziona prodotto...</option>
+            {famiglie.map((f) => (
+              <option key={f.id} value={f.id}>
+                {f.nome.trim()}
+              </option>
+            ))}
+          </select>
         </div>
-      )}
+
+        {/* Importo e Data */}
+        <div style={{ display: 'flex', gap: '12px' }}>
+          <div style={{ flex: 1 }}>
+            <label style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '4px', display: 'block' }}>
+              Importo (€) *
+            </label>
+            <input
+              type="number"
+              className="form-input"
+              value={importo}
+              onChange={(e) => setImporto(e.target.value)}
+              placeholder="es: 5000"
+            />
+          </div>
+          <div style={{ flex: 1 }}>
+            <label style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '4px', display: 'block' }}>
+              Data vendita *
+            </label>
+            <input
+              type="date"
+              className="form-input"
+              value={dataVendita}
+              onChange={(e) => setDataVendita(e.target.value)}
+            />
+          </div>
+        </div>
+
+        {/* Pulsante salva */}
+        <button
+          onClick={handleSubmit}
+          disabled={saving || !famigliaId || !importo}
+          className="btn btn-primary"
+          style={{ marginTop: '8px' }}
+        >
+          {saving ? 'Salvataggio...' : 'Aggiungi vendita'}
+        </button>
+      </div>
     </div>
   );
 }

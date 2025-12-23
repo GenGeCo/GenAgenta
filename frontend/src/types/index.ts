@@ -216,6 +216,7 @@ export interface VenditaProdotto {
   neurone_id: string;
   famiglia_id: string;
   importo: number;
+  data_vendita: string;
   famiglia_nome?: string;
   colore?: string;
   data_aggiornamento?: string;

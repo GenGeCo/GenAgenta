@@ -55,7 +55,7 @@ switch ($method) {
                 FROM vendite_prodotto v
                 JOIN famiglie_prodotto f ON v.famiglia_id = f.id
                 WHERE v.neurone_id = ?
-                ORDER BY f.nome ASC
+                ORDER BY v.data_vendita DESC, f.nome ASC
             ');
             $stmt->execute([$neuroneId]);
             $vendite = $stmt->fetchAll();
@@ -134,7 +134,7 @@ switch ($method) {
             }
         }
 
-        // Crea/aggiorna vendita per famiglia
+        // Crea vendita per famiglia (con data)
         if (empty($data['neurone_id'])) {
             errorResponse('neurone_id richiesto', 400);
         }
@@ -145,66 +145,112 @@ switch ($method) {
             errorResponse('importo richiesto', 400);
         }
 
-        // Verifica neurone appartenga al team (supporta sia team_id che azienda_id)
-        $stmt = $db->prepare('SELECT id FROM neuroni WHERE id = ? AND (team_id = ? OR azienda_id = ?)');
-        $stmt->execute([$data['neurone_id'], $teamId, $teamId]);
-        if (!$stmt->fetch()) {
-            errorResponse('Neurone non trovato', 404);
+        // Data vendita (default: oggi)
+        $dataVendita = $data['data_vendita'] ?? date('Y-m-d');
+
+        // Verifica neurone esista
+        try {
+            $stmt = $db->prepare('SELECT id FROM neuroni WHERE id = ?');
+            $stmt->execute([$data['neurone_id']]);
+            if (!$stmt->fetch()) {
+                errorResponse('Neurone non trovato', 404);
+            }
+        } catch (PDOException $e) {
+            errorResponse('Errore verifica neurone: ' . $e->getMessage(), 500);
         }
 
         // Verifica famiglia esista
-        $stmt = $db->prepare('SELECT id FROM famiglie_prodotto WHERE id = ?');
-        $stmt->execute([$data['famiglia_id']]);
-        if (!$stmt->fetch()) {
-            errorResponse('Famiglia prodotto non trovata', 404);
+        try {
+            $stmt = $db->prepare('SELECT id FROM famiglie_prodotto WHERE id = ?');
+            $stmt->execute([$data['famiglia_id']]);
+            if (!$stmt->fetch()) {
+                errorResponse('Famiglia prodotto non trovata', 404);
+            }
+        } catch (PDOException $e) {
+            errorResponse('Errore verifica famiglia: ' . $e->getMessage(), 500);
         }
 
         try {
-            // Upsert: INSERT ... ON DUPLICATE KEY UPDATE
+            // INSERT normale - permette vendite multiple per stessa famiglia con date diverse
             $stmt = $db->prepare('
-                INSERT INTO vendite_prodotto (id, neurone_id, famiglia_id, importo)
-                VALUES (?, ?, ?, ?)
-                ON DUPLICATE KEY UPDATE importo = VALUES(importo)
+                INSERT INTO vendite_prodotto (id, neurone_id, famiglia_id, importo, data_vendita)
+                VALUES (?, ?, ?, ?, ?)
             ');
             $newId = generateUUID();
             $stmt->execute([
                 $newId,
                 $data['neurone_id'],
                 $data['famiglia_id'],
-                $data['importo']
+                $data['importo'],
+                $dataVendita
             ]);
 
-            jsonResponse(['id' => $newId, 'message' => 'Vendita salvata'], 201);
+            jsonResponse(['id' => $newId, 'data_vendita' => $dataVendita, 'message' => 'Vendita salvata'], 201);
         } catch (PDOException $e) {
+            // Se colonna data_vendita non esiste, la aggiungiamo
+            if (strpos($e->getMessage(), 'Unknown column') !== false && strpos($e->getMessage(), 'data_vendita') !== false) {
+                try {
+                    // Rimuovi constraint UNIQUE se esiste
+                    try {
+                        $db->exec("ALTER TABLE vendite_prodotto DROP INDEX uk_neurone_famiglia");
+                    } catch (PDOException $e3) {
+                        // Ignore se non esiste
+                    }
+
+                    // Aggiungi colonna data_vendita
+                    $db->exec("ALTER TABLE vendite_prodotto ADD COLUMN data_vendita DATE NOT NULL DEFAULT CURRENT_DATE");
+                    $db->exec("ALTER TABLE vendite_prodotto ADD INDEX idx_data_vendita (data_vendita)");
+
+                    // Riprova INSERT
+                    $stmt = $db->prepare('
+                        INSERT INTO vendite_prodotto (id, neurone_id, famiglia_id, importo, data_vendita)
+                        VALUES (?, ?, ?, ?, ?)
+                    ');
+                    $newId = generateUUID();
+                    $stmt->execute([
+                        $newId,
+                        $data['neurone_id'],
+                        $data['famiglia_id'],
+                        $data['importo'],
+                        $dataVendita
+                    ]);
+
+                    jsonResponse(['id' => $newId, 'data_vendita' => $dataVendita, 'message' => 'Vendita salvata (migrazione completata)'], 201);
+                } catch (PDOException $e2) {
+                    errorResponse('Errore migrazione tabella: ' . $e2->getMessage(), 500);
+                }
+            }
             // Se tabella non esiste, la creiamo
-            if (strpos($e->getMessage(), "doesn't exist") !== false) {
+            elseif (strpos($e->getMessage(), "doesn't exist") !== false) {
                 $db->exec("
                     CREATE TABLE IF NOT EXISTS vendite_prodotto (
                         id VARCHAR(36) PRIMARY KEY,
                         neurone_id VARCHAR(36) NOT NULL,
                         famiglia_id VARCHAR(36) NOT NULL,
                         importo DECIMAL(12,2) NOT NULL DEFAULT 0,
+                        data_vendita DATE NOT NULL,
                         data_aggiornamento TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-                        UNIQUE KEY uk_neurone_famiglia (neurone_id, famiglia_id),
                         INDEX idx_neurone (neurone_id),
-                        INDEX idx_famiglia (famiglia_id)
+                        INDEX idx_famiglia (famiglia_id),
+                        INDEX idx_data_vendita (data_vendita)
                     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
                 ");
 
                 // Riprova
                 $stmt = $db->prepare('
-                    INSERT INTO vendite_prodotto (id, neurone_id, famiglia_id, importo)
-                    VALUES (?, ?, ?, ?)
+                    INSERT INTO vendite_prodotto (id, neurone_id, famiglia_id, importo, data_vendita)
+                    VALUES (?, ?, ?, ?, ?)
                 ');
                 $newId = generateUUID();
                 $stmt->execute([
                     $newId,
                     $data['neurone_id'],
                     $data['famiglia_id'],
-                    $data['importo']
+                    $data['importo'],
+                    $dataVendita
                 ]);
 
-                jsonResponse(['id' => $newId, 'message' => 'Vendita salvata (tabella creata)'], 201);
+                jsonResponse(['id' => $newId, 'data_vendita' => $dataVendita, 'message' => 'Vendita salvata (tabella creata)'], 201);
             } else {
                 errorResponse('Errore database: ' . $e->getMessage(), 500);
             }
