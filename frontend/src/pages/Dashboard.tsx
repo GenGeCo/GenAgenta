@@ -215,8 +215,10 @@ export default function Dashboard() {
             tipiNeurone={tipiNeurone}
             selectedId={selectedNeurone?.id || null}
             onSelectNeurone={(neurone) => {
+              console.log('DEBUG onSelectNeurone:', neurone.nome, 'connectionPickingMode:', connectionPickingMode);
               // Se siamo in modalità picking connessione, usa il neurone come target
               if (connectionPickingMode) {
+                console.log('DEBUG: Impostando connectionTargetEntity:', neurone.nome);
                 setConnectionTargetEntity({
                   id: neurone.id,
                   nome: neurone.nome,
