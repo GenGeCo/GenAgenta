@@ -15,36 +15,46 @@ foreach ($required as $field) {
     }
 }
 
-// Valida tipo - deve esistere nella tabella tipi_neurone
+// Valida tipo - cerca prima in tipi (v2), poi in tipi_neurone (v1)
 $db = getDB();
 $aziendaId = $user['azienda_id'] ?? null;
+$teamId = $user['team_id'] ?? null;
 $hasPersonalAccess = ($user['personal_access'] ?? false) === true;
 
-// Cerca il tipo per nome o ID (supporta sia il nome che l'UUID)
-$sqlTipo = "
-    SELECT id, nome FROM tipi_neurone
-    WHERE (id = ? OR nome = ?)
-    AND (
-        (visibilita = 'aziendale' AND azienda_id = ?)
-        " . ($hasPersonalAccess ? "OR (visibilita = 'personale' AND creato_da = ?)" : "") . "
-    )
-";
-$paramsTipo = [$data['tipo'], $data['tipo'], $aziendaId];
-if ($hasPersonalAccess) {
-    $paramsTipo[] = $user['user_id'];
+$tipoRow = null;
+
+// Prima cerca nella tabella tipi (v2) per team_id
+if ($teamId) {
+    $stmtTipoV2 = $db->prepare("SELECT id, nome FROM tipi WHERE (id = ? OR nome = ?) AND team_id = ?");
+    $stmtTipoV2->execute([$data['tipo'], $data['tipo'], $teamId]);
+    $tipoRow = $stmtTipoV2->fetch();
 }
-$stmtTipo = $db->prepare($sqlTipo);
-$stmtTipo->execute($paramsTipo);
-$tipoRow = $stmtTipo->fetch();
+
+// Fallback: cerca nella tabella tipi_neurone (v1) per azienda_id
+if (!$tipoRow && $aziendaId) {
+    $sqlTipo = "
+        SELECT id, nome FROM tipi_neurone
+        WHERE (id = ? OR nome = ?)
+        AND (
+            (visibilita = 'aziendale' AND azienda_id = ?)
+            " . ($hasPersonalAccess ? "OR (visibilita = 'personale' AND creato_da = ?)" : "") . "
+        )
+    ";
+    $paramsTipo = [$data['tipo'], $data['tipo'], $aziendaId];
+    if ($hasPersonalAccess) {
+        $paramsTipo[] = $user['user_id'];
+    }
+    $stmtTipo = $db->prepare($sqlTipo);
+    $stmtTipo->execute($paramsTipo);
+    $tipoRow = $stmtTipo->fetch();
+}
 
 if (!$tipoRow) {
-    // DEBUG: log per capire perché non trova il tipo
-    error_log("DEBUG create.php: tipo non trovato. data[tipo]={$data['tipo']}, azienda_id=$aziendaId");
+    error_log("DEBUG create.php: tipo non trovato. data[tipo]={$data['tipo']}, team_id=$teamId, azienda_id=$aziendaId");
     errorResponse('Tipo non valido o non accessibile: ' . $data['tipo'], 400);
 }
 // Usa il nome del tipo per salvare nel DB (per retrocompatibilità)
 $tipoNome = $tipoRow['nome'];
-error_log("DEBUG create.php: tipo trovato. tipoNome=$tipoNome");
 
 // Valida categorie (deve essere array)
 if (!is_array($data['categorie'])) {
