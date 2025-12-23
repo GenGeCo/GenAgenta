@@ -43,43 +43,28 @@ function createCirclePolygon(lng: number, lat: number, radiusMeters: number, sid
   return coords;
 }
 
-// Genera un arco (curva di Bezier quadratica) tra due punti
+// Genera una parabola 3D tra due punti (si alza in verticale)
 function createArc(
   lng1: number, lat1: number,
   lng2: number, lat2: number,
   numPoints: number = 10,
-  curvature: number = 0.3 // 0 = linea retta, 1 = curva molto accentuata
+  maxHeight: number = 100 // altezza massima in metri al centro della parabola
 ): number[][] {
   const points: number[][] = [];
 
-  // Calcola il punto medio
-  const midLng = (lng1 + lng2) / 2;
-  const midLat = (lat1 + lat2) / 2;
-
-  // Calcola la direzione perpendicolare
-  const dx = lng2 - lng1;
-  const dy = lat2 - lat1;
-  const distance = Math.sqrt(dx * dx + dy * dy);
-
-  // Punto di controllo spostato perpendicolarmente
-  // La perpendicolare è (-dy, dx) normalizzata
-  const perpX = -dy / distance;
-  const perpY = dx / distance;
-
-  // Sposta il punto di controllo (la curva si incurva sempre nella stessa direzione)
-  const controlLng = midLng + perpX * distance * curvature;
-  const controlLat = midLat + perpY * distance * curvature;
-
-  // Genera punti lungo la curva di Bezier quadratica
+  // Genera punti lungo una linea retta orizzontale, ma con altitudine parabolica
   for (let i = 0; i <= numPoints; i++) {
     const t = i / numPoints;
-    const t1 = 1 - t;
 
-    // Formula Bezier quadratica: B(t) = (1-t)²P0 + 2(1-t)tP1 + t²P2
-    const lng = t1 * t1 * lng1 + 2 * t1 * t * controlLng + t * t * lng2;
-    const lat = t1 * t1 * lat1 + 2 * t1 * t * controlLat + t * t * lat2;
+    // Interpolazione lineare per lng/lat (linea retta sul piano)
+    const lng = lng1 + (lng2 - lng1) * t;
+    const lat = lat1 + (lat2 - lat1) * t;
 
-    points.push([lng, lat]);
+    // Parabola per l'altitudine: 4 * h * t * (1-t)
+    // Massimo al centro (t=0.5), zero agli estremi (t=0, t=1)
+    const altitude = 4 * maxHeight * t * (1 - t);
+
+    points.push([lng, lat, altitude]);
   }
 
   return points;
@@ -404,12 +389,12 @@ export default function MapView({
 
     if (sinapsiFiltered.length > 0) {
       const sinapsiFeatures = sinapsiFiltered.map((s) => {
-        // Crea arco invece di linea retta
+        // Crea parabola 3D (si alza in verticale)
         const arcPoints = createArc(
           Number(s.lng_da), Number(s.lat_da),
           Number(s.lng_a), Number(s.lat_a),
-          10,  // 10 punti per curva (leggero)
-          0.2  // curvatura moderata
+          15,  // 15 punti per curva fluida
+          50   // altezza massima 50 metri (3x edificio tipico)
         );
 
         return {
