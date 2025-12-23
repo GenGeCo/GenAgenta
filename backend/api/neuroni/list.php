@@ -32,30 +32,30 @@ $aziendaId = $user['azienda_id'] ?? null;
 
 if (!$hasPersonalAccess) {
     // Solo dati aziendali della MIA azienda
-    $where[] = "(visibilita = 'aziendale' AND azienda_id = ?)";
+    $where[] = "(n.visibilita = 'aziendale' AND n.azienda_id = ?)";
     $params[] = $aziendaId;
 } else {
     // Dati aziendali della MIA azienda + i MIEI dati personali
-    $where[] = "((visibilita = 'aziendale' AND azienda_id = ?) OR (visibilita = 'personale' AND creato_da = ?))";
+    $where[] = "((n.visibilita = 'aziendale' AND n.azienda_id = ?) OR (n.visibilita = 'personale' AND n.creato_da = ?))";
     $params[] = $aziendaId;
     $params[] = $user['user_id'];
 }
 
 // Filtro tipo
 if ($tipo) {
-    $where[] = "tipo = ?";
+    $where[] = "n.tipo = ?";
     $params[] = $tipo;
 }
 
 // Filtro categoria (cerca nel JSON)
 if ($categoria) {
-    $where[] = "JSON_CONTAINS(categorie, ?)";
+    $where[] = "JSON_CONTAINS(n.categorie, ?)";
     $params[] = json_encode($categoria);
 }
 
 // Ricerca testuale
 if ($search) {
-    $where[] = "(nome LIKE ? OR indirizzo LIKE ?)";
+    $where[] = "(n.nome LIKE ? OR n.indirizzo LIKE ?)";
     $params[] = "%$search%";
     $params[] = "%$search%";
 }
@@ -64,8 +64,8 @@ if ($search) {
 if ($lat && $lng && $raggio) {
     $where[] = "(
         6371 * acos(
-            cos(radians(?)) * cos(radians(lat)) * cos(radians(lng) - radians(?))
-            + sin(radians(?)) * sin(radians(lat))
+            cos(radians(?)) * cos(radians(n.lat)) * cos(radians(n.lng) - radians(?))
+            + sin(radians(?)) * sin(radians(n.lat))
         )
     ) <= ?";
     $params[] = $lat;
@@ -77,15 +77,16 @@ if ($lat && $lng && $raggio) {
 $whereClause = $where ? 'WHERE ' . implode(' AND ', $where) : '';
 
 // Query count
-$countSql = "SELECT COUNT(*) as total FROM neuroni $whereClause";
+$countSql = "SELECT COUNT(*) as total FROM neuroni n $whereClause";
 $stmt = $db->prepare($countSql);
 $stmt->execute($params);
 $total = $stmt->fetch()['total'];
 
-// Query dati
-$sql = "SELECT id, nome, tipo, categorie, visibilita, lat, lng, indirizzo, telefono, email, sito_web, dati_extra, dimensione, data_creazione
-        FROM neuroni $whereClause
-        ORDER BY nome ASC
+// Query dati con potenziale e venduto_totale
+$sql = "SELECT n.id, n.nome, n.tipo, n.categorie, n.visibilita, n.lat, n.lng, n.indirizzo, n.telefono, n.email, n.sito_web, n.dati_extra, n.dimensione, n.potenziale, n.data_creazione,
+        COALESCE((SELECT SUM(v.importo) FROM vendite_prodotto v WHERE v.neurone_id = n.id), 0) as venduto_totale
+        FROM neuroni n $whereClause
+        ORDER BY n.nome ASC
         LIMIT ? OFFSET ?";
 
 $params[] = $limit;
@@ -100,10 +101,12 @@ foreach ($neuroni as &$n) {
     $n['categorie'] = json_decode($n['categorie'], true);
     $n['dati_extra'] = $n['dati_extra'] ? json_decode($n['dati_extra'], true) : null;
 
-    // Converti lat/lng/dimensione a float (MySQL li restituisce come stringhe)
+    // Converti lat/lng/dimensione/potenziale/venduto a float (MySQL li restituisce come stringhe)
     $n['lat'] = $n['lat'] !== null ? (float)$n['lat'] : null;
     $n['lng'] = $n['lng'] !== null ? (float)$n['lng'] : null;
     $n['dimensione'] = $n['dimensione'] !== null ? (float)$n['dimensione'] : null;
+    $n['potenziale'] = $n['potenziale'] !== null ? (float)$n['potenziale'] : null;
+    $n['venduto_totale'] = (float)($n['venduto_totale'] ?? 0);
 
     // Se non ha accesso personale, oscura neuroni personali (non dovrebbero esserci, ma per sicurezza)
     if (!$hasPersonalAccess && $n['visibilita'] === 'personale') {

@@ -21,6 +21,7 @@ export interface Neurone {
   dati_extra: Record<string, unknown> | null;
   dimensione: number | null; // dimensione base in metri (default: 50 quadrato, 40 cerchio)
   potenziale: number | null; // potenziale di acquisto in euro
+  venduto_totale?: number; // totale venduto (somma vendite_prodotto)
   data_creazione: string;
   data_modifica?: string;
   has_note?: boolean;

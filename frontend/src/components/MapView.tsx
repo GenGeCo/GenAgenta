@@ -97,27 +97,98 @@ function createSquarePolygon(lng: number, lat: number, sizeMeters: number): numb
   ];
 }
 
-// Calcola altezza basata sui dati (ridotta del 30%)
+// Calcola altezza basata sui dati - usa potenziale se disponibile
 function calculateHeight(neurone: Neurone, sinapsiCount: number): number {
-  const baseHeight = 35;  // era 50
-  const maxHeight = 350;  // era 500
+  const baseHeight = 35;  // altezza minima
+  const maxHeight = 350;  // altezza massima
 
+  // Se ha potenziale, usa quello per l'altezza (ogni 5000€ = 10m)
+  if (neurone.potenziale && neurone.potenziale > 0) {
+    const altezzaPotenziale = baseHeight + (neurone.potenziale / 500);
+    return Math.min(Math.max(altezzaPotenziale, baseHeight), maxHeight);
+  }
+
+  // Fallback al vecchio sistema
   let value = 0;
-
   if (neurone.tipo === 'impresa') {
-    // Fatturato: ogni 15.000€ = 10m di altezza
     const fatturato = (neurone.dati_extra as { fatturato_annuo?: number })?.fatturato_annuo || 0;
     value = fatturato / 1500;
   } else if (neurone.tipo === 'luogo') {
-    // Importo lavori: ogni 7.500€ = 10m di altezza
     const importo = (neurone.dati_extra as { importo_lavori?: number })?.importo_lavori || 0;
     value = importo / 750;
   } else {
-    // Persone: ogni connessione = 20m
     value = sinapsiCount * 20;
   }
 
   return Math.min(Math.max(baseHeight + value, baseHeight), maxHeight);
+}
+
+// Calcola altezza venduto proporzionale all'altezza totale
+function calculateVendutoHeight(neurone: Neurone, totalHeight: number): number {
+  if (!neurone.potenziale || neurone.potenziale <= 0) return 0;
+  if (!neurone.venduto_totale || neurone.venduto_totale <= 0) return 0;
+
+  const ratio = Math.min(neurone.venduto_totale / neurone.potenziale, 1);
+  return ratio * totalHeight;
+}
+
+// Genera un anello (ring) per la linea venduto esterna
+function createRingPolygon(lng: number, lat: number, innerRadius: number, outerRadius: number, sides: number = 24): number[][][] {
+  const earthRadius = 6371000;
+  const outer: number[][] = [];
+  const inner: number[][] = [];
+
+  for (let i = 0; i <= sides; i++) {
+    const angle = (i / sides) * 2 * Math.PI;
+
+    // Outer ring
+    const dxOuter = outerRadius * Math.cos(angle);
+    const dyOuter = outerRadius * Math.sin(angle);
+    const dLatOuter = dyOuter / earthRadius * (180 / Math.PI);
+    const dLngOuter = dxOuter / (earthRadius * Math.cos(lat * Math.PI / 180)) * (180 / Math.PI);
+    outer.push([lng + dLngOuter, lat + dLatOuter]);
+
+    // Inner ring (clockwise = hole)
+    const dxInner = innerRadius * Math.cos(angle);
+    const dyInner = innerRadius * Math.sin(angle);
+    const dLatInner = dyInner / earthRadius * (180 / Math.PI);
+    const dLngInner = dxInner / (earthRadius * Math.cos(lat * Math.PI / 180)) * (180 / Math.PI);
+    inner.push([lng + dLngInner, lat + dLatInner]);
+  }
+
+  // Polygon con hole: [outer_ring, inner_ring(reversed)]
+  return [outer, inner.reverse()];
+}
+
+// Genera un anello quadrato per edifici quadrati
+function createSquareRing(lng: number, lat: number, innerSize: number, outerSize: number): number[][][] {
+  const earthRadius = 6371000;
+
+  const halfInner = innerSize / 2;
+  const halfOuter = outerSize / 2;
+
+  const dLatInner = halfInner / earthRadius * (180 / Math.PI);
+  const dLngInner = halfInner / (earthRadius * Math.cos(lat * Math.PI / 180)) * (180 / Math.PI);
+  const dLatOuter = halfOuter / earthRadius * (180 / Math.PI);
+  const dLngOuter = halfOuter / (earthRadius * Math.cos(lat * Math.PI / 180)) * (180 / Math.PI);
+
+  const outer = [
+    [lng - dLngOuter, lat - dLatOuter],
+    [lng + dLngOuter, lat - dLatOuter],
+    [lng + dLngOuter, lat + dLatOuter],
+    [lng - dLngOuter, lat + dLatOuter],
+    [lng - dLngOuter, lat - dLatOuter],
+  ];
+
+  const inner = [
+    [lng - dLngInner, lat - dLatInner],
+    [lng - dLngInner, lat + dLatInner],
+    [lng + dLngInner, lat + dLatInner],
+    [lng + dLngInner, lat - dLatInner],
+    [lng - dLngInner, lat - dLatInner],
+  ];
+
+  return [outer, inner];
 }
 
 export default function MapView({
@@ -311,7 +382,9 @@ export default function MapView({
       if (m.getLayer('neuroni-3d')) m.removeLayer('neuroni-3d');
       if (m.getLayer('neuroni-2d')) m.removeLayer('neuroni-2d');
       if (m.getLayer('neuroni-outline')) m.removeLayer('neuroni-outline');
+      if (m.getLayer('venduto-ring')) m.removeLayer('venduto-ring');
       if (m.getSource('neuroni')) m.removeSource('neuroni');
+      if (m.getSource('venduto-rings')) m.removeSource('venduto-rings');
       if (m.getLayer('sinapsi-lines')) m.removeLayer('sinapsi-lines');
       if (m.getLayer('sinapsi-lines-shadow')) m.removeLayer('sinapsi-lines-shadow');
       if (m.getSource('sinapsi')) m.removeSource('sinapsi');
@@ -416,6 +489,61 @@ export default function MapView({
         'line-opacity': 0.6,
       },
     });
+
+    // Crea anelli venduto (solo per neuroni con venduto > 0)
+    const vendutoRingFeatures = neuroniConCoord
+      .filter(n => n.venduto_totale && n.venduto_totale > 0 && n.potenziale && n.potenziale > 0)
+      .map((neurone) => {
+        const forma = getTipoForma(neurone.tipo);
+        const isQuadrato = forma === 'quadrato';
+        const defaultSize = isQuadrato ? 50 : 40;
+        const baseSize = neurone.dimensione ? Number(neurone.dimensione) : defaultSize;
+        const height = calculateHeight(neurone, getSinapsiCount(neurone.id));
+        const vendutoHeight = calculateVendutoHeight(neurone, height);
+
+        // Ring leggermente più grande dell'edificio
+        const ringWidth = 3; // metri di spessore dell'anello
+        const ringPolygon = isQuadrato
+          ? createSquareRing(neurone.lng!, neurone.lat!, baseSize, baseSize + ringWidth * 2)
+          : createRingPolygon(neurone.lng!, neurone.lat!, baseSize / 2, (baseSize / 2) + ringWidth, 24);
+
+        return {
+          type: 'Feature' as const,
+          properties: {
+            id: neurone.id,
+            venduto_height: vendutoHeight,
+            ring_height: 4, // altezza dell'anello in metri
+          },
+          geometry: {
+            type: 'Polygon' as const,
+            coordinates: ringPolygon,
+          },
+        };
+      });
+
+    // Aggiungi layer anelli venduto se ci sono neuroni con vendite
+    if (vendutoRingFeatures.length > 0) {
+      m.addSource('venduto-rings', {
+        type: 'geojson',
+        data: {
+          type: 'FeatureCollection',
+          features: vendutoRingFeatures,
+        },
+      });
+
+      // Layer anello venduto (3D)
+      m.addLayer({
+        id: 'venduto-ring',
+        type: 'fill-extrusion',
+        source: 'venduto-rings',
+        paint: {
+          'fill-extrusion-color': '#22c55e', // Verde success
+          'fill-extrusion-height': ['+', ['get', 'venduto_height'], ['get', 'ring_height']],
+          'fill-extrusion-base': ['get', 'venduto_height'],
+          'fill-extrusion-opacity': 0.95,
+        },
+      });
+    }
 
     // Sinapsi - applica filtri visibilità
     let sinapsiFiltered = sinapsi.filter((s) => {
