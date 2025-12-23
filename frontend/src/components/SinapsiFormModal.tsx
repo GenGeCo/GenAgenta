@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { api } from '../utils/api';
 import type { Neurone, Sinapsi, Certezza, Livello, TipoSinapsiConfig, FamigliaProdotto } from '../types';
+import EntityPickerModal from './EntityPickerModal';
 
 interface SinapsiFormModalProps {
   neuroneCorrente: Neurone;
@@ -10,12 +11,8 @@ interface SinapsiFormModalProps {
   personalAccess: boolean;
   onClose: () => void;
   onSaved: () => void;
-}
-
-interface NeuroneOption {
-  id: string;
-  nome: string;
-  tipo: string;
+  onRequestMapPick?: () => void;
+  preselectedEntity?: { id: string; nome: string; tipo: string } | null;
 }
 
 export default function SinapsiFormModal({
@@ -24,16 +21,27 @@ export default function SinapsiFormModal({
   personalAccess,
   onClose,
   onSaved,
+  onRequestMapPick,
+  preselectedEntity,
 }: SinapsiFormModalProps) {
   const isEditing = !!sinapsiDaModificare;
 
   // Form state
   const [neuroneCollegato, setNeuroneCollegato] = useState<string>(
-    sinapsiDaModificare
+    preselectedEntity?.id ||
+    (sinapsiDaModificare
       ? sinapsiDaModificare.neurone_da === neuroneCorrente.id
         ? sinapsiDaModificare.neurone_a
         : sinapsiDaModificare.neurone_da
-      : ''
+      : '')
+  );
+  const [neuroneCollegatoNome, setNeuroneCollegatoNome] = useState<string>(
+    preselectedEntity?.nome ||
+    (sinapsiDaModificare
+      ? sinapsiDaModificare.neurone_da === neuroneCorrente.id
+        ? sinapsiDaModificare.nome_a || ''
+        : sinapsiDaModificare.nome_da || ''
+      : '')
   );
   const [tipoConnessione, setTipoConnessione] = useState(sinapsiDaModificare?.tipo_connessione || '');
   const [direzione, setDirezione] = useState<'uscita' | 'entrata'>(
@@ -53,12 +61,10 @@ export default function SinapsiFormModal({
     sinapsiDaModificare?.famiglia_prodotto_id || null
   );
 
-  // Data state
-  const [neuroni, setNeuroni] = useState<NeuroneOption[]>([]);
+  // UI state
+  const [showEntityPicker, setShowEntityPicker] = useState(false);
   const [tipiSinapsi, setTipiSinapsi] = useState<TipoSinapsiConfig[]>([]);
   const [famiglieProdotto, setFamiglieProdotto] = useState<FamigliaProdotto[]>([]);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -82,44 +88,18 @@ export default function SinapsiFormModal({
     loadData();
   }, []);
 
-  // Stato per tutti i neuroni (caricati una volta)
-  const [tuttiNeuroni, setTuttiNeuroni] = useState<NeuroneOption[]>([]);
+  // Handler selezione entità dal picker
+  const handleEntitySelect = (entity: { id: string; nome: string; tipo: string }) => {
+    setNeuroneCollegato(entity.id);
+    setNeuroneCollegatoNome(entity.nome);
+    setShowEntityPicker(false);
+  };
 
-  // Carica tutti i neuroni all'avvio
-  useEffect(() => {
-    const loadNeuroni = async () => {
-      setLoading(true);
-      try {
-        const { data } = await api.getNeuroni({ limit: 200 });
-        // Escludi il neurone corrente
-        setTuttiNeuroni(
-          data
-            .filter((n) => n.id !== neuroneCorrente.id)
-            .map((n) => ({ id: n.id, nome: n.nome, tipo: n.tipo }))
-        );
-      } catch (err) {
-        console.error('Errore caricamento neuroni:', err);
-      } finally {
-        setLoading(false);
-      }
-    };
-    loadNeuroni();
-  }, [neuroneCorrente.id]);
-
-  // Filtra neuroni in tempo reale (locale)
-  useEffect(() => {
-    if (!searchTerm.trim()) {
-      setNeuroni(tuttiNeuroni);
-      return;
-    }
-    const termLower = searchTerm.toLowerCase();
-    setNeuroni(
-      tuttiNeuroni.filter(n =>
-        n.nome.toLowerCase().includes(termLower) ||
-        n.tipo.toLowerCase().includes(termLower)
-      )
-    );
-  }, [searchTerm, tuttiNeuroni]);
+  // Handler per passare alla modalità mappa
+  const handleSwitchToMap = () => {
+    setShowEntityPicker(false);
+    onRequestMapPick?.();
+  };
 
   // Salvataggio
   const handleSubmit = async (e: React.FormEvent) => {
@@ -165,14 +145,6 @@ export default function SinapsiFormModal({
     }
   };
 
-  // Nome del neurone selezionato
-  const selectedNeuroneName = neuroni.find((n) => n.id === neuroneCollegato)?.nome ||
-    (sinapsiDaModificare
-      ? sinapsiDaModificare.neurone_da === neuroneCorrente.id
-        ? sinapsiDaModificare.nome_a
-        : sinapsiDaModificare.nome_da
-      : '');
-
   // Flatten famiglie prodotto per select
   const flattenFamiglie = (items: FamigliaProdotto[], level = 0): { id: string; nome: string; level: number }[] => {
     return items.flatMap(item => [
@@ -183,18 +155,19 @@ export default function SinapsiFormModal({
   const flatFamiglie = flattenFamiglie(famiglieProdotto);
 
   return (
-    <div
-      style={{
-        position: 'fixed',
-        inset: 0,
-        backgroundColor: 'rgba(0, 0, 0, 0.5)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        zIndex: 1000,
-      }}
-      onClick={onClose}
-    >
+    <>
+      <div
+        style={{
+          position: 'fixed',
+          inset: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000,
+        }}
+        onClick={onClose}
+      >
       <div
         className="card"
         style={{
@@ -240,82 +213,68 @@ export default function SinapsiFormModal({
             </div>
           </div>
 
-          {/* Ricerca neurone collegato */}
+          {/* Selezione entità collegata */}
           <div className="form-group">
-            <label className="form-label">
-              Collega a
-              {neuroneCollegato && (
-                <span style={{ marginLeft: '8px', color: 'var(--primary)', fontWeight: 500 }}>
-                  ✓ {tuttiNeuroni.find(n => n.id === neuroneCollegato)?.nome || selectedNeuroneName}
-                </span>
-              )}
-            </label>
+            <label className="form-label">Collega a</label>
 
-            {/* Campo filtro sempre visibile */}
-            <input
-              type="text"
-              className="form-input"
-              placeholder={loading ? 'Caricamento...' : `Filtra tra ${tuttiNeuroni.length} neuroni...`}
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              disabled={loading}
-            />
-
-            {/* Lista neuroni sempre visibile */}
-            <div style={{
-              marginTop: '8px',
-              border: '1px solid var(--border-color)',
-              borderRadius: '4px',
-              maxHeight: '200px',
-              overflow: 'auto',
-              background: 'var(--bg-primary)'
-            }}>
-              {loading ? (
-                <div style={{ padding: '12px', textAlign: 'center', color: 'var(--text-secondary)' }}>
-                  Caricamento neuroni...
-                </div>
-              ) : neuroni.length === 0 ? (
-                <div style={{ padding: '12px', textAlign: 'center', color: 'var(--text-secondary)' }}>
-                  Nessun neurone trovato
-                </div>
-              ) : (
-                neuroni.map((n) => (
-                  <div
-                    key={n.id}
-                    onClick={() => {
-                      setNeuroneCollegato(n.id);
-                      setSearchTerm('');
-                    }}
-                    style={{
-                      padding: '8px 12px',
-                      cursor: 'pointer',
-                      borderBottom: '1px solid var(--border-color)',
-                      background: n.id === neuroneCollegato ? 'var(--primary)' : 'transparent',
-                      color: n.id === neuroneCollegato ? 'white' : 'inherit',
-                    }}
-                    onMouseEnter={(e) => {
-                      if (n.id !== neuroneCollegato) {
-                        e.currentTarget.style.background = 'var(--bg-secondary)';
-                      }
-                    }}
-                    onMouseLeave={(e) => {
-                      if (n.id !== neuroneCollegato) {
-                        e.currentTarget.style.background = 'transparent';
-                      }
-                    }}
-                  >
-                    <span style={{ fontWeight: 500 }}>{n.nome}</span>
-                    <span style={{
-                      fontSize: '12px',
-                      marginLeft: '8px',
-                      opacity: 0.7
-                    }}>
-                      ({n.tipo})
-                    </span>
+            {neuroneCollegato ? (
+              // Entità selezionata
+              <div
+                style={{
+                  padding: '12px 16px',
+                  background: 'var(--bg-primary)',
+                  borderRadius: '8px',
+                  border: '2px solid var(--primary)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                }}
+              >
+                <div>
+                  <div style={{ fontWeight: 600, color: 'var(--primary)' }}>
+                    {neuroneCollegatoNome}
                   </div>
-                ))
-              )}
-            </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setNeuroneCollegato('');
+                    setNeuroneCollegatoNome('');
+                  }}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    color: 'var(--text-secondary)',
+                    cursor: 'pointer',
+                    fontSize: '18px',
+                  }}
+                >
+                  ×
+                </button>
+              </div>
+            ) : (
+              // Bottoni per selezionare
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <button
+                  type="button"
+                  onClick={() => setShowEntityPicker(true)}
+                  className="btn"
+                  style={{ flex: 1, padding: '12px' }}
+                >
+                  Cerca nella lista
+                </button>
+                {onRequestMapPick && (
+                  <button
+                    type="button"
+                    onClick={onRequestMapPick}
+                    className="btn btn-primary"
+                    style={{ flex: 1, padding: '12px' }}
+                  >
+                    Seleziona su mappa
+                  </button>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Tipo connessione */}
@@ -490,5 +449,16 @@ export default function SinapsiFormModal({
         </form>
       </div>
     </div>
+
+      {/* Entity Picker Modal */}
+      {showEntityPicker && (
+        <EntityPickerModal
+          excludeId={neuroneCorrente.id}
+          onSelect={handleEntitySelect}
+          onClose={() => setShowEntityPicker(false)}
+          onSwitchToMap={onRequestMapPick ? handleSwitchToMap : undefined}
+        />
+      )}
+    </>
   );
 }
