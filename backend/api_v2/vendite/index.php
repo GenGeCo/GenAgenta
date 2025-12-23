@@ -24,13 +24,25 @@ switch ($method) {
             errorResponse('Parametro neurone_id richiesto', 400);
         }
 
+        // Verifica se esiste la colonna potenziale
+        $hasPotenziale = false;
+        try {
+            $db->query("SELECT potenziale FROM neuroni LIMIT 1");
+            $hasPotenziale = true;
+        } catch (PDOException $e) {
+            // Colonna non esiste
+        }
+
         // Verifica neurone appartenga al team
-        $stmt = $db->prepare('SELECT id, potenziale FROM neuroni WHERE id = ? AND team_id = ?');
-        $stmt->execute([$neuroneId, $teamId]);
+        $selectFields = $hasPotenziale ? 'id, potenziale' : 'id';
+        $stmt = $db->prepare("SELECT $selectFields FROM neuroni WHERE id = ? AND (team_id = ? OR azienda_id = ?)");
+        $stmt->execute([$neuroneId, $teamId, $teamId]);
         $neurone = $stmt->fetch();
         if (!$neurone) {
             errorResponse('Neurone non trovato', 404);
         }
+
+        $potenziale = $hasPotenziale ? (floatval($neurone['potenziale'] ?? 0)) : 0;
 
         try {
             $stmt = $db->prepare('
@@ -48,10 +60,10 @@ switch ($method) {
 
             jsonResponse([
                 'data' => $vendite,
-                'potenziale' => floatval($neurone['potenziale']) ?: 0,
+                'potenziale' => $potenziale,
                 'totale_venduto' => $totaleVenduto,
-                'percentuale' => $neurone['potenziale'] > 0
-                    ? round(($totaleVenduto / floatval($neurone['potenziale'])) * 100, 1)
+                'percentuale' => $potenziale > 0
+                    ? round(($totaleVenduto / $potenziale) * 100, 1)
                     : 0
             ]);
         } catch (PDOException $e) {
@@ -59,7 +71,7 @@ switch ($method) {
             if (strpos($e->getMessage(), "doesn't exist") !== false) {
                 jsonResponse([
                     'data' => [],
-                    'potenziale' => floatval($neurone['potenziale']) ?: 0,
+                    'potenziale' => $potenziale,
                     'totale_venduto' => 0,
                     'percentuale' => 0
                 ]);
@@ -74,9 +86,9 @@ switch ($method) {
 
         // Aggiorna potenziale se fornito
         if (isset($data['potenziale']) && isset($data['neurone_id'])) {
-            // Verifica neurone appartenga al team
-            $stmt = $db->prepare('SELECT id FROM neuroni WHERE id = ? AND team_id = ?');
-            $stmt->execute([$data['neurone_id'], $teamId]);
+            // Verifica neurone appartenga al team (supporta sia team_id che azienda_id)
+            $stmt = $db->prepare('SELECT id FROM neuroni WHERE id = ? AND (team_id = ? OR azienda_id = ?)');
+            $stmt->execute([$data['neurone_id'], $teamId, $teamId]);
             if (!$stmt->fetch()) {
                 errorResponse('Neurone non trovato', 404);
             }
@@ -113,9 +125,9 @@ switch ($method) {
             errorResponse('importo richiesto', 400);
         }
 
-        // Verifica neurone appartenga al team
-        $stmt = $db->prepare('SELECT id FROM neuroni WHERE id = ? AND team_id = ?');
-        $stmt->execute([$data['neurone_id'], $teamId]);
+        // Verifica neurone appartenga al team (supporta sia team_id che azienda_id)
+        $stmt = $db->prepare('SELECT id FROM neuroni WHERE id = ? AND (team_id = ? OR azienda_id = ?)');
+        $stmt->execute([$data['neurone_id'], $teamId, $teamId]);
         if (!$stmt->fetch()) {
             errorResponse('Neurone non trovato', 404);
         }
