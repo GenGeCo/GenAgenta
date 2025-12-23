@@ -669,6 +669,10 @@ function VenditeTab({
       flatten(famiglieRes.data);
       setFamiglie(flatFamiglie);
 
+      console.log('=== DEBUG GET VENDITE ===');
+      console.log('Neurone ID:', neurone.id);
+      console.log('Risposta GET:', venditeRes.data);
+
       setVendite(venditeRes.data.data || []);
       setPotenziale(venditeRes.data.potenziale || 0);
       setTotaleVenduto(venditeRes.data.totale_venduto || 0);
@@ -699,12 +703,16 @@ function VenditeTab({
   const saveVendita = async (famigliaId: string, importo: number, dataVendita?: string) => {
     setSaving(true);
     try {
-      await api.post('/vendite', {
+      const postResponse = await api.post('/vendite', {
         neurone_id: neurone.id,
         famiglia_id: famigliaId,
         importo,
         data_vendita: dataVendita || new Date().toISOString().split('T')[0],
       });
+      console.log('=== DEBUG POST VENDITA ===');
+      console.log('Neurone ID:', neurone.id);
+      console.log('Risposta POST:', postResponse.data);
+
       await loadData();
       onUpdate?.();
     } catch (error) {
