@@ -24,6 +24,15 @@ interface MapViewProps {
 // Colore di default se la categoria non viene trovata
 const DEFAULT_COLOR = '#64748b';
 
+// Stili mappa disponibili (gratuiti)
+const MAP_STYLES = [
+  { id: 'light-v11', nome: 'Chiaro', icon: '☀️' },
+  { id: 'dark-v11', nome: 'Scuro', icon: '🌙' },
+  { id: 'streets-v12', nome: 'Strade', icon: '🛣️' },
+  { id: 'outdoors-v12', nome: 'Outdoor', icon: '🏔️' },
+  { id: 'satellite-streets-v12', nome: 'Satellite', icon: '🛰️' },
+];
+
 // Genera un poligono circolare (per cilindri)
 function createCirclePolygon(lng: number, lat: number, radiusMeters: number, sides: number = 24): number[][] {
   const coords: number[][] = [];
@@ -128,6 +137,7 @@ export default function MapView({
   const popup = useRef<mapboxgl.Popup | null>(null);
   const markerRef = useRef<mapboxgl.Marker | null>(null);
   const [mapReady, setMapReady] = useState(false);
+  const [mapStyle, setMapStyle] = useState('light-v11');
   const neuroniRef = useRef<Neurone[]>(neuroni);
   const handlersAdded = useRef(false);
   const pickingModeRef = useRef(pickingMode);
@@ -151,6 +161,14 @@ export default function MapView({
   const getSinapsiCount = useCallback((neuroneId: string) => {
     return sinapsi.filter(s => s.neurone_da === neuroneId || s.neurone_a === neuroneId).length;
   }, [sinapsi]);
+
+  // Cambia stile mappa
+  const changeMapStyle = useCallback((styleId: string) => {
+    if (map.current) {
+      map.current.setStyle(`mapbox://styles/mapbox/${styleId}`);
+      setMapStyle(styleId);
+    }
+  }, []);
 
   // Inizializza mappa
   useEffect(() => {
@@ -572,6 +590,42 @@ export default function MapView({
           </div>
         </div>
       )}
+
+      {/* Selettore stile mappa - basso destra */}
+      <div style={{
+        position: 'absolute',
+        bottom: '30px',
+        right: '10px',
+        display: 'flex',
+        gap: '4px',
+        background: 'white',
+        padding: '6px',
+        borderRadius: '8px',
+        boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+        zIndex: 10,
+      }}>
+        {MAP_STYLES.map((style) => (
+          <button
+            key={style.id}
+            onClick={() => changeMapStyle(style.id)}
+            title={style.nome}
+            style={{
+              width: '32px',
+              height: '32px',
+              border: mapStyle === style.id ? '2px solid #3b82f6' : '1px solid #e2e8f0',
+              borderRadius: '6px',
+              background: mapStyle === style.id ? '#eff6ff' : 'white',
+              cursor: 'pointer',
+              fontSize: '16px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            {style.icon}
+          </button>
+        ))}
+      </div>
     </div>
   );
 }
