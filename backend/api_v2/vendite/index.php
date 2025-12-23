@@ -155,13 +155,20 @@ switch ($method) {
                 ]
             ]);
         } catch (PDOException $e) {
-            // Qualsiasi errore, ritorna array vuoto con log
+            // Qualsiasi errore, ritorna array vuoto con DEBUG dell'errore
             error_log('Errore query vendite: ' . $e->getMessage());
             jsonResponse([
                 'data' => [],
                 'potenziale' => $potenziale,
                 'totale_venduto' => 0,
-                'percentuale' => 0
+                'percentuale' => 0,
+                'error_debug' => [
+                    'message' => $e->getMessage(),
+                    'code' => $e->getCode(),
+                    'neurone_id' => $neuroneId,
+                    'hasTable' => $hasTable,
+                    'hasDataVendita' => $hasDataVendita
+                ]
             ]);
         }
         break;
