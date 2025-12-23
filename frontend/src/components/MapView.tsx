@@ -414,11 +414,25 @@ export default function MapView({
     }
 
     if (sinapsiFiltered.length > 0) {
+      // Crea una mappa per lookup veloce dei neuroni per ID
+      const neuroniMap = new Map(neuroni.map(n => [n.id, n]));
+
       const sinapsiFeatures = sinapsiFiltered.map((s) => {
+        // Usa le coordinate aggiornate dai neuroni (non quelle salvate nella sinapsi)
+        const neuroneDa = neuroniMap.get(s.neurone_da);
+        const neuroneA = neuroniMap.get(s.neurone_a);
+
+        // Se troviamo i neuroni, usa le loro coordinate aggiornate
+        // Altrimenti fallback alle coordinate salvate nella sinapsi
+        const lngDa = neuroneDa?.lng ?? Number(s.lng_da);
+        const latDa = neuroneDa?.lat ?? Number(s.lat_da);
+        const lngA = neuroneA?.lng ?? Number(s.lng_a);
+        const latA = neuroneA?.lat ?? Number(s.lat_a);
+
         // Crea parabola 3D che si alza verso l'alto
         const parabola = createParabola3D(
-          Number(s.lng_da), Number(s.lat_da),
-          Number(s.lng_a), Number(s.lat_a),
+          lngDa, latDa,
+          lngA, latA,
           15,  // 15 punti per curva fluida
           50   // altezza massima 50 metri al centro
         );
