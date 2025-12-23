@@ -150,6 +150,22 @@ export default function Dashboard() {
     }
   };
 
+  // Ricarica sinapsi (per aggiornare la mappa dopo creazione/modifica)
+  const reloadSinapsi = async () => {
+    try {
+      const sinapsiRes = await api.getSinapsi({
+        data_inizio: filtri.dataInizio || undefined,
+        data_fine: filtri.dataFine || undefined,
+        certezza: filtri.certezza || undefined,
+        valore_min: filtri.valoreMin || undefined,
+        limit: 1000,
+      });
+      setSinapsi(sinapsiRes.data);
+    } catch (error) {
+      console.error('Errore ricaricamento sinapsi:', error);
+    }
+  };
+
   // Handler verifica PIN
   const handleVerifyPin = async (pin: string) => {
     try {
@@ -311,6 +327,7 @@ export default function Dashboard() {
               onRequestConnectionMapPick={() => setConnectionPickingMode(true)}
               connectionTargetEntity={connectionTargetEntity}
               onClearConnectionTarget={() => setConnectionTargetEntity(null)}
+              onSinapsiCreated={reloadSinapsi}
             />
           )}
         </div>

@@ -15,6 +15,7 @@ interface DetailPanelProps {
   onRequestConnectionMapPick?: () => void;
   connectionTargetEntity?: { id: string; nome: string; tipo: string } | null;
   onClearConnectionTarget?: () => void;
+  onSinapsiCreated?: () => void;
 }
 
 export default function DetailPanel({
@@ -26,6 +27,7 @@ export default function DetailPanel({
   onRequestConnectionMapPick,
   connectionTargetEntity,
   onClearConnectionTarget,
+  onSinapsiCreated,
 }: DetailPanelProps) {
   const [sinapsi, setSinapsi] = useState<Sinapsi[]>([]);
   const [note, setNote] = useState<NotaPersonale[]>([]);
@@ -242,6 +244,7 @@ export default function DetailPanel({
                 onSelectNeurone={onSelectNeurone}
                 onSinapsiChange={() => {
                   api.getNeuroneSinapsi(neurone.id).then((res) => setSinapsi(res.data));
+                  onSinapsiCreated?.(); // Ricarica sinapsi globali per la mappa
                 }}
                 onRequestMapPick={onRequestConnectionMapPick}
                 preselectedEntity={connectionTargetEntity}
