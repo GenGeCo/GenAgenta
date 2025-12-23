@@ -35,7 +35,7 @@ if ($neurone['visibilita'] === 'personale') {
 $updates = [];
 $params = [];
 
-$allowedFields = ['nome', 'tipo', 'categorie', 'visibilita', 'lat', 'lng', 'indirizzo', 'telefono', 'email', 'sito_web', 'dati_extra'];
+$allowedFields = ['nome', 'tipo', 'categorie', 'visibilita', 'lat', 'lng', 'indirizzo', 'telefono', 'email', 'sito_web', 'dati_extra', 'dimensione'];
 
 foreach ($allowedFields as $field) {
     if (isset($data[$field])) {

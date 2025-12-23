@@ -327,7 +327,9 @@ export default function MapView({
     const neuroniFeatures = neuroniConCoord.map((neurone) => {
       const forma = getTipoForma(neurone.tipo);
       const isQuadrato = forma === 'quadrato';
-      const baseSize = isQuadrato ? 105 : 80; // metri - +30% (era 80/60)
+      // Usa dimensione personalizzata se presente, altrimenti default (metà di prima)
+      const defaultSize = isQuadrato ? 50 : 40; // metri - era 105/80
+      const baseSize = neurone.dimensione ? Number(neurone.dimensione) : defaultSize;
       const height = calculateHeight(neurone, getSinapsiCount(neurone.id));
 
       const polygon = isQuadrato

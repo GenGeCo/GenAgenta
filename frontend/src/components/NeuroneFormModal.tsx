@@ -59,6 +59,7 @@ export default function NeuroneFormModal({
   const [gettingGps, setGettingGps] = useState(false);
   const [lat, setLat] = useState<number | null>(neurone?.lat || null);
   const [lng, setLng] = useState<number | null>(neurone?.lng || null);
+  const [dimensione, setDimensione] = useState<string>(neurone?.dimensione?.toString() || '');
 
   // Campi extra per cantieri (tipo luogo)
   const datiExtra = neurone?.dati_extra as { data_inizio?: string; data_fine?: string; importo_lavori?: number } | null;
@@ -262,6 +263,7 @@ export default function NeuroneFormModal({
         lng: lng || null,
         telefono: telefono || null,
         email: email || null,
+        dimensione: dimensione ? parseFloat(dimensione) : null,
         dati_extra: datiExtraPayload,
       };
 
@@ -490,6 +492,12 @@ export default function NeuroneFormModal({
                   </label>
                 </div>
 
+                {/* Dimensione (mobile) */}
+                <div style={{ marginBottom: '8px' }}>
+                  <label style={{ fontSize: '10px', color: 'var(--text-secondary)' }}>Dimensione (m)</label>
+                  <input type="number" className="form-input" value={dimensione} onChange={(e) => setDimensione(e.target.value)} placeholder="Auto" min="10" max="200" step="5" style={{ fontSize: '12px', padding: '6px 8px' }} />
+                </div>
+
                 {/* Campi extra per cantieri */}
                 {tipoSelezionato && (tipoSelezionato.nome.toLowerCase() === 'luogo' || tipoSelezionato.nome.toLowerCase() === 'cantiere') && (
                   <div style={{ marginTop: '10px', padding: '10px', background: 'var(--bg-primary)', borderRadius: '8px' }}>
@@ -682,6 +690,24 @@ export default function NeuroneFormModal({
                   <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', fontSize: '14px' }}>
                     <input type="radio" name="visibilita-desktop" checked={visibilita === 'personale'} onChange={() => setVisibilita('personale')} /> Personale (solo tu)
                   </label>
+                </div>
+              </div>
+
+              {/* Dimensione sulla mappa */}
+              <div style={{ marginBottom: '16px' }}>
+                <label style={{ fontSize: '13px', fontWeight: 500, marginBottom: '6px', display: 'block', color: 'var(--text-secondary)' }}>Dimensione base (metri)</label>
+                <input
+                  type="number"
+                  className="form-input"
+                  value={dimensione}
+                  onChange={(e) => setDimensione(e.target.value)}
+                  placeholder="Default: 50 (quadrato) / 40 (cerchio)"
+                  min="10"
+                  max="200"
+                  step="5"
+                />
+                <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '4px' }}>
+                  Lascia vuoto per dimensione automatica
                 </div>
               </div>
 

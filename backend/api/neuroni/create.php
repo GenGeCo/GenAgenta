@@ -70,8 +70,8 @@ if ($visibilita === 'personale' && !$hasPersonalAccess) {
 }
 
 $stmt = $db->prepare('
-    INSERT INTO neuroni (id, nome, tipo, categorie, visibilita, lat, lng, indirizzo, telefono, email, sito_web, dati_extra, creato_da, azienda_id)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO neuroni (id, nome, tipo, categorie, visibilita, lat, lng, indirizzo, telefono, email, sito_web, dati_extra, dimensione, creato_da, azienda_id)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 ');
 
 // DEBUG TEMPORANEO: usa direttamente $data['tipo'] per bypassare la validazione
@@ -91,6 +91,7 @@ $params = [
     $data['email'] ?? null,
     $data['sito_web'] ?? null,
     isset($data['dati_extra']) ? json_encode($data['dati_extra']) : null,
+    $data['dimensione'] ?? null,
     $user['user_id'],
     $user['azienda_id'] ?? null
 ];
