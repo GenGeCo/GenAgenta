@@ -43,50 +43,31 @@ function createCirclePolygon(lng: number, lat: number, radiusMeters: number, sid
   return coords;
 }
 
-// Genera un arco (curva di Bezier quadratica) tra due punti sul piano 2D
-function createArc(
+// Genera una parabola 3D tra due punti (coordinate + array elevazioni)
+function createParabola3D(
   lng1: number, lat1: number,
   lng2: number, lat2: number,
-  numPoints: number = 20,
-  curvature: number = 0.3 // 0 = linea retta, 1 = curva molto accentuata
-): number[][] {
-  const points: number[][] = [];
+  numPoints: number = 15,
+  maxHeight: number = 50 // altezza massima in metri al centro
+): { coordinates: number[][]; elevation: number[] } {
+  const coordinates: number[][] = [];
+  const elevation: number[] = [];
 
-  // Calcola il punto medio
-  const midLng = (lng1 + lng2) / 2;
-  const midLat = (lat1 + lat2) / 2;
-
-  // Calcola la direzione perpendicolare
-  const dx = lng2 - lng1;
-  const dy = lat2 - lat1;
-  const distance = Math.sqrt(dx * dx + dy * dy);
-
-  // Evita divisione per zero
-  if (distance === 0) {
-    return [[lng1, lat1], [lng2, lat2]];
-  }
-
-  // Punto di controllo spostato perpendicolarmente
-  const perpX = -dy / distance;
-  const perpY = dx / distance;
-
-  // Sposta il punto di controllo
-  const controlLng = midLng + perpX * distance * curvature;
-  const controlLat = midLat + perpY * distance * curvature;
-
-  // Genera punti lungo la curva di Bezier quadratica
   for (let i = 0; i <= numPoints; i++) {
     const t = i / numPoints;
-    const t1 = 1 - t;
 
-    // Formula Bezier quadratica: B(t) = (1-t)²P0 + 2(1-t)tP1 + t²P2
-    const lng = t1 * t1 * lng1 + 2 * t1 * t * controlLng + t * t * lng2;
-    const lat = t1 * t1 * lat1 + 2 * t1 * t * controlLat + t * t * lat2;
+    // Interpolazione lineare per lng/lat (linea dritta sul piano)
+    const lng = lng1 + (lng2 - lng1) * t;
+    const lat = lat1 + (lat2 - lat1) * t;
+    coordinates.push([lng, lat]);
 
-    points.push([lng, lat]);
+    // Parabola per l'altitudine: 4 * h * t * (1-t)
+    // Massimo al centro (t=0.5), zero agli estremi
+    const alt = 4 * maxHeight * t * (1 - t);
+    elevation.push(alt);
   }
 
-  return points;
+  return { coordinates, elevation };
 }
 
 // Genera un quadrato (per parallelepipedi)
@@ -408,12 +389,12 @@ export default function MapView({
 
     if (sinapsiFiltered.length > 0) {
       const sinapsiFeatures = sinapsiFiltered.map((s) => {
-        // Crea arco curvo sul piano orizzontale
-        const arcPoints = createArc(
+        // Crea parabola 3D che si alza verso l'alto
+        const parabola = createParabola3D(
           Number(s.lng_da), Number(s.lat_da),
           Number(s.lng_a), Number(s.lat_a),
-          20,  // 20 punti per curva fluida
-          0.4  // curvatura visibile (0.3-0.5 è un buon range)
+          15,  // 15 punti per curva fluida
+          50   // altezza massima 50 metri al centro
         );
 
         return {
@@ -423,16 +404,18 @@ export default function MapView({
             tipo: s.tipo_connessione,
             valore: Number(s.valore) || 1,
             certezza: s.certezza,
+            elevation: parabola.elevation, // array di altezze per line-z-offset
           },
           geometry: {
             type: 'LineString' as const,
-            coordinates: arcPoints,
+            coordinates: parabola.coordinates,
           },
         };
       });
 
       m.addSource('sinapsi', {
         type: 'geojson',
+        lineMetrics: true, // necessario per line-z-offset
         data: {
           type: 'FeatureCollection',
           features: sinapsiFeatures,
@@ -443,6 +426,18 @@ export default function MapView({
         id: 'sinapsi-lines',
         type: 'line',
         source: 'sinapsi',
+        layout: {
+          'line-z-offset': [
+            'interpolate',
+            ['linear'],
+            ['line-progress'],
+            ...sinapsiFiltered.length > 0 ?
+              Array.from({ length: 16 }, (_, i) => {
+                const t = i / 15;
+                return [t, 4 * 50 * t * (1 - t)]; // parabola: 0 -> 50 -> 0
+              }).flat() : [0, 0, 1, 0]
+          ],
+        },
         paint: {
           'line-color': [
             'case',
@@ -450,8 +445,8 @@ export default function MapView({
             ['==', ['get', 'certezza'], 'probabile'], '#eab308',
             '#94a3b8',
           ],
-          'line-width': 3,
-          'line-opacity': 0.8,
+          'line-width': 4,
+          'line-opacity': 0.9,
         },
       });
     }
