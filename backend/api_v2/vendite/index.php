@@ -82,7 +82,7 @@ switch ($method) {
             $stmt = $db->prepare("
                 SELECT v.*, f.nome as famiglia_nome, f.colore
                 FROM vendite_prodotto v
-                JOIN famiglie_prodotto f ON v.famiglia_id = f.id
+                LEFT JOIN famiglie_prodotto f ON v.famiglia_id = f.id
                 WHERE v.neurone_id = ?
                 ORDER BY $orderBy
             ");
