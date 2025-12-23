@@ -237,8 +237,47 @@ export default function Dashboard() {
             pickedPosition={pickedPosition}
           />
 
-          {/* Pannello dettaglio */}
-          {selectedNeurone && (
+          {/* Indicatore modalità selezione connessione */}
+          {connectionPickingMode && (
+            <div
+              style={{
+                position: 'absolute',
+                top: '16px',
+                left: '50%',
+                transform: 'translateX(-50%)',
+                background: 'var(--primary)',
+                color: 'white',
+                padding: '12px 24px',
+                borderRadius: '8px',
+                boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+                zIndex: 1000,
+                display: 'flex',
+                alignItems: 'center',
+                gap: '12px',
+              }}
+            >
+              <span>Clicca su un'entità per collegarla</span>
+              <button
+                onClick={() => {
+                  setConnectionPickingMode(false);
+                  setConnectionTargetEntity(null);
+                }}
+                style={{
+                  background: 'rgba(255,255,255,0.2)',
+                  border: 'none',
+                  color: 'white',
+                  padding: '4px 12px',
+                  borderRadius: '4px',
+                  cursor: 'pointer',
+                }}
+              >
+                Annulla
+              </button>
+            </div>
+          )}
+
+          {/* Pannello dettaglio - nascosto durante selezione connessione su mappa */}
+          {selectedNeurone && !connectionPickingMode && (
             <DetailPanel
               neurone={selectedNeurone}
               personalAccess={personalAccess}

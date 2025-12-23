@@ -98,6 +98,7 @@ export default function SinapsiFormModal({
   // Handler per passare alla modalità mappa
   const handleSwitchToMap = () => {
     setShowEntityPicker(false);
+    onClose(); // Chiudi questo modale per permettere la selezione sulla mappa
     onRequestMapPick?.();
   };
 
@@ -266,7 +267,7 @@ export default function SinapsiFormModal({
                 {onRequestMapPick && (
                   <button
                     type="button"
-                    onClick={onRequestMapPick}
+                    onClick={handleSwitchToMap}
                     className="btn btn-primary"
                     style={{ flex: 1, padding: '12px' }}
                   >
