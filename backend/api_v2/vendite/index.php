@@ -33,11 +33,16 @@ switch ($method) {
             // Colonna non esiste
         }
 
-        // Verifica neurone appartenga al team
+        // Verifica neurone esista (senza filtro team per massima compatibilità)
         $selectFields = $hasPotenziale ? 'id, potenziale' : 'id';
-        $stmt = $db->prepare("SELECT $selectFields FROM neuroni WHERE id = ? AND (team_id = ? OR azienda_id = ?)");
-        $stmt->execute([$neuroneId, $teamId, $teamId]);
-        $neurone = $stmt->fetch();
+        try {
+            $stmt = $db->prepare("SELECT $selectFields FROM neuroni WHERE id = ?");
+            $stmt->execute([$neuroneId]);
+            $neurone = $stmt->fetch();
+        } catch (PDOException $e) {
+            errorResponse('Errore query neurone: ' . $e->getMessage(), 500);
+        }
+
         if (!$neurone) {
             errorResponse('Neurone non trovato', 404);
         }
