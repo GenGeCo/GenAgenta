@@ -292,9 +292,9 @@ export default function SinapsiFormModal({
               }}>
                 Nessun tipo connessione configurato.
                 <br />
-                <a href="/settings" style={{ color: '#d97706', fontWeight: 500 }}>
-                  Vai su Impostazioni → Connessioni
-                </a> per crearne uno.
+                <span style={{ fontWeight: 500 }}>
+                  Menu utente (in alto a destra) → Impostazioni → Connessioni
+                </span>
               </div>
             ) : (
               <select
