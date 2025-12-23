@@ -57,9 +57,9 @@ export default function NeuroneFormModal({
 
   const [geocoding, setGeocoding] = useState(false);
   const [gettingGps, setGettingGps] = useState(false);
-  const [lat, setLat] = useState<number | null>(neurone?.lat || null);
-  const [lng, setLng] = useState<number | null>(neurone?.lng || null);
-  const [dimensione, setDimensione] = useState<string>(neurone?.dimensione?.toString() || '');
+  const [lat, setLat] = useState<number | null>(neurone?.lat != null ? Number(neurone.lat) : null);
+  const [lng, setLng] = useState<number | null>(neurone?.lng != null ? Number(neurone.lng) : null);
+  const [dimensione, setDimensione] = useState<string>(neurone?.dimensione != null ? String(neurone.dimensione) : '');
 
   // Campi extra per cantieri (tipo luogo)
   const datiExtra = neurone?.dati_extra as { data_inizio?: string; data_fine?: string; importo_lavori?: number } | null;
@@ -474,7 +474,7 @@ export default function NeuroneFormModal({
                     <button type="button" onClick={onRequestMapPick} style={{ flex: 1, padding: '6px', border: 'none', borderRadius: '6px', background: 'var(--primary)', color: 'white', cursor: 'pointer', fontSize: '11px', fontWeight: 600 }}>🗺️ Mappa</button>
                   )}
                 </div>
-                {lat && lng && <div style={{ fontSize: '10px', color: 'var(--text-secondary)', marginBottom: '6px' }}>📍 {lat.toFixed(4)}, {lng.toFixed(4)}</div>}
+                {lat != null && lng != null && <div style={{ fontSize: '10px', color: 'var(--text-secondary)', marginBottom: '6px' }}>📍 {Number(lat).toFixed(4)}, {Number(lng).toFixed(4)}</div>}
 
                 {/* Contatti */}
                 <div style={{ display: 'flex', gap: '4px', marginBottom: '8px' }}>
@@ -665,7 +665,7 @@ export default function NeuroneFormModal({
                     <button type="button" onClick={onRequestMapPick} style={{ flex: 1, padding: '10px', border: 'none', borderRadius: '8px', background: 'var(--primary)', color: 'white', cursor: 'pointer', fontSize: '13px', fontWeight: 600 }}>🗺️ Scegli su mappa</button>
                   )}
                 </div>
-                {lat && lng && <div style={{ marginTop: '8px', fontSize: '12px', color: 'var(--text-secondary)' }}>Coordinate: {lat.toFixed(5)}, {lng.toFixed(5)}</div>}
+                {lat != null && lng != null && <div style={{ marginTop: '8px', fontSize: '12px', color: 'var(--text-secondary)' }}>Coordinate: {Number(lat).toFixed(5)}, {Number(lng).toFixed(5)}</div>}
               </div>
 
               {/* Contatti */}
