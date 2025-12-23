@@ -138,6 +138,7 @@ export default function MapView({
   const markerRef = useRef<mapboxgl.Marker | null>(null);
   const [mapReady, setMapReady] = useState(false);
   const [mapStyle, setMapStyle] = useState('light-v11');
+  const [styleLoaded, setStyleLoaded] = useState(0); // incrementa per forzare re-render dopo cambio stile
   const neuroniRef = useRef<Neurone[]>(neuroni);
   const handlersAdded = useRef(false);
   const pickingModeRef = useRef(pickingMode);
@@ -167,6 +168,10 @@ export default function MapView({
     if (map.current) {
       map.current.setStyle(`mapbox://styles/mapbox/${styleId}`);
       setMapStyle(styleId);
+      // Quando lo stile è caricato, forza re-render dei layer
+      map.current.once('style.load', () => {
+        setStyleLoaded(prev => prev + 1);
+      });
     }
   }, []);
 
@@ -551,7 +556,7 @@ export default function MapView({
       handlersAdded.current = true;
     }
 
-  }, [neuroni, sinapsi, categorie, tipiNeurone, selectedId, mapReady, filtri, getSinapsiCount]);
+  }, [neuroni, sinapsi, categorie, tipiNeurone, selectedId, mapReady, filtri, getSinapsiCount, styleLoaded]);
 
   // Non fare più zoom automatico sulla selezione
   // Lo zoom si fa solo con doppio click
