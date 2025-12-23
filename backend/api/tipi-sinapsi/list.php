@@ -2,33 +2,53 @@
 /**
  * GET /tipi-sinapsi
  * Lista tipi sinapsi (connessioni)
+ * Cerca prima in tipi_connessione (v2), poi in tipi_sinapsi (v1)
  */
 
 $user = requireAuth();
 $db = getDB();
 
 $aziendaId = $user['azienda_id'] ?? null;
+$teamId = $user['team_id'] ?? null;
 $hasPersonalAccess = ($user['personal_access'] ?? false) === true;
 
-$sql = "
-    SELECT ts.*,
-           (SELECT COUNT(*) FROM sinapsi s WHERE s.tipo_sinapsi_id = ts.id) as num_sinapsi
-    FROM tipi_sinapsi ts
-    WHERE (
-        (ts.visibilita = 'aziendale' AND ts.azienda_id = ?)
-        " . ($hasPersonalAccess ? "OR (ts.visibilita = 'personale' AND ts.creato_da = ?)" : "") . "
-    )
-    ORDER BY ts.ordine ASC, ts.nome ASC
-";
+$tipi = [];
 
-$params = [$aziendaId];
-if ($hasPersonalAccess) {
-    $params[] = $user['user_id'];
+// Prima cerca in tipi_connessione (v2) per team_id
+if ($teamId) {
+    $stmtV2 = $db->prepare("
+        SELECT id, nome, colore, descrizione, ordine,
+               (SELECT COUNT(*) FROM sinapsi s WHERE s.tipo_connessione = tc.nome) as num_sinapsi
+        FROM tipi_connessione tc
+        WHERE team_id = ?
+        ORDER BY ordine ASC, nome ASC
+    ");
+    $stmtV2->execute([$teamId]);
+    $tipi = $stmtV2->fetchAll();
 }
 
-$stmt = $db->prepare($sql);
-$stmt->execute($params);
-$tipi = $stmt->fetchAll();
+// Se non trovati, cerca in tipi_sinapsi (v1) per azienda_id
+if (empty($tipi) && $aziendaId) {
+    $sql = "
+        SELECT ts.*,
+               (SELECT COUNT(*) FROM sinapsi s WHERE s.tipo_sinapsi_id = ts.id) as num_sinapsi
+        FROM tipi_sinapsi ts
+        WHERE (
+            (ts.visibilita = 'aziendale' AND ts.azienda_id = ?)
+            " . ($hasPersonalAccess ? "OR (ts.visibilita = 'personale' AND ts.creato_da = ?)" : "") . "
+        )
+        ORDER BY ts.ordine ASC, ts.nome ASC
+    ";
+
+    $params = [$aziendaId];
+    if ($hasPersonalAccess) {
+        $params[] = $user['user_id'];
+    }
+
+    $stmt = $db->prepare($sql);
+    $stmt->execute($params);
+    $tipi = $stmt->fetchAll();
+}
 
 // Palette colori per sinapsi (più sobria)
 $palette = [
