@@ -26,7 +26,7 @@ interface Campo {
   tipo_id: string;
   nome: string;
   etichetta: string;
-  tipo_dato: 'testo' | 'numero' | 'data' | 'email' | 'telefono' | 'url' | 'select';
+  tipo_dato: 'testo' | 'textarea' | 'numero' | 'data' | 'email' | 'telefono' | 'url' | 'select';
   opzioni?: string[];
   obbligatorio: boolean;
   ordine: number;
@@ -315,6 +315,23 @@ export default function SetupEntita() {
     }
   };
 
+  const updateCampo = async (campoId: string, tipoId: string, updates: Partial<Campo>) => {
+    setSaving(true);
+    try {
+      await api.put(`/campi/${campoId}`, updates);
+      setCampiPerTipo(prev => ({
+        ...prev,
+        [tipoId]: prev[tipoId].map(c => c.id === campoId ? { ...c, ...updates } : c),
+      }));
+      setEditingId(null);
+      showMessage('success', 'Campo aggiornato');
+    } catch (error) {
+      showMessage('error', 'Errore aggiornamento campo');
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const deleteCampo = async (campoId: string, tipoId: string) => {
     if (!confirm('Eliminare questo campo?')) return;
     setSaving(true);
@@ -578,11 +595,13 @@ export default function SetupEntita() {
                           style={{ width: 100 }}
                         >
                           <option value="testo">Testo</option>
+                          <option value="textarea">Area testo</option>
                           <option value="numero">Numero</option>
                           <option value="data">Data</option>
                           <option value="email">Email</option>
                           <option value="telefono">Telefono</option>
                           <option value="url">URL</option>
+                          <option value="select">Select</option>
                         </select>
                         <button className="btn btn-primary" onClick={() => createCampo(tipo.id)} disabled={saving}>Crea</button>
                         <button className="btn btn-secondary" onClick={() => setShowNewCampo(false)}>✕</button>
@@ -605,11 +624,63 @@ export default function SetupEntita() {
                             borderRadius: 4,
                             fontSize: 12
                           }}>
-                            <span style={{ flex: 1 }}>{campo.etichetta}</span>
-                            <span style={{ color: 'var(--text-secondary)', fontSize: 11 }}>{campo.tipo_dato}</span>
+                            {editingId === campo.id ? (
+                              <input
+                                type="text"
+                                className="form-input"
+                                value={editingValue}
+                                onChange={(e) => setEditingValue(e.target.value)}
+                                onBlur={() => {
+                                  if (editingValue.trim() && editingValue !== campo.etichetta) {
+                                    updateCampo(campo.id, tipo.id, { etichetta: editingValue.trim() });
+                                  } else {
+                                    setEditingId(null);
+                                  }
+                                }}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter') {
+                                    updateCampo(campo.id, tipo.id, { etichetta: editingValue.trim() });
+                                  } else if (e.key === 'Escape') {
+                                    setEditingId(null);
+                                  }
+                                }}
+                                autoFocus
+                                style={{ flex: 1, fontSize: 12 }}
+                              />
+                            ) : (
+                              <span style={{ flex: 1 }}>
+                                {campo.etichetta}
+                              </span>
+                            )}
+                            <select
+                              className="form-input"
+                              value={campo.tipo_dato}
+                              onChange={(e) => updateCampo(campo.id, tipo.id, { tipo_dato: e.target.value as Campo['tipo_dato'] })}
+                              style={{ width: 90, padding: '2px 4px', fontSize: 11 }}
+                            >
+                              <option value="testo">Testo</option>
+                              <option value="textarea">Area testo</option>
+                              <option value="numero">Numero</option>
+                              <option value="data">Data</option>
+                              <option value="email">Email</option>
+                              <option value="telefono">Telefono</option>
+                              <option value="url">URL</option>
+                              <option value="select">Select</option>
+                            </select>
+                            <button
+                              onClick={() => {
+                                setEditingId(campo.id);
+                                setEditingValue(campo.etichetta);
+                              }}
+                              style={{ background: 'none', border: 'none', color: 'var(--primary)', cursor: 'pointer', fontSize: 12 }}
+                              title="Modifica etichetta"
+                            >
+                              ✏️
+                            </button>
                             <button
                               onClick={() => deleteCampo(campo.id, tipo.id)}
                               style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', fontSize: 11 }}
+                              title="Elimina campo"
                             >
                               ✕
                             </button>

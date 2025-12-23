@@ -849,39 +849,38 @@ export default function NeuroneFormModal({
               </div>
 
               {/* Dimensione sulla mappa */}
-              <div style={{ marginBottom: '16px' }}>
-                <label style={{ fontSize: '13px', fontWeight: 500, marginBottom: '6px', display: 'block', color: 'var(--text-secondary)' }}>Dimensione base (metri)</label>
+              <div style={{ marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <label style={{ fontSize: '13px', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>Dimensione (m)</label>
                 <input
                   type="number"
                   className="form-input"
                   value={dimensione}
                   onChange={(e) => setDimensione(e.target.value)}
-                  placeholder="Default: 50 (quadrato) / 40 (cerchio)"
+                  placeholder="50"
                   min="10"
                   max="200"
-                  step="5"
+                  step="10"
+                  style={{ width: '80px' }}
                 />
-                <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '4px' }}>
-                  Lascia vuoto per dimensione automatica
-                </div>
+                <span style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>10-200</span>
               </div>
 
               {/* Campi personalizzati */}
               {campiPersonalizzati.length > 0 && (
-                <div style={{ marginBottom: '16px', padding: '16px', background: 'var(--bg-primary)', borderRadius: '10px' }}>
-                  <label style={{ fontSize: '13px', fontWeight: 500, marginBottom: '10px', display: 'block', color: 'var(--text-secondary)' }}>
-                    Dettagli {tipoSelezionato?.nome || 'entità'}
+                <div style={{ marginBottom: '12px', padding: '10px', background: 'var(--bg-primary)', borderRadius: '6px' }}>
+                  <label style={{ fontSize: '12px', fontWeight: 500, marginBottom: '6px', display: 'block', color: 'var(--text-secondary)' }}>
+                    Dettagli {tipoSelezionato?.nome || ''}
                   </label>
                   {loadingCampi ? (
-                    <div style={{ color: 'var(--text-secondary)' }}>Caricamento campi...</div>
+                    <div style={{ color: 'var(--text-secondary)', fontSize: '12px' }}>Caricamento...</div>
                   ) : (
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                       {campiPersonalizzati.map((campo) => (
-                        <div key={campo.id} style={campo.tipo_dato === 'textarea' ? { gridColumn: '1 / -1' } : {}}>
-                          <label style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '4px', display: 'block' }}>
-                            {campo.etichetta}{campo.obbligatorio && ' *'}
+                        <div key={campo.id} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <label style={{ fontSize: '11px', color: 'var(--text-secondary)', width: '100px', flexShrink: 0 }}>
+                            {campo.etichetta}{campo.obbligatorio && '*'}
                           </label>
-                          {renderCampoPersonalizzato(campo)}
+                          <div style={{ flex: 1 }}>{renderCampoPersonalizzato(campo)}</div>
                         </div>
                       ))}
                     </div>

@@ -32,21 +32,30 @@ switch ($method) {
             errorResponse('Tipo non trovato', 404);
         }
 
-        $stmt = $db->prepare('
-            SELECT * FROM campi_tipo
-            WHERE tipo_id = ?
-            ORDER BY ordine ASC, nome ASC
-        ');
-        $stmt->execute([$tipoId]);
-        $campi = $stmt->fetchAll();
+        try {
+            $stmt = $db->prepare('
+                SELECT * FROM campi_tipo
+                WHERE tipo_id = ?
+                ORDER BY ordine ASC, nome ASC
+            ');
+            $stmt->execute([$tipoId]);
+            $campi = $stmt->fetchAll();
 
-        // Parse opzioni JSON
-        foreach ($campi as &$c) {
-            $c['opzioni'] = $c['opzioni'] ? json_decode($c['opzioni'], true) : null;
-            $c['obbligatorio'] = (bool)$c['obbligatorio'];
+            // Parse opzioni JSON
+            foreach ($campi as &$c) {
+                $c['opzioni'] = $c['opzioni'] ? json_decode($c['opzioni'], true) : null;
+                $c['obbligatorio'] = (bool)$c['obbligatorio'];
+            }
+
+            jsonResponse(['data' => $campi]);
+        } catch (PDOException $e) {
+            // Se tabella non esiste, ritorna array vuoto
+            if (strpos($e->getMessage(), "doesn't exist") !== false) {
+                jsonResponse(['data' => []]);
+            } else {
+                errorResponse('Errore database: ' . $e->getMessage(), 500);
+            }
         }
-
-        jsonResponse(['data' => $campi]);
         break;
 
     case 'POST':
@@ -71,22 +80,63 @@ switch ($method) {
 
         $id = generateUUID();
 
-        $stmt = $db->prepare('
-            INSERT INTO campi_tipo (id, tipo_id, nome, etichetta, tipo_dato, opzioni, obbligatorio, ordine)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-        ');
-        $stmt->execute([
-            $id,
-            $data['tipo_id'],
-            $data['nome'],
-            $data['etichetta'],
-            $data['tipo_dato'] ?? 'testo',
-            isset($data['opzioni']) ? json_encode($data['opzioni']) : null,
-            $data['obbligatorio'] ?? 0,
-            $data['ordine'] ?? 0
-        ]);
+        try {
+            $stmt = $db->prepare('
+                INSERT INTO campi_tipo (id, tipo_id, nome, etichetta, tipo_dato, opzioni, obbligatorio, ordine)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            ');
+            $stmt->execute([
+                $id,
+                $data['tipo_id'],
+                $data['nome'],
+                $data['etichetta'],
+                $data['tipo_dato'] ?? 'testo',
+                isset($data['opzioni']) ? json_encode($data['opzioni']) : null,
+                $data['obbligatorio'] ?? 0,
+                $data['ordine'] ?? 0
+            ]);
 
-        jsonResponse(['id' => $id, 'message' => 'Campo creato'], 201);
+            jsonResponse(['id' => $id, 'message' => 'Campo creato'], 201);
+        } catch (PDOException $e) {
+            // Se la tabella non esiste, la creiamo al volo
+            if (strpos($e->getMessage(), "doesn't exist") !== false || strpos($e->getMessage(), 'non esiste') !== false) {
+                $db->exec("
+                    CREATE TABLE IF NOT EXISTS campi_tipo (
+                        id VARCHAR(36) PRIMARY KEY,
+                        tipo_id VARCHAR(36) NOT NULL,
+                        nome VARCHAR(100) NOT NULL,
+                        etichetta VARCHAR(200) NOT NULL,
+                        tipo_dato ENUM('testo', 'textarea', 'numero', 'data', 'select', 'email', 'telefono', 'url') NOT NULL DEFAULT 'testo',
+                        opzioni JSON NULL,
+                        obbligatorio BOOLEAN NOT NULL DEFAULT FALSE,
+                        ordine INT NOT NULL DEFAULT 0,
+                        data_creazione TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        INDEX idx_tipo_id (tipo_id),
+                        FOREIGN KEY (tipo_id) REFERENCES tipi(id) ON DELETE CASCADE
+                    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+                ");
+
+                // Riprova l'insert
+                $stmt = $db->prepare('
+                    INSERT INTO campi_tipo (id, tipo_id, nome, etichetta, tipo_dato, opzioni, obbligatorio, ordine)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                ');
+                $stmt->execute([
+                    $id,
+                    $data['tipo_id'],
+                    $data['nome'],
+                    $data['etichetta'],
+                    $data['tipo_dato'] ?? 'testo',
+                    isset($data['opzioni']) ? json_encode($data['opzioni']) : null,
+                    $data['obbligatorio'] ?? 0,
+                    $data['ordine'] ?? 0
+                ]);
+
+                jsonResponse(['id' => $id, 'message' => 'Campo creato (tabella creata)'], 201);
+            } else {
+                errorResponse('Errore database: ' . $e->getMessage(), 500);
+            }
+        }
         break;
 
     case 'PUT':
@@ -163,11 +213,16 @@ switch ($method) {
             errorResponse('Campo non trovato', 404);
         }
 
-        // Elimina anche i valori associati (CASCADE dovrebbe farlo, ma per sicurezza)
+        // Elimina il campo (i valori in entita_campi saranno gestiti se la tabella esiste)
         $db->beginTransaction();
         try {
-            $stmt = $db->prepare('DELETE FROM entita_campi WHERE campo_id = ?');
-            $stmt->execute([$id]);
+            // Prova a eliminare i valori associati se la tabella esiste
+            try {
+                $stmt = $db->prepare('DELETE FROM entita_campi WHERE campo_id = ?');
+                $stmt->execute([$id]);
+            } catch (PDOException $e) {
+                // Ignora se tabella non esiste
+            }
 
             $stmt = $db->prepare('DELETE FROM campi_tipo WHERE id = ?');
             $stmt->execute([$id]);

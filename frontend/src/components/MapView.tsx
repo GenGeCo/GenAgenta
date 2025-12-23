@@ -233,10 +233,17 @@ export default function MapView({
     if (!map.current || !mapReady) return;
 
     const canvas = map.current.getCanvas();
+    const container = map.current.getContainer();
+
     if (pickingMode) {
+      // Forza cursore crosshair su canvas e container
       canvas.style.cursor = 'crosshair';
+      container.style.cursor = 'crosshair';
+      container.classList.add('picking-mode');
     } else {
       canvas.style.cursor = '';
+      container.style.cursor = '';
+      container.classList.remove('picking-mode');
     }
   }, [pickingMode, mapReady]);
 

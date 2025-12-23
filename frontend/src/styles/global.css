@@ -141,6 +141,17 @@ body {
   height: 100%;
 }
 
+/* Cursore in modalità picking posizione */
+.picking-mode,
+.picking-mode * {
+  cursor: crosshair !important;
+}
+
+.picking-mode .mapboxgl-canvas-container,
+.picking-mode .mapboxgl-canvas {
+  cursor: crosshair !important;
+}
+
 /* Pannello dettaglio */
 .detail-panel {
   position: absolute;
