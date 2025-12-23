@@ -82,12 +82,35 @@ $stmt = $db->prepare($countSql);
 $stmt->execute($params);
 $total = $stmt->fetch()['total'];
 
-// Query dati con potenziale e venduto_totale
-$sql = "SELECT n.id, n.nome, n.tipo, n.categorie, n.visibilita, n.lat, n.lng, n.indirizzo, n.telefono, n.email, n.sito_web, n.dati_extra, n.dimensione, n.potenziale, n.data_creazione,
-        COALESCE((SELECT SUM(v.importo) FROM vendite_prodotto v WHERE v.neurone_id = n.id), 0) as venduto_totale
-        FROM neuroni n $whereClause
-        ORDER BY n.nome ASC
-        LIMIT ? OFFSET ?";
+// Verifica se esistono colonna potenziale e tabella vendite_prodotto
+$hasPotenziale = false;
+$hasVendite = false;
+
+try {
+    $db->query("SELECT potenziale FROM neuroni LIMIT 1");
+    $hasPotenziale = true;
+} catch (PDOException $e) {
+    // Colonna potenziale non esiste
+}
+
+try {
+    $db->query("SELECT 1 FROM vendite_prodotto LIMIT 1");
+    $hasVendite = true;
+} catch (PDOException $e) {
+    // Tabella vendite_prodotto non esiste
+}
+
+// Query dati - con o senza potenziale/venduto in base a cosa esiste
+$selectFields = "n.id, n.nome, n.tipo, n.categorie, n.visibilita, n.lat, n.lng, n.indirizzo, n.telefono, n.email, n.sito_web, n.dati_extra, n.dimensione, n.data_creazione";
+
+if ($hasPotenziale) {
+    $selectFields .= ", n.potenziale";
+}
+if ($hasVendite) {
+    $selectFields .= ", COALESCE((SELECT SUM(v.importo) FROM vendite_prodotto v WHERE v.neurone_id = n.id), 0) as venduto_totale";
+}
+
+$sql = "SELECT $selectFields FROM neuroni n $whereClause ORDER BY n.nome ASC LIMIT ? OFFSET ?";
 
 $params[] = $limit;
 $params[] = $offset;
@@ -101,12 +124,22 @@ foreach ($neuroni as &$n) {
     $n['categorie'] = json_decode($n['categorie'], true);
     $n['dati_extra'] = $n['dati_extra'] ? json_decode($n['dati_extra'], true) : null;
 
-    // Converti lat/lng/dimensione/potenziale/venduto a float (MySQL li restituisce come stringhe)
+    // Converti lat/lng/dimensione a float (MySQL li restituisce come stringhe)
     $n['lat'] = $n['lat'] !== null ? (float)$n['lat'] : null;
     $n['lng'] = $n['lng'] !== null ? (float)$n['lng'] : null;
     $n['dimensione'] = $n['dimensione'] !== null ? (float)$n['dimensione'] : null;
-    $n['potenziale'] = $n['potenziale'] !== null ? (float)$n['potenziale'] : null;
-    $n['venduto_totale'] = (float)($n['venduto_totale'] ?? 0);
+
+    // Converti potenziale/venduto se presenti
+    if (isset($n['potenziale'])) {
+        $n['potenziale'] = $n['potenziale'] !== null ? (float)$n['potenziale'] : null;
+    } else {
+        $n['potenziale'] = null;
+    }
+    if (isset($n['venduto_totale'])) {
+        $n['venduto_totale'] = (float)$n['venduto_totale'];
+    } else {
+        $n['venduto_totale'] = 0;
+    }
 
     // Se non ha accesso personale, oscura neuroni personali (non dovrebbero esserci, ma per sicurezza)
     if (!$hasPersonalAccess && $n['visibilita'] === 'personale') {
