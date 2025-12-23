@@ -43,6 +43,48 @@ function createCirclePolygon(lng: number, lat: number, radiusMeters: number, sid
   return coords;
 }
 
+// Genera un arco (curva di Bezier quadratica) tra due punti
+function createArc(
+  lng1: number, lat1: number,
+  lng2: number, lat2: number,
+  numPoints: number = 10,
+  curvature: number = 0.3 // 0 = linea retta, 1 = curva molto accentuata
+): number[][] {
+  const points: number[][] = [];
+
+  // Calcola il punto medio
+  const midLng = (lng1 + lng2) / 2;
+  const midLat = (lat1 + lat2) / 2;
+
+  // Calcola la direzione perpendicolare
+  const dx = lng2 - lng1;
+  const dy = lat2 - lat1;
+  const distance = Math.sqrt(dx * dx + dy * dy);
+
+  // Punto di controllo spostato perpendicolarmente
+  // La perpendicolare è (-dy, dx) normalizzata
+  const perpX = -dy / distance;
+  const perpY = dx / distance;
+
+  // Sposta il punto di controllo (la curva si incurva sempre nella stessa direzione)
+  const controlLng = midLng + perpX * distance * curvature;
+  const controlLat = midLat + perpY * distance * curvature;
+
+  // Genera punti lungo la curva di Bezier quadratica
+  for (let i = 0; i <= numPoints; i++) {
+    const t = i / numPoints;
+    const t1 = 1 - t;
+
+    // Formula Bezier quadratica: B(t) = (1-t)²P0 + 2(1-t)tP1 + t²P2
+    const lng = t1 * t1 * lng1 + 2 * t1 * t * controlLng + t * t * lng2;
+    const lat = t1 * t1 * lat1 + 2 * t1 * t * controlLat + t * t * lat2;
+
+    points.push([lng, lat]);
+  }
+
+  return points;
+}
+
 // Genera un quadrato (per parallelepipedi)
 function createSquarePolygon(lng: number, lat: number, sizeMeters: number): number[][] {
   const earthRadius = 6371000;
@@ -361,22 +403,29 @@ export default function MapView({
     }
 
     if (sinapsiFiltered.length > 0) {
-      const sinapsiFeatures = sinapsiFiltered.map((s) => ({
-        type: 'Feature' as const,
-        properties: {
-          id: s.id,
-          tipo: s.tipo_connessione,
-          valore: Number(s.valore) || 1,
-          certezza: s.certezza,
-        },
-        geometry: {
-          type: 'LineString' as const,
-          coordinates: [
-            [Number(s.lng_da), Number(s.lat_da)],
-            [Number(s.lng_a), Number(s.lat_a)],
-          ],
-        },
-      }));
+      const sinapsiFeatures = sinapsiFiltered.map((s) => {
+        // Crea arco invece di linea retta
+        const arcPoints = createArc(
+          Number(s.lng_da), Number(s.lat_da),
+          Number(s.lng_a), Number(s.lat_a),
+          10,  // 10 punti per curva (leggero)
+          0.2  // curvatura moderata
+        );
+
+        return {
+          type: 'Feature' as const,
+          properties: {
+            id: s.id,
+            tipo: s.tipo_connessione,
+            valore: Number(s.valore) || 1,
+            certezza: s.certezza,
+          },
+          geometry: {
+            type: 'LineString' as const,
+            coordinates: arcPoints,
+          },
+        };
+      });
 
       m.addSource('sinapsi', {
         type: 'geojson',
