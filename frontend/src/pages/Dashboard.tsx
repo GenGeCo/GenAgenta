@@ -206,7 +206,7 @@ export default function Dashboard() {
         </header>
 
         {/* Area contenuto */}
-        <div className="content-area">
+        <div className="content-area" style={connectionPickingMode ? { cursor: 'crosshair' } : undefined}>
           {/* Mappa */}
           <MapView
             neuroni={neuroni}
@@ -228,7 +228,7 @@ export default function Dashboard() {
               }
             }}
             filtri={filtri}
-            pickingMode={mapPickingMode || connectionPickingMode}
+            pickingMode={mapPickingMode}
             onPickPosition={(lat, lng) => {
               setPickedPosition({ lat, lng });
               setMapPickingMode(false);
