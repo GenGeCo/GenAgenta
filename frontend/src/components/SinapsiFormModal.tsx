@@ -281,18 +281,35 @@ export default function SinapsiFormModal({
           {/* Tipo connessione */}
           <div className="form-group">
             <label className="form-label">Tipo Connessione</label>
-            <select
-              className="form-input"
-              value={tipoConnessione}
-              onChange={(e) => setTipoConnessione(e.target.value)}
-              required
-            >
-              {tipiSinapsi.map((t) => (
-                <option key={t.id} value={t.nome}>
-                  {t.nome.replace(/_/g, ' ')}
-                </option>
-              ))}
-            </select>
+            {tipiSinapsi.length === 0 ? (
+              <div style={{
+                padding: '12px',
+                background: '#fef3c7',
+                border: '1px solid #f59e0b',
+                borderRadius: '8px',
+                color: '#92400e',
+                fontSize: '13px',
+              }}>
+                Nessun tipo connessione configurato.
+                <br />
+                <a href="/settings" style={{ color: '#d97706', fontWeight: 500 }}>
+                  Vai su Impostazioni → Connessioni
+                </a> per crearne uno.
+              </div>
+            ) : (
+              <select
+                className="form-input"
+                value={tipoConnessione}
+                onChange={(e) => setTipoConnessione(e.target.value)}
+                required
+              >
+                {tipiSinapsi.map((t) => (
+                  <option key={t.id} value={t.nome}>
+                    {t.nome.replace(/_/g, ' ')}
+                  </option>
+                ))}
+              </select>
+            )}
           </div>
 
           {/* Prodotto coinvolto */}
@@ -443,7 +460,7 @@ export default function SinapsiFormModal({
             <button type="button" className="btn" onClick={onClose} disabled={saving}>
               Annulla
             </button>
-            <button type="submit" className="btn btn-primary" disabled={saving || !neuroneCollegato}>
+            <button type="submit" className="btn btn-primary" disabled={saving || !neuroneCollegato || tipiSinapsi.length === 0}>
               {saving ? 'Salvataggio...' : isEditing ? 'Salva modifiche' : 'Crea connessione'}
             </button>
           </div>
