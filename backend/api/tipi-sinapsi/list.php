@@ -17,7 +17,7 @@ $tipi = [];
 // Prima cerca in tipi_connessione (v2) per team_id
 if ($teamId) {
     $stmtV2 = $db->prepare("
-        SELECT id, nome, colore, descrizione, ordine,
+        SELECT id, nome, colore, ordine,
                (SELECT COUNT(*) FROM sinapsi s WHERE s.tipo_connessione = tc.nome) as num_sinapsi
         FROM tipi_connessione tc
         WHERE team_id = ?
