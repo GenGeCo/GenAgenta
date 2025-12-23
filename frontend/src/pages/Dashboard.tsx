@@ -34,10 +34,14 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [pendingInvite, setPendingInvite] = useState<PendingInvite | null>(null);
 
-  // Stato per selezione posizione su mappa
+  // Stato per selezione posizione su mappa (creazione neurone)
   const [mapPickingMode, setMapPickingMode] = useState(false);
   const [pickedPosition, setPickedPosition] = useState<{ lat: number; lng: number } | null>(null);
   const [flyToPosition, setFlyToPosition] = useState<{ lat: number; lng: number } | null>(null);
+
+  // Stato per connessione su mappa (selezione entità target)
+  const [connectionPickingMode, setConnectionPickingMode] = useState(false);
+  const [connectionTargetEntity, setConnectionTargetEntity] = useState<{ id: string; nome: string; tipo: string } | null>(null);
 
   // Filtri
   const [filtri, setFiltri] = useState<FiltriMappa>({
@@ -210,9 +214,21 @@ export default function Dashboard() {
             categorie={categorie}
             tipiNeurone={tipiNeurone}
             selectedId={selectedNeurone?.id || null}
-            onSelectNeurone={handleSelectNeurone}
+            onSelectNeurone={(neurone) => {
+              // Se siamo in modalità picking connessione, usa il neurone come target
+              if (connectionPickingMode) {
+                setConnectionTargetEntity({
+                  id: neurone.id,
+                  nome: neurone.nome,
+                  tipo: neurone.tipo,
+                });
+                setConnectionPickingMode(false);
+              } else {
+                handleSelectNeurone(neurone);
+              }
+            }}
             filtri={filtri}
-            pickingMode={mapPickingMode}
+            pickingMode={mapPickingMode || connectionPickingMode}
             onPickPosition={(lat, lng) => {
               setPickedPosition({ lat, lng });
               setMapPickingMode(false);
@@ -226,7 +242,11 @@ export default function Dashboard() {
             <DetailPanel
               neurone={selectedNeurone}
               personalAccess={personalAccess}
-              onClose={() => setSelectedNeurone(null)}
+              onClose={() => {
+                setSelectedNeurone(null);
+                setConnectionPickingMode(false);
+                setConnectionTargetEntity(null);
+              }}
               onSelectNeurone={async (id) => {
                 // Cerca prima tra i neuroni già caricati
                 const trovato = neuroni.find(n => n.id === id);
@@ -247,6 +267,9 @@ export default function Dashboard() {
                 setNeuroni(neuroni.filter(n => n.id !== selectedNeurone.id));
                 setSelectedNeurone(null);
               }}
+              onRequestConnectionMapPick={() => setConnectionPickingMode(true)}
+              connectionTargetEntity={connectionTargetEntity}
+              onClearConnectionTarget={() => setConnectionTargetEntity(null)}
             />
           )}
         </div>

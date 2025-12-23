@@ -11,9 +11,22 @@ interface DetailPanelProps {
   onClose: () => void;
   onSelectNeurone?: (id: string) => void;
   onDelete?: () => void;
+  // Props per connessione su mappa
+  onRequestConnectionMapPick?: () => void;
+  connectionTargetEntity?: { id: string; nome: string; tipo: string } | null;
+  onClearConnectionTarget?: () => void;
 }
 
-export default function DetailPanel({ neurone, personalAccess, onClose, onSelectNeurone, onDelete }: DetailPanelProps) {
+export default function DetailPanel({
+  neurone,
+  personalAccess,
+  onClose,
+  onSelectNeurone,
+  onDelete,
+  onRequestConnectionMapPick,
+  connectionTargetEntity,
+  onClearConnectionTarget,
+}: DetailPanelProps) {
   const [sinapsi, setSinapsi] = useState<Sinapsi[]>([]);
   const [note, setNote] = useState<NotaPersonale[]>([]);
   const [activeTab, setActiveTab] = useState<'info' | 'connessioni' | 'note'>('info');
@@ -223,6 +236,9 @@ export default function DetailPanel({ neurone, personalAccess, onClose, onSelect
                 onSinapsiChange={() => {
                   api.getNeuroneSinapsi(neurone.id).then((res) => setSinapsi(res.data));
                 }}
+                onRequestMapPick={onRequestConnectionMapPick}
+                preselectedEntity={connectionTargetEntity}
+                onClearPreselected={onClearConnectionTarget}
               />
             )}
             {activeTab === 'note' && (
@@ -297,19 +313,38 @@ function ConnessioniTab({
   personalAccess,
   onSelectNeurone,
   onSinapsiChange,
+  onRequestMapPick,
+  preselectedEntity,
+  onClearPreselected,
 }: {
   sinapsi: Sinapsi[];
   neurone: Neurone;
   personalAccess: boolean;
   onSelectNeurone?: (id: string) => void;
   onSinapsiChange: () => void;
+  onRequestMapPick?: () => void;
+  preselectedEntity?: { id: string; nome: string; tipo: string } | null;
+  onClearPreselected?: () => void;
 }) {
   const [showForm, setShowForm] = useState(false);
   const [editingSinapsi, setEditingSinapsi] = useState<Sinapsi | undefined>(undefined);
 
+  // Apri automaticamente il form se c'è un'entità pre-selezionata dalla mappa
+  useEffect(() => {
+    if (preselectedEntity) {
+      setEditingSinapsi(undefined);
+      setShowForm(true);
+    }
+  }, [preselectedEntity]);
+
   const handleAddClick = () => {
     setEditingSinapsi(undefined);
     setShowForm(true);
+  };
+
+  const handleFormClose = () => {
+    setShowForm(false);
+    onClearPreselected?.();
   };
 
   const handleEditClick = (s: Sinapsi, e: React.MouseEvent) => {
@@ -443,8 +478,13 @@ function ConnessioniTab({
           neuroneCorrente={neurone}
           sinapsiDaModificare={editingSinapsi}
           personalAccess={personalAccess}
-          onClose={() => setShowForm(false)}
-          onSaved={onSinapsiChange}
+          onClose={handleFormClose}
+          onSaved={() => {
+            onSinapsiChange();
+            onClearPreselected?.();
+          }}
+          onRequestMapPick={onRequestMapPick}
+          preselectedEntity={preselectedEntity}
         />
       )}
     </div>
