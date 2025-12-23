@@ -64,6 +64,9 @@ $routes = [
     // Connessioni (CRUD)
     'connessioni' => 'connessioni/index.php',
 
+    // Vendite per famiglia prodotto
+    'vendite' => 'vendite/index.php',
+
     // Team
     'team' => 'team/index.php',
     'team/membri' => 'team/membri.php',

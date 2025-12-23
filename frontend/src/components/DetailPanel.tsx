@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { api } from '../utils/api';
-import type { Neurone, Sinapsi, NotaPersonale } from '../types';
+import type { Neurone, Sinapsi, NotaPersonale, VenditaProdotto, FamigliaProdotto } from '../types';
 import SinapsiFormModal from './SinapsiFormModal';
 
 interface DetailPanelProps {
@@ -33,7 +33,7 @@ export default function DetailPanel({
 }: DetailPanelProps) {
   const [sinapsi, setSinapsi] = useState<Sinapsi[]>([]);
   const [note, setNote] = useState<NotaPersonale[]>([]);
-  const [activeTab, setActiveTab] = useState<'info' | 'connessioni' | 'note'>('info');
+  const [activeTab, setActiveTab] = useState<'info' | 'vendite' | 'connessioni' | 'note'>('info');
   const [loading, setLoading] = useState(true);
 
   // Stato per eliminazione con doppio avviso
@@ -226,10 +226,10 @@ export default function DetailPanel({
         display: 'flex',
         borderBottom: '1px solid var(--border-color)',
       }}>
-        {['info', 'connessioni', 'note'].map((tab) => (
+        {['info', 'vendite', 'connessioni', 'note'].map((tab) => (
           <button
             key={tab}
-            onClick={() => setActiveTab(tab as 'info' | 'connessioni' | 'note')}
+            onClick={() => setActiveTab(tab as 'info' | 'vendite' | 'connessioni' | 'note')}
             style={{
               flex: 1,
               padding: '12px',
@@ -239,9 +239,10 @@ export default function DetailPanel({
               cursor: 'pointer',
               fontWeight: activeTab === tab ? 600 : 400,
               textTransform: 'capitalize',
+              fontSize: '13px',
             }}
           >
-            {tab}
+            {tab === 'vendite' ? '📊' : tab}
             {tab === 'connessioni' && ` (${sinapsi.length})`}
             {tab === 'note' && personalAccess && ` (${note.length})`}
             {tab === 'note' && !personalAccess && neurone.has_note && ' 🔒'}
@@ -256,6 +257,14 @@ export default function DetailPanel({
         ) : (
           <>
             {activeTab === 'info' && <InfoTab neurone={neurone} />}
+            {activeTab === 'vendite' && (
+              <VenditeTab
+                neurone={neurone}
+                onUpdate={() => {
+                  // Potrebbe essere necessario ricaricare il neurone per il rendering 3D
+                }}
+              />
+            )}
             {activeTab === 'connessioni' && (
               <ConnessioniTab
                 sinapsi={sinapsi}
@@ -608,6 +617,341 @@ function NoteTab({
             </div>
           </div>
         ))
+      )}
+    </div>
+  );
+}
+
+// Tab Vendite
+function VenditeTab({
+  neurone,
+  onUpdate,
+}: {
+  neurone: Neurone;
+  onUpdate?: () => void;
+}) {
+  const [vendite, setVendite] = useState<VenditaProdotto[]>([]);
+  const [famiglie, setFamiglie] = useState<FamigliaProdotto[]>([]);
+  const [potenziale, setPotenziale] = useState<number>(neurone.potenziale || 0);
+  const [totaleVenduto, setTotaleVenduto] = useState<number>(0);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [editingPotenziale, setEditingPotenziale] = useState(false);
+  const [tempPotenziale, setTempPotenziale] = useState<string>('');
+
+  // Colori per le famiglie (se non hanno colore assegnato)
+  const coloriDefault = [
+    '#ef4444', '#f97316', '#eab308', '#22c55e', '#14b8a6',
+    '#3b82f6', '#8b5cf6', '#ec4899', '#6366f1', '#84cc16'
+  ];
+
+  useEffect(() => {
+    loadData();
+  }, [neurone.id]);
+
+  const loadData = async () => {
+    setLoading(true);
+    try {
+      // Carica famiglie prodotto e vendite in parallelo
+      const [famiglieRes, venditeRes] = await Promise.all([
+        api.getFamiglieProdotto({ flat: true }),
+        api.get(`/vendite?neurone_id=${neurone.id}`),
+      ]);
+
+      // Flatten famiglie per select
+      const flatFamiglie: FamigliaProdotto[] = [];
+      const flatten = (items: FamigliaProdotto[], level = 0) => {
+        items.forEach(item => {
+          flatFamiglie.push({ ...item, nome: '  '.repeat(level) + item.nome });
+          if (item.children) flatten(item.children, level + 1);
+        });
+      };
+      flatten(famiglieRes.data);
+      setFamiglie(flatFamiglie);
+
+      setVendite(venditeRes.data.data || []);
+      setPotenziale(venditeRes.data.potenziale || 0);
+      setTotaleVenduto(venditeRes.data.totale_venduto || 0);
+    } catch (error) {
+      console.error('Errore caricamento vendite:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const savePotenziale = async () => {
+    setSaving(true);
+    try {
+      await api.post('/vendite', {
+        neurone_id: neurone.id,
+        potenziale: parseFloat(tempPotenziale) || 0,
+      });
+      setPotenziale(parseFloat(tempPotenziale) || 0);
+      setEditingPotenziale(false);
+      onUpdate?.();
+    } catch (error) {
+      console.error('Errore salvataggio potenziale:', error);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const saveVendita = async (famigliaId: string, importo: number) => {
+    setSaving(true);
+    try {
+      await api.post('/vendite', {
+        neurone_id: neurone.id,
+        famiglia_id: famigliaId,
+        importo,
+      });
+      await loadData();
+      onUpdate?.();
+    } catch (error) {
+      console.error('Errore salvataggio vendita:', error);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const percentuale = potenziale > 0 ? Math.round((totaleVenduto / potenziale) * 100) : 0;
+
+  if (loading) {
+    return <p style={{ color: 'var(--text-secondary)' }}>Caricamento...</p>;
+  }
+
+  return (
+    <div>
+      {/* Potenziale */}
+      <div style={{ marginBottom: '20px', padding: '16px', background: 'var(--bg-secondary)', borderRadius: '8px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+          <label style={{ fontWeight: 600, fontSize: '14px' }}>Potenziale di acquisto</label>
+          {!editingPotenziale ? (
+            <button
+              onClick={() => { setEditingPotenziale(true); setTempPotenziale(potenziale.toString()); }}
+              style={{ background: 'none', border: 'none', color: 'var(--primary)', cursor: 'pointer', fontSize: '12px' }}
+            >
+              ✏️ Modifica
+            </button>
+          ) : (
+            <div style={{ display: 'flex', gap: '4px' }}>
+              <button
+                onClick={savePotenziale}
+                disabled={saving}
+                style={{ background: 'var(--primary)', color: 'white', border: 'none', padding: '4px 8px', borderRadius: '4px', fontSize: '12px', cursor: 'pointer' }}
+              >
+                Salva
+              </button>
+              <button
+                onClick={() => setEditingPotenziale(false)}
+                style={{ background: 'var(--bg-primary)', border: '1px solid var(--border-color)', padding: '4px 8px', borderRadius: '4px', fontSize: '12px', cursor: 'pointer' }}
+              >
+                ✕
+              </button>
+            </div>
+          )}
+        </div>
+        {editingPotenziale ? (
+          <input
+            type="number"
+            className="form-input"
+            value={tempPotenziale}
+            onChange={(e) => setTempPotenziale(e.target.value)}
+            placeholder="es: 100000"
+            style={{ fontSize: '18px', fontWeight: 600 }}
+            autoFocus
+          />
+        ) : (
+          <div style={{ fontSize: '24px', fontWeight: 700, color: 'var(--primary)' }}>
+            €{potenziale.toLocaleString('it-IT')}
+          </div>
+        )}
+      </div>
+
+      {/* Barra progresso */}
+      <div style={{ marginBottom: '20px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+          <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Venduto: €{totaleVenduto.toLocaleString('it-IT')}</span>
+          <span style={{ fontSize: '12px', fontWeight: 600, color: percentuale >= 100 ? '#22c55e' : 'var(--text-primary)' }}>{percentuale}%</span>
+        </div>
+        <div style={{ height: '12px', background: 'var(--bg-secondary)', borderRadius: '6px', overflow: 'hidden' }}>
+          <div
+            style={{
+              height: '100%',
+              width: `${Math.min(percentuale, 100)}%`,
+              background: percentuale >= 100 ? '#22c55e' : percentuale >= 50 ? '#eab308' : '#ef4444',
+              borderRadius: '6px',
+              transition: 'width 0.3s ease',
+            }}
+          />
+        </div>
+      </div>
+
+      {/* Lista vendite per famiglia */}
+      <div>
+        <h4 style={{ fontSize: '14px', fontWeight: 600, marginBottom: '12px' }}>Vendite per prodotto</h4>
+
+        {famiglie.length === 0 ? (
+          <p style={{ color: 'var(--text-secondary)', fontSize: '13px' }}>
+            Nessuna famiglia prodotto definita. Vai in Impostazioni → Prodotti per crearle.
+          </p>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            {famiglie.filter(f => !f.nome.startsWith('  ')).map((famiglia, index) => {
+              const vendita = vendite.find(v => v.famiglia_id === famiglia.id);
+              const colore = famiglia.colore || coloriDefault[index % coloriDefault.length];
+              const importo = vendita?.importo || 0;
+              const percentualeFamiglia = potenziale > 0 ? (importo / potenziale) * 100 : 0;
+
+              return (
+                <VenditaRow
+                  key={famiglia.id}
+                  famiglia={famiglia}
+                  colore={colore}
+                  importo={importo}
+                  percentuale={percentualeFamiglia}
+                  onSave={(val) => saveVendita(famiglia.id, val)}
+                  saving={saving}
+                />
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* Preview visuale */}
+      {potenziale > 0 && vendite.length > 0 && (
+        <div style={{ marginTop: '24px', padding: '16px', background: 'var(--bg-secondary)', borderRadius: '8px' }}>
+          <h4 style={{ fontSize: '13px', fontWeight: 600, marginBottom: '12px', color: 'var(--text-secondary)' }}>
+            Anteprima 3D
+          </h4>
+          <div style={{ display: 'flex', alignItems: 'flex-end', gap: '4px', height: '100px', padding: '0 20px' }}>
+            {famiglie.filter(f => !f.nome.startsWith('  ')).map((famiglia, index) => {
+              const vendita = vendite.find(v => v.famiglia_id === famiglia.id);
+              const colore = famiglia.colore || coloriDefault[index % coloriDefault.length];
+              const importo = vendita?.importo || 0;
+              const altezza = potenziale > 0 ? (importo / potenziale) * 100 : 0;
+
+              if (importo === 0) return null;
+
+              return (
+                <div
+                  key={famiglia.id}
+                  title={`${famiglia.nome}: €${importo.toLocaleString('it-IT')}`}
+                  style={{
+                    width: '24px',
+                    height: `${Math.max(altezza, 5)}%`,
+                    background: colore,
+                    borderRadius: '2px 2px 0 0',
+                    transition: 'height 0.3s ease',
+                  }}
+                />
+              );
+            })}
+          </div>
+          <div style={{
+            borderTop: '2px dashed var(--border-color)',
+            marginTop: '8px',
+            paddingTop: '8px',
+            fontSize: '11px',
+            color: 'var(--text-secondary)',
+            textAlign: 'center',
+          }}>
+            Linea venduto totale: {percentuale}%
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Riga vendita singola famiglia
+function VenditaRow({
+  famiglia,
+  colore,
+  importo,
+  percentuale,
+  onSave,
+  saving,
+}: {
+  famiglia: FamigliaProdotto;
+  colore: string;
+  importo: number;
+  percentuale: number;
+  onSave: (val: number) => void;
+  saving: boolean;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [tempValue, setTempValue] = useState('');
+
+  const handleSave = () => {
+    const val = parseFloat(tempValue) || 0;
+    onSave(val);
+    setEditing(false);
+  };
+
+  return (
+    <div style={{
+      display: 'flex',
+      alignItems: 'center',
+      gap: '8px',
+      padding: '8px 12px',
+      background: 'var(--bg-primary)',
+      borderRadius: '6px',
+      borderLeft: `4px solid ${colore}`,
+    }}>
+      <div style={{ flex: 1 }}>
+        <div style={{ fontSize: '13px', fontWeight: 500 }}>{famiglia.nome.trim()}</div>
+        {!editing && (
+          <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
+            {percentuale > 0 ? `${percentuale.toFixed(1)}% del potenziale` : 'Nessuna vendita'}
+          </div>
+        )}
+      </div>
+      {editing ? (
+        <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
+          <span style={{ fontSize: '14px' }}>€</span>
+          <input
+            type="number"
+            className="form-input"
+            value={tempValue}
+            onChange={(e) => setTempValue(e.target.value)}
+            style={{ width: '100px', padding: '4px 8px' }}
+            autoFocus
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') handleSave();
+              if (e.key === 'Escape') setEditing(false);
+            }}
+          />
+          <button
+            onClick={handleSave}
+            disabled={saving}
+            style={{ background: 'var(--primary)', color: 'white', border: 'none', padding: '4px 8px', borderRadius: '4px', fontSize: '12px', cursor: 'pointer' }}
+          >
+            ✓
+          </button>
+          <button
+            onClick={() => setEditing(false)}
+            style={{ background: 'none', border: '1px solid var(--border-color)', padding: '4px 8px', borderRadius: '4px', fontSize: '12px', cursor: 'pointer' }}
+          >
+            ✕
+          </button>
+        </div>
+      ) : (
+        <div
+          onClick={() => { setEditing(true); setTempValue(importo.toString()); }}
+          style={{
+            fontSize: '14px',
+            fontWeight: 600,
+            color: importo > 0 ? colore : 'var(--text-secondary)',
+            cursor: 'pointer',
+            padding: '4px 8px',
+            borderRadius: '4px',
+            background: 'var(--bg-secondary)',
+          }}
+          title="Clicca per modificare"
+        >
+          €{importo.toLocaleString('it-IT')}
+        </div>
       )}
     </div>
   );

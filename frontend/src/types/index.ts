@@ -20,6 +20,7 @@ export interface Neurone {
   sito_web: string | null;
   dati_extra: Record<string, unknown> | null;
   dimensione: number | null; // dimensione base in metri (default: 50 quadrato, 40 cerchio)
+  potenziale: number | null; // potenziale di acquisto in euro
   data_creazione: string;
   data_modifica?: string;
   has_note?: boolean;
@@ -196,6 +197,7 @@ export interface FamigliaProdotto {
   nome: string;
   parent_id: string | null;
   descrizione: string | null;
+  colore: string | null; // colore per visualizzazione 3D
   ordine: number;
   visibilita: Visibilita;
   azienda_id: string | null;
@@ -205,4 +207,15 @@ export interface FamigliaProdotto {
   children?: FamigliaProdotto[];
   path?: { id: string; nome: string }[];
   data_creazione: string;
+}
+
+// Vendita per famiglia prodotto
+export interface VenditaProdotto {
+  id: string;
+  neurone_id: string;
+  famiglia_id: string;
+  importo: number;
+  famiglia_nome?: string;
+  colore?: string;
+  data_aggiornamento?: string;
 }
