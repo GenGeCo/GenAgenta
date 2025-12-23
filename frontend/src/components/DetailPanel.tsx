@@ -11,6 +11,7 @@ interface DetailPanelProps {
   onClose: () => void;
   onSelectNeurone?: (id: string) => void;
   onDelete?: () => void;
+  onEdit?: () => void; // Apre il form di modifica
   // Props per connessione su mappa
   onRequestConnectionMapPick?: () => void;
   connectionTargetEntity?: { id: string; nome: string; tipo: string } | null;
@@ -24,6 +25,7 @@ export default function DetailPanel({
   onClose,
   onSelectNeurone,
   onDelete,
+  onEdit,
   onRequestConnectionMapPick,
   connectionTargetEntity,
   onClearConnectionTarget,
@@ -127,6 +129,24 @@ export default function DetailPanel({
           </div>
         </div>
         <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+          {/* Bottone Modifica */}
+          {onEdit && (
+            <button
+              onClick={onEdit}
+              style={{
+                background: 'var(--primary)',
+                border: 'none',
+                color: 'white',
+                padding: '6px 12px',
+                borderRadius: '6px',
+                fontSize: '12px',
+                cursor: 'pointer',
+                fontWeight: 500,
+              }}
+            >
+              ✏️ Modifica
+            </button>
+          )}
           {/* Bottone Elimina */}
           <button
             onClick={handleDelete}

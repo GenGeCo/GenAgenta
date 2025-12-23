@@ -31,6 +31,7 @@ export default function Dashboard() {
   const [selectedNeurone, setSelectedNeurone] = useState<Neurone | null>(null);
   const [showPinModal, setShowPinModal] = useState(false);
   const [showNeuroneForm, setShowNeuroneForm] = useState(false);
+  const [editingNeurone, setEditingNeurone] = useState<Neurone | null>(null); // Per modifica
   const [loading, setLoading] = useState(true);
   const [pendingInvite, setPendingInvite] = useState<PendingInvite | null>(null);
 
@@ -324,6 +325,10 @@ export default function Dashboard() {
                 setNeuroni(neuroni.filter(n => n.id !== selectedNeurone.id));
                 setSelectedNeurone(null);
               }}
+              onEdit={() => {
+                setEditingNeurone(selectedNeurone);
+                setShowNeuroneForm(true);
+              }}
               onRequestConnectionMapPick={() => setConnectionPickingMode(true)}
               connectionTargetEntity={connectionTargetEntity}
               onClearConnectionTarget={() => setConnectionTargetEntity(null)}
@@ -364,19 +369,29 @@ export default function Dashboard() {
         />
       )}
 
-      {/* Form nuovo neurone */}
+      {/* Form nuovo/modifica neurone */}
       {showNeuroneForm && (
         <NeuroneFormModal
+          neurone={editingNeurone || undefined}
           onSave={(neurone) => {
-            setNeuroni([neurone, ...neuroni]);
+            if (editingNeurone) {
+              // Modifica: aggiorna nella lista
+              setNeuroni(neuroni.map(n => n.id === neurone.id ? neurone : n));
+              setSelectedNeurone(neurone);
+            } else {
+              // Nuovo: aggiungi alla lista
+              setNeuroni([neurone, ...neuroni]);
+              setSelectedNeurone(neurone);
+            }
             setShowNeuroneForm(false);
-            setSelectedNeurone(neurone);
+            setEditingNeurone(null);
             setPickedPosition(null);
             setMapPickingMode(false);
             setFlyToPosition(null);
           }}
           onClose={() => {
             setShowNeuroneForm(false);
+            setEditingNeurone(null);
             setMapPickingMode(false);
             setPickedPosition(null);
             setFlyToPosition(null);
