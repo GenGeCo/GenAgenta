@@ -87,11 +87,16 @@ export default function TimeSlider({ dataInizio, dataFine, onChange }: TimeSlide
     });
   };
 
-  // Handler per applicare il cambio - aggiornamento immediato senza debounce
+  // Handler per applicare il cambio (debounced per evitare troppe chiamate API)
   const applyChange = (inizio: number, fine: number) => {
-    const dataIn = new Date(dayToTimestamp(inizio)).toISOString().split('T')[0];
-    const dataFn = new Date(dayToTimestamp(fine)).toISOString().split('T')[0];
-    onChange(dataIn, dataFn);
+    if (changeTimeout.current) {
+      clearTimeout(changeTimeout.current);
+    }
+    changeTimeout.current = setTimeout(() => {
+      const dataIn = new Date(dayToTimestamp(inizio)).toISOString().split('T')[0];
+      const dataFn = new Date(dayToTimestamp(fine)).toISOString().split('T')[0];
+      onChange(dataIn, dataFn);
+    }, 200); // Debounce 200ms - buon compromesso tra reattività e stabilità
   };
 
   // Handler immediato per rilascio slider
