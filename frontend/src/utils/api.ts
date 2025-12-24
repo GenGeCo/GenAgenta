@@ -463,7 +463,13 @@ class ApiClient {
   // =====================================================
   // Preferenze Utente
   // =====================================================
-  async getPreferenze(): Promise<{ mappa_stile?: string } | null> {
+  async getPreferenze(): Promise<{
+    mappa_stile?: string;
+    mappa_center?: [number, number];
+    mappa_zoom?: number;
+    mappa_pitch?: number;
+    mappa_bearing?: number;
+  } | null> {
     try {
       const { data } = await this.getV2Client().get('/preferenze');
       return data.data;
@@ -472,7 +478,13 @@ class ApiClient {
     }
   }
 
-  async savePreferenze(preferenze: { mappa_stile?: string }): Promise<void> {
+  async savePreferenze(preferenze: {
+    mappa_stile?: string;
+    mappa_center?: [number, number];
+    mappa_zoom?: number;
+    mappa_pitch?: number;
+    mappa_bearing?: number;
+  }): Promise<void> {
     await this.getV2Client().post('/preferenze', preferenze);
   }
 }

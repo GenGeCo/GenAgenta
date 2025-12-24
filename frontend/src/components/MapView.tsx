@@ -213,6 +213,8 @@ export default function MapView({
   const [mapStyle, setMapStyle] = useState('light-v11');
   const [styleLoaded, setStyleLoaded] = useState(0); // incrementa per forzare re-render dopo cambio stile
   const [preferenzeCaricate, setPreferenzeCaricate] = useState(false);
+  const savePositionTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const saveMapPositionRef = useRef<() => void>(() => {});
   const neuroniRef = useRef<Neurone[]>(neuroni);
   const handlersAdded = useRef(false);
   const pickingModeRef = useRef(pickingMode);
@@ -254,18 +256,58 @@ export default function MapView({
     }
   }, []);
 
+  // Salva posizione mappa (debounced)
+  const saveMapPosition = useCallback(() => {
+    if (!map.current) return;
+
+    if (savePositionTimeout.current) {
+      clearTimeout(savePositionTimeout.current);
+    }
+
+    savePositionTimeout.current = setTimeout(() => {
+      if (!map.current) return;
+      const center = map.current.getCenter();
+      const zoom = map.current.getZoom();
+      const pitch = map.current.getPitch();
+      const bearing = map.current.getBearing();
+
+      api.savePreferenze({
+        mappa_center: [center.lng, center.lat],
+        mappa_zoom: zoom,
+        mappa_pitch: pitch,
+        mappa_bearing: bearing,
+      }).catch(console.error);
+    }, 1000); // Salva dopo 1 secondo di inattività
+  }, []);
+
+  // Aggiorna la ref per il salvataggio posizione
+  useEffect(() => {
+    saveMapPositionRef.current = saveMapPosition;
+  }, [saveMapPosition]);
+
   // Carica preferenze utente all'avvio
   useEffect(() => {
     const loadPreferenze = async () => {
       try {
         const pref = await api.getPreferenze();
-        if (pref?.mappa_stile && map.current && preferenzeCaricate === false) {
+        if (map.current && preferenzeCaricate === false) {
           // Applica lo stile salvato
-          map.current.setStyle(`mapbox://styles/mapbox/${pref.mappa_stile}`);
-          setMapStyle(pref.mappa_stile);
-          map.current.once('style.load', () => {
-            setStyleLoaded(prev => prev + 1);
-          });
+          if (pref?.mappa_stile) {
+            map.current.setStyle(`mapbox://styles/mapbox/${pref.mappa_stile}`);
+            setMapStyle(pref.mappa_stile);
+            map.current.once('style.load', () => {
+              setStyleLoaded(prev => prev + 1);
+            });
+          }
+          // Applica posizione salvata
+          if (pref?.mappa_center && pref?.mappa_zoom) {
+            map.current.jumpTo({
+              center: pref.mappa_center,
+              zoom: pref.mappa_zoom,
+              pitch: pref.mappa_pitch ?? 60,
+              bearing: pref.mappa_bearing ?? -17.6,
+            });
+          }
         }
         setPreferenzeCaricate(true);
       } catch (error) {
@@ -323,9 +365,17 @@ export default function MapView({
       }
     });
 
+    // Salva posizione quando l'utente sposta la mappa
+    map.current.on('moveend', () => {
+      saveMapPositionRef.current();
+    });
+
     return () => {
       popup.current?.remove();
       salesPopup.current?.remove();
+      if (savePositionTimeout.current) {
+        clearTimeout(savePositionTimeout.current);
+      }
       map.current?.remove();
       map.current = null;
     };
