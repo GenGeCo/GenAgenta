@@ -258,7 +258,13 @@ export default function TimeSlider({ dataInizio, dataFine, onChange }: TimeSlide
               onChange={(e) => {
                 setIsDragging(true);
                 const val = Number(e.target.value);
-                if (val < localFine) {
+                // Se si avvicina troppo a fine, trascina anche fine
+                if (val >= localFine) {
+                  const newFine = Math.min(val + 1, maxDay);
+                  setLocalInizio(newFine - 1);
+                  setLocalFine(newFine);
+                  applyChange(newFine - 1, newFine);
+                } else {
                   setLocalInizio(val);
                   applyChange(val, localFine);
                 }
@@ -295,7 +301,13 @@ export default function TimeSlider({ dataInizio, dataFine, onChange }: TimeSlide
               onChange={(e) => {
                 setIsDragging(true);
                 const val = Number(e.target.value);
-                if (val > localInizio) {
+                // Se si avvicina troppo a inizio, trascina anche inizio
+                if (val <= localInizio) {
+                  const newInizio = Math.max(val - 1, minDay);
+                  setLocalInizio(newInizio);
+                  setLocalFine(newInizio + 1);
+                  applyChange(newInizio, newInizio + 1);
+                } else {
                   setLocalFine(val);
                   applyChange(localInizio, val);
                 }
