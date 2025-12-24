@@ -459,6 +459,22 @@ class ApiClient {
     const client = this.getV2Client();
     return client.delete(path);
   }
+
+  // =====================================================
+  // Preferenze Utente
+  // =====================================================
+  async getPreferenze(): Promise<{ mappa_stile?: string } | null> {
+    try {
+      const { data } = await this.getV2Client().get('/preferenze');
+      return data.data;
+    } catch {
+      return null;
+    }
+  }
+
+  async savePreferenze(preferenze: { mappa_stile?: string }): Promise<void> {
+    await this.getV2Client().post('/preferenze', preferenze);
+  }
 }
 
 export const api = new ApiClient();

@@ -212,6 +212,7 @@ export default function MapView({
   const [mapReady, setMapReady] = useState(false);
   const [mapStyle, setMapStyle] = useState('light-v11');
   const [styleLoaded, setStyleLoaded] = useState(0); // incrementa per forzare re-render dopo cambio stile
+  const [preferenzeCaricate, setPreferenzeCaricate] = useState(false);
   const neuroniRef = useRef<Neurone[]>(neuroni);
   const handlersAdded = useRef(false);
   const pickingModeRef = useRef(pickingMode);
@@ -239,7 +240,7 @@ export default function MapView({
     return sinapsi.filter(s => s.neurone_da === neuroneId || s.neurone_a === neuroneId).length;
   }, [sinapsi]);
 
-  // Cambia stile mappa
+  // Cambia stile mappa e salva nel DB
   const changeMapStyle = useCallback((styleId: string) => {
     if (map.current) {
       map.current.setStyle(`mapbox://styles/mapbox/${styleId}`);
@@ -248,8 +249,36 @@ export default function MapView({
       map.current.once('style.load', () => {
         setStyleLoaded(prev => prev + 1);
       });
+      // Salva preferenza nel DB
+      api.savePreferenze({ mappa_stile: styleId }).catch(console.error);
     }
   }, []);
+
+  // Carica preferenze utente all'avvio
+  useEffect(() => {
+    const loadPreferenze = async () => {
+      try {
+        const pref = await api.getPreferenze();
+        if (pref?.mappa_stile && map.current && preferenzeCaricate === false) {
+          // Applica lo stile salvato
+          map.current.setStyle(`mapbox://styles/mapbox/${pref.mappa_stile}`);
+          setMapStyle(pref.mappa_stile);
+          map.current.once('style.load', () => {
+            setStyleLoaded(prev => prev + 1);
+          });
+        }
+        setPreferenzeCaricate(true);
+      } catch (error) {
+        console.error('Errore caricamento preferenze:', error);
+        setPreferenzeCaricate(true);
+      }
+    };
+
+    // Carica preferenze quando la mappa è pronta
+    if (mapReady && !preferenzeCaricate) {
+      loadPreferenze();
+    }
+  }, [mapReady, preferenzeCaricate]);
 
   // Inizializza mappa
   useEffect(() => {
