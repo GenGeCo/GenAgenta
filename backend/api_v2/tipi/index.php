@@ -48,11 +48,17 @@ switch ($method) {
         $forma = $data['forma'] ?? 'cerchio';
         $ordine = $data['ordine'] ?? 0;
 
+        // Natura commerciale
+        $isAcquirente = isset($data['is_acquirente']) ? (bool)$data['is_acquirente'] : false;
+        $isVenditore = isset($data['is_venditore']) ? (bool)$data['is_venditore'] : false;
+        $isIntermediario = isset($data['is_intermediario']) ? (bool)$data['is_intermediario'] : false;
+        $isInfluencer = isset($data['is_influencer']) ? (bool)$data['is_influencer'] : false;
+
         $stmt = $db->prepare('
-            INSERT INTO tipi (id, team_id, nome, forma, ordine)
-            VALUES (?, ?, ?, ?, ?)
+            INSERT INTO tipi (id, team_id, nome, forma, ordine, is_acquirente, is_venditore, is_intermediario, is_influencer)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         ');
-        $stmt->execute([$id, $teamId, $data['nome'], $forma, $ordine]);
+        $stmt->execute([$id, $teamId, $data['nome'], $forma, $ordine, $isAcquirente, $isVenditore, $isIntermediario, $isInfluencer]);
 
         jsonResponse(['id' => $id, 'message' => 'Tipo creato'], 201);
         break;
@@ -85,6 +91,23 @@ switch ($method) {
         if (isset($data['ordine'])) {
             $updates[] = 'ordine = ?';
             $params[] = $data['ordine'];
+        }
+        // Natura commerciale
+        if (isset($data['is_acquirente'])) {
+            $updates[] = 'is_acquirente = ?';
+            $params[] = (bool)$data['is_acquirente'];
+        }
+        if (isset($data['is_venditore'])) {
+            $updates[] = 'is_venditore = ?';
+            $params[] = (bool)$data['is_venditore'];
+        }
+        if (isset($data['is_intermediario'])) {
+            $updates[] = 'is_intermediario = ?';
+            $params[] = (bool)$data['is_intermediario'];
+        }
+        if (isset($data['is_influencer'])) {
+            $updates[] = 'is_influencer = ?';
+            $params[] = (bool)$data['is_influencer'];
         }
 
         if (empty($updates)) {

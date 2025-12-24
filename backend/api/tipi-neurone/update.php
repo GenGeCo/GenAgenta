@@ -59,6 +59,23 @@ if (isset($data['ordine'])) {
     $updates[] = 'ordine = ?';
     $params[] = $data['ordine'];
 }
+// Natura commerciale
+if (isset($data['is_acquirente'])) {
+    $updates[] = 'is_acquirente = ?';
+    $params[] = (bool)$data['is_acquirente'];
+}
+if (isset($data['is_venditore'])) {
+    $updates[] = 'is_venditore = ?';
+    $params[] = (bool)$data['is_venditore'];
+}
+if (isset($data['is_intermediario'])) {
+    $updates[] = 'is_intermediario = ?';
+    $params[] = (bool)$data['is_intermediario'];
+}
+if (isset($data['is_influencer'])) {
+    $updates[] = 'is_influencer = ?';
+    $params[] = (bool)$data['is_influencer'];
+}
 
 if (empty($updates)) {
     errorResponse('Nessun campo da aggiornare', 400);

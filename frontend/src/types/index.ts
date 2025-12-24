@@ -27,6 +27,11 @@ export interface Neurone {
   has_note?: boolean;
   note_count?: number;
   is_hidden?: boolean;
+  // Natura commerciale (null = eredita dal tipo)
+  is_acquirente?: boolean | null;
+  is_venditore?: boolean | null;
+  is_intermediario?: boolean | null;
+  is_influencer?: boolean | null;
 }
 
 export interface Sinapsi {

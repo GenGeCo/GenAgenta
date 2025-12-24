@@ -11,6 +11,11 @@ interface Tipo {
   forma: string;
   ordine: number;
   num_tipologie?: number;
+  // Natura commerciale
+  is_acquirente?: boolean;
+  is_venditore?: boolean;
+  is_intermediario?: boolean;
+  is_influencer?: boolean;
 }
 
 interface Tipologia {
@@ -75,6 +80,11 @@ export default function SetupEntita() {
   const [newCampoNome, setNewCampoNome] = useState('');
   const [newCampoEtichetta, setNewCampoEtichetta] = useState('');
   const [newCampoTipo, setNewCampoTipo] = useState<Campo['tipo_dato']>('testo');
+  // Natura commerciale
+  const [newIsAcquirente, setNewIsAcquirente] = useState(false);
+  const [newIsVenditore, setNewIsVenditore] = useState(false);
+  const [newIsIntermediario, setNewIsIntermediario] = useState(false);
+  const [newIsInfluencer, setNewIsInfluencer] = useState(false);
 
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
@@ -141,10 +151,27 @@ export default function SetupEntita() {
       const res = await api.post('/tipi', {
         nome: newNome.trim(),
         forma: newForma,
+        is_acquirente: newIsAcquirente,
+        is_venditore: newIsVenditore,
+        is_intermediario: newIsIntermediario,
+        is_influencer: newIsInfluencer,
       });
-      setTipi(prev => [...prev, { id: res.data.id, nome: newNome.trim(), forma: newForma, ordine: prev.length }]);
+      setTipi(prev => [...prev, {
+        id: res.data.id,
+        nome: newNome.trim(),
+        forma: newForma,
+        ordine: prev.length,
+        is_acquirente: newIsAcquirente,
+        is_venditore: newIsVenditore,
+        is_intermediario: newIsIntermediario,
+        is_influencer: newIsInfluencer,
+      }]);
       setExpandedTipi(prev => new Set([...prev, res.data.id]));
       setNewNome('');
+      setNewIsAcquirente(false);
+      setNewIsVenditore(false);
+      setNewIsIntermediario(false);
+      setNewIsInfluencer(false);
       setShowNewTipo(false);
       showMessage('success', 'Tipo creato');
     } catch (error) {
@@ -415,6 +442,32 @@ export default function SetupEntita() {
                   ))}
                 </select>
               </div>
+            </div>
+            {/* Natura commerciale */}
+            <div style={{ marginTop: 12 }}>
+              <label style={{ display: 'block', fontSize: 12, marginBottom: 8, color: 'var(--text-secondary)' }}>
+                Natura commerciale (default per questo tipo)
+              </label>
+              <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, cursor: 'pointer' }}>
+                  <input type="checkbox" checked={newIsAcquirente} onChange={(e) => setNewIsAcquirente(e.target.checked)} />
+                  <span title="Compra prodotti/servizi">🛒 Acquirente</span>
+                </label>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, cursor: 'pointer' }}>
+                  <input type="checkbox" checked={newIsVenditore} onChange={(e) => setNewIsVenditore(e.target.checked)} />
+                  <span title="Vende prodotti/servizi">🏭 Venditore</span>
+                </label>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, cursor: 'pointer' }}>
+                  <input type="checkbox" checked={newIsIntermediario} onChange={(e) => setNewIsIntermediario(e.target.checked)} />
+                  <span title="Compra e rivende">🔄 Intermediario</span>
+                </label>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, cursor: 'pointer' }}>
+                  <input type="checkbox" checked={newIsInfluencer} onChange={(e) => setNewIsInfluencer(e.target.checked)} />
+                  <span title="Prescrive/influenza acquisti">💡 Influencer</span>
+                </label>
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: 12, marginTop: 16 }}>
               <button
                 className="btn btn-primary"
                 onClick={createTipo}
@@ -509,6 +562,26 @@ export default function SetupEntita() {
                   <span style={{ fontSize: 11, color: 'var(--text-secondary)' }}>
                     {tipologieTipo.length} tipologie
                   </span>
+
+                  {/* Badge natura commerciale */}
+                  <div style={{ display: 'flex', gap: 4 }} onClick={(e) => e.stopPropagation()}>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: 2, fontSize: 11, cursor: 'pointer', padding: '2px 4px', background: tipo.is_acquirente ? 'rgba(59, 130, 246, 0.2)' : 'var(--bg-primary)', borderRadius: 4 }} title="Acquirente">
+                      <input type="checkbox" checked={!!tipo.is_acquirente} onChange={(e) => updateTipo(tipo.id, { is_acquirente: e.target.checked })} style={{ width: 12, height: 12 }} />
+                      🛒
+                    </label>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: 2, fontSize: 11, cursor: 'pointer', padding: '2px 4px', background: tipo.is_venditore ? 'rgba(34, 197, 94, 0.2)' : 'var(--bg-primary)', borderRadius: 4 }} title="Venditore">
+                      <input type="checkbox" checked={!!tipo.is_venditore} onChange={(e) => updateTipo(tipo.id, { is_venditore: e.target.checked })} style={{ width: 12, height: 12 }} />
+                      🏭
+                    </label>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: 2, fontSize: 11, cursor: 'pointer', padding: '2px 4px', background: tipo.is_intermediario ? 'rgba(234, 179, 8, 0.2)' : 'var(--bg-primary)', borderRadius: 4 }} title="Intermediario">
+                      <input type="checkbox" checked={!!tipo.is_intermediario} onChange={(e) => updateTipo(tipo.id, { is_intermediario: e.target.checked })} style={{ width: 12, height: 12 }} />
+                      🔄
+                    </label>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: 2, fontSize: 11, cursor: 'pointer', padding: '2px 4px', background: tipo.is_influencer ? 'rgba(168, 85, 247, 0.2)' : 'var(--bg-primary)', borderRadius: 4 }} title="Influencer">
+                      <input type="checkbox" checked={!!tipo.is_influencer} onChange={(e) => updateTipo(tipo.id, { is_influencer: e.target.checked })} style={{ width: 12, height: 12 }} />
+                      💡
+                    </label>
+                  </div>
 
                   <select
                     className="form-input"

@@ -36,6 +36,7 @@ $updates = [];
 $params = [];
 
 $allowedFields = ['nome', 'tipo', 'categorie', 'visibilita', 'lat', 'lng', 'indirizzo', 'telefono', 'email', 'sito_web', 'dati_extra', 'dimensione'];
+$booleanFields = ['is_acquirente', 'is_venditore', 'is_intermediario', 'is_influencer'];
 
 foreach ($allowedFields as $field) {
     if (isset($data[$field])) {
@@ -46,6 +47,15 @@ foreach ($allowedFields as $field) {
             $updates[] = "$field = ?";
             $params[] = $data[$field];
         }
+    }
+}
+
+// Natura commerciale (nullable = eredita da tipo, false esplicito resetta)
+foreach ($booleanFields as $field) {
+    if (array_key_exists($field, $data)) {
+        $updates[] = "$field = ?";
+        // Se null, resetta a eredita dal tipo; altrimenti usa il valore boolean
+        $params[] = $data[$field] === null ? null : (bool)$data[$field];
     }
 }
 

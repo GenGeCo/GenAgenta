@@ -297,8 +297,81 @@ export default function DetailPanel({
 
 // Tab Info
 function InfoTab({ neurone }: { neurone: Neurone }) {
+  const [saving, setSaving] = useState(false);
+  const [naturaLocale, setNaturaLocale] = useState({
+    is_acquirente: neurone.is_acquirente,
+    is_venditore: neurone.is_venditore,
+    is_intermediario: neurone.is_intermediario,
+    is_influencer: neurone.is_influencer,
+  });
+
+  const toggleNatura = async (campo: 'is_acquirente' | 'is_venditore' | 'is_intermediario' | 'is_influencer') => {
+    setSaving(true);
+    const nuovoValore = !naturaLocale[campo];
+    try {
+      await api.updateNeurone(neurone.id, { [campo]: nuovoValore });
+      setNaturaLocale(prev => ({ ...prev, [campo]: nuovoValore }));
+    } catch (error) {
+      console.error('Errore aggiornamento natura:', error);
+    } finally {
+      setSaving(false);
+    }
+  };
+
   return (
     <div>
+      {/* Natura Commerciale */}
+      <div style={{ marginBottom: '20px', padding: '12px', background: 'var(--bg-secondary)', borderRadius: '8px' }}>
+        <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '8px' }}>
+          Natura commerciale
+        </div>
+        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+          <label style={{
+            display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 10px',
+            background: naturaLocale.is_acquirente ? 'rgba(59, 130, 246, 0.15)' : 'var(--bg-primary)',
+            border: `1px solid ${naturaLocale.is_acquirente ? '#3b82f6' : 'var(--border-color)'}`,
+            borderRadius: '6px', cursor: saving ? 'wait' : 'pointer', fontSize: '13px',
+            opacity: saving ? 0.6 : 1,
+          }}>
+            <input type="checkbox" checked={!!naturaLocale.is_acquirente} onChange={() => toggleNatura('is_acquirente')} disabled={saving} />
+            🛒 Acquirente
+          </label>
+          <label style={{
+            display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 10px',
+            background: naturaLocale.is_venditore ? 'rgba(34, 197, 94, 0.15)' : 'var(--bg-primary)',
+            border: `1px solid ${naturaLocale.is_venditore ? '#22c55e' : 'var(--border-color)'}`,
+            borderRadius: '6px', cursor: saving ? 'wait' : 'pointer', fontSize: '13px',
+            opacity: saving ? 0.6 : 1,
+          }}>
+            <input type="checkbox" checked={!!naturaLocale.is_venditore} onChange={() => toggleNatura('is_venditore')} disabled={saving} />
+            🏭 Venditore
+          </label>
+          <label style={{
+            display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 10px',
+            background: naturaLocale.is_intermediario ? 'rgba(234, 179, 8, 0.15)' : 'var(--bg-primary)',
+            border: `1px solid ${naturaLocale.is_intermediario ? '#eab308' : 'var(--border-color)'}`,
+            borderRadius: '6px', cursor: saving ? 'wait' : 'pointer', fontSize: '13px',
+            opacity: saving ? 0.6 : 1,
+          }}>
+            <input type="checkbox" checked={!!naturaLocale.is_intermediario} onChange={() => toggleNatura('is_intermediario')} disabled={saving} />
+            🔄 Intermediario
+          </label>
+          <label style={{
+            display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 10px',
+            background: naturaLocale.is_influencer ? 'rgba(168, 85, 247, 0.15)' : 'var(--bg-primary)',
+            border: `1px solid ${naturaLocale.is_influencer ? '#a855f7' : 'var(--border-color)'}`,
+            borderRadius: '6px', cursor: saving ? 'wait' : 'pointer', fontSize: '13px',
+            opacity: saving ? 0.6 : 1,
+          }}>
+            <input type="checkbox" checked={!!naturaLocale.is_influencer} onChange={() => toggleNatura('is_influencer')} disabled={saving} />
+            💡 Influencer
+          </label>
+        </div>
+        <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '8px', fontStyle: 'italic' }}>
+          Modifica la natura commerciale specifica per questa entità
+        </div>
+      </div>
+
       {neurone.indirizzo && (
         <InfoRow label="Indirizzo" value={neurone.indirizzo} />
       )}

@@ -69,9 +69,16 @@ if ($visibilita === 'personale' && !$hasPersonalAccess) {
     errorResponse('Accesso personale richiesto per creare neuroni privati', 403);
 }
 
+// Natura commerciale (nullable = eredita da tipo)
+$isAcquirente = isset($data['is_acquirente']) ? (bool)$data['is_acquirente'] : null;
+$isVenditore = isset($data['is_venditore']) ? (bool)$data['is_venditore'] : null;
+$isIntermediario = isset($data['is_intermediario']) ? (bool)$data['is_intermediario'] : null;
+$isInfluencer = isset($data['is_influencer']) ? (bool)$data['is_influencer'] : null;
+
 $stmt = $db->prepare('
-    INSERT INTO neuroni (id, nome, tipo, categorie, visibilita, lat, lng, indirizzo, telefono, email, sito_web, dati_extra, dimensione, creato_da, azienda_id)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO neuroni (id, nome, tipo, categorie, visibilita, lat, lng, indirizzo, telefono, email, sito_web, dati_extra, dimensione, creato_da, azienda_id,
+                         is_acquirente, is_venditore, is_intermediario, is_influencer)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 ');
 
 // DEBUG TEMPORANEO: usa direttamente $data['tipo'] per bypassare la validazione
@@ -93,7 +100,11 @@ $params = [
     isset($data['dati_extra']) ? json_encode($data['dati_extra']) : null,
     $data['dimensione'] ?? null,
     $user['user_id'],
-    $user['azienda_id'] ?? null
+    $user['azienda_id'] ?? null,
+    $isAcquirente,
+    $isVenditore,
+    $isIntermediario,
+    $isInfluencer
 ];
 
 error_log("DEBUG create.php INSERT params: " . json_encode($params));
