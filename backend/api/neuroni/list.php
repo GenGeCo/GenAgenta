@@ -101,7 +101,7 @@ try {
 }
 
 // Query dati - con o senza potenziale/venduto in base a cosa esiste
-$selectFields = "n.id, n.nome, n.tipo, n.categorie, n.visibilita, n.lat, n.lng, n.indirizzo, n.telefono, n.email, n.sito_web, n.dati_extra, n.dimensione, n.data_creazione";
+$selectFields = "n.id, n.nome, n.tipo, n.categorie, n.visibilita, n.lat, n.lng, n.indirizzo, n.telefono, n.email, n.sito_web, n.dati_extra, n.dimensione, n.data_creazione, n.is_acquirente, n.is_venditore, n.is_intermediario, n.is_influencer";
 
 if ($hasPotenziale) {
     $selectFields .= ", n.potenziale";

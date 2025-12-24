@@ -712,6 +712,17 @@ function VenditeTab({
   const [editingPotenziale, setEditingPotenziale] = useState(false);
   const [tempPotenziale, setTempPotenziale] = useState<string>('');
 
+  // Etichetta dinamica in base alla natura commerciale
+  const getEtichettaPotenziale = () => {
+    if (neurone.is_venditore && !neurone.is_acquirente) {
+      return 'Potenziale di vendita';
+    }
+    if (neurone.is_intermediario && !neurone.is_acquirente && !neurone.is_venditore) {
+      return 'Potenziale intermediazione';
+    }
+    return 'Potenziale di acquisto';
+  };
+
   // Colori per le famiglie (se non hanno colore assegnato)
   const coloriDefault = [
     '#ef4444', '#f97316', '#eab308', '#22c55e', '#14b8a6',
@@ -824,7 +835,7 @@ function VenditeTab({
       {/* Potenziale */}
       <div style={{ marginBottom: '20px', padding: '16px', background: 'var(--bg-secondary)', borderRadius: '8px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-          <label style={{ fontWeight: 600, fontSize: '14px' }}>Potenziale di acquisto</label>
+          <label style={{ fontWeight: 600, fontSize: '14px' }}>{getEtichettaPotenziale()}</label>
           {!editingPotenziale ? (
             <button
               onClick={() => { setEditingPotenziale(true); setTempPotenziale(potenziale.toString()); }}
