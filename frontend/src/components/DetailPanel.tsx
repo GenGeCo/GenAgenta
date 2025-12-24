@@ -714,11 +714,14 @@ function VenditeTab({
 
   // Etichetta dinamica in base alla natura commerciale
   const getEtichettaPotenziale = () => {
+    if (neurone.is_intermediario) {
+      return 'Valore Potenziale';
+    }
+    if (neurone.is_influencer) {
+      return 'Valore Potenziale';
+    }
     if (neurone.is_venditore && !neurone.is_acquirente) {
       return 'Potenziale di vendita';
-    }
-    if (neurone.is_intermediario && !neurone.is_acquirente && !neurone.is_venditore) {
-      return 'Potenziale intermediazione';
     }
     return 'Potenziale di acquisto';
   };
