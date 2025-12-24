@@ -57,8 +57,21 @@ switch ($method) {
                 $db->exec("ALTER TABLE utenti ADD COLUMN preferenze_mappa JSON NULL");
             }
 
+            // Leggi preferenze esistenti per fare merge
+            $stmt = $db->prepare("SELECT preferenze_mappa FROM utenti WHERE id = ?");
+            $stmt->execute([$userId]);
+            $result = $stmt->fetch();
+
+            $existingPrefs = [];
+            if ($result && $result['preferenze_mappa']) {
+                $existingPrefs = json_decode($result['preferenze_mappa'], true) ?? [];
+            }
+
+            // Merge: le nuove preferenze sovrascrivono solo i campi specificati
+            $mergedPrefs = array_merge($existingPrefs, $data);
+
             $stmt = $db->prepare("UPDATE utenti SET preferenze_mappa = ? WHERE id = ?");
-            $stmt->execute([json_encode($data), $userId]);
+            $stmt->execute([json_encode($mergedPrefs), $userId]);
 
             jsonResponse(['message' => 'Preferenze salvate']);
         } catch (PDOException $e) {
