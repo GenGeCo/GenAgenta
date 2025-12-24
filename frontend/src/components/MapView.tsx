@@ -97,6 +97,100 @@ function createSquarePolygon(lng: number, lat: number, sizeMeters: number): numb
   ];
 }
 
+// Genera un triangolo equilatero
+function createTrianglePolygon(lng: number, lat: number, sizeMeters: number): number[][] {
+  const earthRadius = 6371000;
+  const radius = sizeMeters / 2;
+  const coords: number[][] = [];
+
+  for (let i = 0; i < 3; i++) {
+    const angle = (i / 3) * 2 * Math.PI - Math.PI / 2; // Punta verso l'alto
+    const dx = radius * Math.cos(angle);
+    const dy = radius * Math.sin(angle);
+
+    const dLat = dy / earthRadius * (180 / Math.PI);
+    const dLng = dx / (earthRadius * Math.cos(lat * Math.PI / 180)) * (180 / Math.PI);
+
+    coords.push([lng + dLng, lat + dLat]);
+  }
+  coords.push(coords[0]); // Chiudi il poligono
+
+  return coords;
+}
+
+// Genera una stella a 5 punte
+function createStarPolygon(lng: number, lat: number, sizeMeters: number): number[][] {
+  const earthRadius = 6371000;
+  const outerRadius = sizeMeters / 2;
+  const innerRadius = outerRadius * 0.4;
+  const coords: number[][] = [];
+
+  for (let i = 0; i < 10; i++) {
+    const angle = (i / 10) * 2 * Math.PI - Math.PI / 2;
+    const radius = i % 2 === 0 ? outerRadius : innerRadius;
+    const dx = radius * Math.cos(angle);
+    const dy = radius * Math.sin(angle);
+
+    const dLat = dy / earthRadius * (180 / Math.PI);
+    const dLng = dx / (earthRadius * Math.cos(lat * Math.PI / 180)) * (180 / Math.PI);
+
+    coords.push([lng + dLng, lat + dLat]);
+  }
+  coords.push(coords[0]);
+
+  return coords;
+}
+
+// Genera una croce
+function createCrossPolygon(lng: number, lat: number, sizeMeters: number): number[][] {
+  const earthRadius = 6371000;
+  const half = sizeMeters / 2;
+  const arm = half * 0.3; // Spessore braccio
+
+  const toCoord = (dx: number, dy: number): number[] => {
+    const dLat = dy / earthRadius * (180 / Math.PI);
+    const dLng = dx / (earthRadius * Math.cos(lat * Math.PI / 180)) * (180 / Math.PI);
+    return [lng + dLng, lat + dLat];
+  };
+
+  return [
+    toCoord(-arm, half),
+    toCoord(arm, half),
+    toCoord(arm, arm),
+    toCoord(half, arm),
+    toCoord(half, -arm),
+    toCoord(arm, -arm),
+    toCoord(arm, -half),
+    toCoord(-arm, -half),
+    toCoord(-arm, -arm),
+    toCoord(-half, -arm),
+    toCoord(-half, arm),
+    toCoord(-arm, arm),
+    toCoord(-arm, half), // Chiudi
+  ];
+}
+
+// Genera un esagono
+function createHexagonPolygon(lng: number, lat: number, sizeMeters: number): number[][] {
+  const earthRadius = 6371000;
+  const radius = sizeMeters / 2;
+  const coords: number[][] = [];
+
+  for (let i = 0; i < 6; i++) {
+    const angle = (i / 6) * 2 * Math.PI;
+    const dx = radius * Math.cos(angle);
+    const dy = radius * Math.sin(angle);
+
+    const dLat = dy / earthRadius * (180 / Math.PI);
+    const dLng = dx / (earthRadius * Math.cos(lat * Math.PI / 180)) * (180 / Math.PI);
+
+    coords.push([lng + dLng, lat + dLat]);
+  }
+  coords.push(coords[0]);
+
+  return coords;
+}
+
 // Calcola altezza basata sui dati - usa potenziale se disponibile
 function calculateHeight(neurone: Neurone, sinapsiCount: number): number {
   const baseHeight = 35;  // altezza minima
@@ -487,28 +581,38 @@ export default function MapView({
     };
 
     // Funzione per ottenere la forma dal tipo neurone (case-insensitive)
-    const getTipoForma = (tipoNome: string): 'quadrato' | 'cerchio' => {
+    type Forma = 'cerchio' | 'quadrato' | 'triangolo' | 'stella' | 'croce' | 'esagono';
+    const getTipoForma = (tipoNome: string): Forma => {
       const tipo = tipiNeurone.find(t => t.nome.toLowerCase() === tipoNome.toLowerCase());
-      // Se il tipo ha forma quadrato, triangolo, stella, croce, L, C, W, Z usa quadrato
-      // Altrimenti usa cerchio
-      if (tipo?.forma && ['quadrato', 'triangolo', 'stella', 'croce', 'L', 'C', 'W', 'Z'].includes(tipo.forma)) {
-        return 'quadrato';
+      if (tipo?.forma && ['cerchio', 'quadrato', 'triangolo', 'stella', 'croce', 'esagono'].includes(tipo.forma)) {
+        return tipo.forma as Forma;
       }
       return 'cerchio';
+    };
+
+    // Crea il poligono in base alla forma
+    const createPolygon = (forma: Forma, lng: number, lat: number, size: number): number[][] => {
+      switch (forma) {
+        case 'quadrato': return createSquarePolygon(lng, lat, size);
+        case 'triangolo': return createTrianglePolygon(lng, lat, size);
+        case 'stella': return createStarPolygon(lng, lat, size);
+        case 'croce': return createCrossPolygon(lng, lat, size);
+        case 'esagono': return createHexagonPolygon(lng, lat, size);
+        case 'cerchio':
+        default: return createCirclePolygon(lng, lat, size / 2, 24);
+      }
     };
 
     // Crea GeoJSON per neuroni
     const neuroniFeatures = neuroniConCoord.map((neurone) => {
       const forma = getTipoForma(neurone.tipo);
-      const isQuadrato = forma === 'quadrato';
-      // Usa dimensione personalizzata se presente, altrimenti default (metà di prima)
-      const defaultSize = isQuadrato ? 50 : 40; // metri - era 105/80
+      const isQuadrato = forma !== 'cerchio'; // Tutte le forme non-cerchio hanno size simile
+      // Usa dimensione personalizzata se presente, altrimenti default
+      const defaultSize = isQuadrato ? 50 : 40; // metri
       const baseSize = neurone.dimensione ? Number(neurone.dimensione) : defaultSize;
       const height = calculateHeight(neurone, getSinapsiCount(neurone.id));
 
-      const polygon = isQuadrato
-        ? createSquarePolygon(neurone.lng!, neurone.lat!, baseSize)
-        : createCirclePolygon(neurone.lng!, neurone.lat!, baseSize / 2, 24);
+      const polygon = createPolygon(forma, neurone.lng!, neurone.lat!, baseSize);
 
       // Usa il colore della prima categoria del neurone
       const neuroneCategorie = Array.isArray(neurone.categorie) ? neurone.categorie : [];
