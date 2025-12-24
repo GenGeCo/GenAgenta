@@ -11,14 +11,29 @@ interface TimeSliderProps {
 // Un giorno in millisecondi
 const ONE_DAY = 24 * 60 * 60 * 1000;
 
+// Range presets in anni
+const RANGE_PRESETS = [
+  { label: '1 anno', years: 1 },
+  { label: '3 anni', years: 3 },
+  { label: '5 anni', years: 5 },
+  { label: '10 anni', years: 10 },
+];
+
 export default function TimeSlider({ dataInizio, dataFine, onChange }: TimeSliderProps) {
-  // Range totale: ultimi 3 anni + 1 anno futuro
   const oggi = new Date();
   oggi.setHours(0, 0, 0, 0);
-  const treAnniFA = new Date(oggi.getTime() - 3 * 365 * ONE_DAY);
+
+  // State per range personalizzabile degli slider
+  const [rangeYears, setRangeYears] = useState(3); // Default 3 anni
+  const [showSettings, setShowSettings] = useState(false);
+  const [customInizio, setCustomInizio] = useState(dataInizio);
+  const [customFine, setCustomFine] = useState(dataFine);
+
+  // Calcola min/max timestamp basati sul range selezionato
+  const anniFA = new Date(oggi.getTime() - rangeYears * 365 * ONE_DAY);
   const unAnnoAvanti = new Date(oggi.getTime() + 365 * ONE_DAY);
 
-  const minTimestamp = treAnniFA.getTime();
+  const minTimestamp = anniFA.getTime();
   const maxTimestamp = unAnnoAvanti.getTime();
 
   // Converti date in valori slider (in giorni dal minimo per precisione)
@@ -47,6 +62,12 @@ export default function TimeSlider({ dataInizio, dataFine, onChange }: TimeSlide
       setLocalFine(dataFine ? timestampToDay(new Date(dataFine).getTime()) : maxDay);
     }
   }, [dataInizio, dataFine, isDragging]);
+
+  // Aggiorna custom inputs quando cambiano i valori
+  useEffect(() => {
+    setCustomInizio(dataInizio);
+    setCustomFine(dataFine);
+  }, [dataInizio, dataFine]);
 
   // Formatta data per display
   const formatDate = (dayValue: number) => {
@@ -89,18 +110,43 @@ export default function TimeSlider({ dataInizio, dataFine, onChange }: TimeSlide
     onChange(dataIn, dataFn);
   };
 
-  // Presets
+  // Presets - relativi alla data fine selezionata
   const setPreset = (months: number) => {
-    const fineDate = oggi;
-    const inizioDate = new Date(oggi.getTime() - months * 30 * ONE_DAY);
-    const inizio = timestampToDay(inizioDate.getTime());
-    const fine = timestampToDay(fineDate.getTime());
+    // Usa la data fine corrente come riferimento
+    const fineTs = dayToTimestamp(localFine);
+    const fineDate = new Date(fineTs);
+    const inizioDate = new Date(fineTs - months * 30 * ONE_DAY);
+
+    // Assicura che inizio non sia prima del minimo slider
+    const inizioTs = Math.max(inizioDate.getTime(), minTimestamp);
+    const inizioDateClamped = new Date(inizioTs);
+
+    const inizio = timestampToDay(inizioTs);
     setLocalInizio(inizio);
-    setLocalFine(fine);
     onChange(
-      inizioDate.toISOString().split('T')[0],
+      inizioDateClamped.toISOString().split('T')[0],
       fineDate.toISOString().split('T')[0]
     );
+  };
+
+  // Applica date personalizzate
+  const applyCustomDates = () => {
+    if (customInizio && customFine) {
+      const inizio = new Date(customInizio);
+      const fine = new Date(customFine);
+
+      if (inizio <= fine) {
+        // Se le date sono fuori dal range slider, estendi il range
+        const inizioTs = inizio.getTime();
+        if (inizioTs < minTimestamp) {
+          const yearsNeeded = Math.ceil((oggi.getTime() - inizioTs) / (365 * ONE_DAY));
+          setRangeYears(Math.max(yearsNeeded, rangeYears));
+        }
+
+        onChange(customInizio, customFine);
+        setShowSettings(false);
+      }
+    }
   };
 
   // Stile comune per slider
@@ -128,9 +174,30 @@ export default function TimeSlider({ dataInizio, dataFine, onChange }: TimeSlide
         flexWrap: 'wrap',
         gap: '8px',
       }}>
-        <span style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-primary)' }}>
-          Periodo: {formatDate(localInizio)} - {formatDate(localFine)}
-        </span>
+        <button
+          onClick={() => setShowSettings(!showSettings)}
+          style={{
+            fontSize: '14px',
+            fontWeight: 600,
+            color: 'var(--text-primary)',
+            background: showSettings ? 'var(--bg-secondary)' : 'transparent',
+            border: '1px solid transparent',
+            borderColor: showSettings ? 'var(--border)' : 'transparent',
+            padding: '4px 8px',
+            borderRadius: '6px',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px',
+            transition: 'all 0.2s',
+          }}
+          title="Clicca per impostare date personalizzate"
+        >
+          <span>Periodo: {formatDate(localInizio)} - {formatDate(localFine)}</span>
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M19 9l-7 7-7-7" />
+          </svg>
+        </button>
 
         {/* Presets */}
         <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
@@ -253,6 +320,91 @@ export default function TimeSlider({ dataInizio, dataFine, onChange }: TimeSlide
           {formatShortDate(maxDay)}
         </span>
       </div>
+
+      {/* Pannello impostazioni */}
+      {showSettings && (
+        <div style={{
+          marginTop: '12px',
+          padding: '12px',
+          background: 'var(--bg-secondary)',
+          borderRadius: '8px',
+          border: '1px solid var(--border)',
+        }}>
+          <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', alignItems: 'flex-end' }}>
+            {/* Date personalizzate */}
+            <div style={{ flex: 1, minWidth: '200px' }}>
+              <div style={{ fontSize: '12px', fontWeight: 500, marginBottom: '8px', color: 'var(--text-secondary)' }}>
+                Date personalizzate
+              </div>
+              <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                <input
+                  type="date"
+                  value={customInizio}
+                  onChange={(e) => setCustomInizio(e.target.value)}
+                  style={{
+                    padding: '6px 8px',
+                    borderRadius: '4px',
+                    border: '1px solid var(--border)',
+                    background: 'var(--bg-primary)',
+                    color: 'var(--text-primary)',
+                    fontSize: '13px',
+                  }}
+                />
+                <span style={{ color: 'var(--text-secondary)' }}>-</span>
+                <input
+                  type="date"
+                  value={customFine}
+                  onChange={(e) => setCustomFine(e.target.value)}
+                  style={{
+                    padding: '6px 8px',
+                    borderRadius: '4px',
+                    border: '1px solid var(--border)',
+                    background: 'var(--bg-primary)',
+                    color: 'var(--text-primary)',
+                    fontSize: '13px',
+                  }}
+                />
+                <button
+                  onClick={applyCustomDates}
+                  className="btn btn-primary"
+                  style={{ padding: '6px 12px', fontSize: '12px' }}
+                >
+                  Applica
+                </button>
+              </div>
+            </div>
+
+            {/* Range slider */}
+            <div>
+              <div style={{ fontSize: '12px', fontWeight: 500, marginBottom: '8px', color: 'var(--text-secondary)' }}>
+                Estensione slider
+              </div>
+              <div style={{ display: 'flex', gap: '4px' }}>
+                {RANGE_PRESETS.map(({ label, years }) => (
+                  <button
+                    key={years}
+                    onClick={() => setRangeYears(years)}
+                    className={`btn ${rangeYears === years ? 'btn-primary' : 'btn-secondary'}`}
+                    style={{ padding: '6px 10px', fontSize: '11px' }}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Suggerimento */}
+          <div style={{
+            marginTop: '10px',
+            fontSize: '11px',
+            color: 'var(--text-secondary)',
+            fontStyle: 'italic',
+          }}>
+            I preset (1M, 3M, ecc.) calcolano indietro dalla data "A:" selezionata
+          </div>
+        </div>
+      )}
 
       {/* Stile per slider thumb */}
       <style>{`
