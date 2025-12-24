@@ -122,9 +122,20 @@ switch ($method) {
         }
 
         try {
+            // Verifica se famiglie_prodotto ha colonna colore
+            $hasColore = false;
+            try {
+                $db->query("SELECT colore FROM famiglie_prodotto LIMIT 1");
+                $hasColore = true;
+            } catch (PDOException $e) {
+                // Colonna colore non esiste
+            }
+
             $orderBy = $hasDataVendita ? 'v.data_vendita DESC, f.nome ASC' : 'f.nome ASC';
+            $selectFields = $hasColore ? 'v.*, f.nome as famiglia_nome, f.colore' : 'v.*, f.nome as famiglia_nome';
+
             $stmt = $db->prepare("
-                SELECT v.*, f.nome as famiglia_nome, f.colore
+                SELECT $selectFields
                 FROM vendite_prodotto v
                 LEFT JOIN famiglie_prodotto f ON v.famiglia_id = f.id
                 WHERE v.neurone_id = ?
