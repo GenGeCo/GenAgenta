@@ -31,6 +31,14 @@ switch ($method) {
         $stmt->execute([$teamId]);
         $tipi = $stmt->fetchAll();
 
+        // Cast boolean per JavaScript
+        foreach ($tipi as &$tipo) {
+            $tipo['is_acquirente'] = (bool)($tipo['is_acquirente'] ?? false);
+            $tipo['is_venditore'] = (bool)($tipo['is_venditore'] ?? false);
+            $tipo['is_intermediario'] = (bool)($tipo['is_intermediario'] ?? false);
+            $tipo['is_influencer'] = (bool)($tipo['is_influencer'] ?? false);
+        }
+
         jsonResponse([
             'data' => $tipi,
             'forme_disponibili' => ['cerchio', 'quadrato', 'triangolo', 'stella', 'croce', 'esagono']
