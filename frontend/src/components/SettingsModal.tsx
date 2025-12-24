@@ -22,7 +22,7 @@ interface Membro {
   is_me: boolean;
 }
 
-type Tab = 'profilo' | 'password' | 'team' | 'categorie' | 'prodotti';
+type Tab = 'profilo' | 'password' | 'team' | 'categorie' | 'prodotti' | 'info';
 
 export default function SettingsModal({ user, onClose, onUserUpdate }: SettingsModalProps) {
   const [activeTab, setActiveTab] = useState<Tab>('profilo');
@@ -286,10 +286,11 @@ export default function SettingsModal({ user, onClose, onUserUpdate }: SettingsM
         >
           {[
             { id: 'profilo' as Tab, label: '👤 Profilo' },
-            { id: 'password' as Tab, label: '🔒 Password' },
-            ...(user.azienda_id ? [{ id: 'team' as Tab, label: '👥 Team' }] : []),
             { id: 'categorie' as Tab, label: '📍 Entità' },
             { id: 'prodotti' as Tab, label: '📦 Prodotti' },
+            ...(user.azienda_id ? [{ id: 'team' as Tab, label: '👥 Team' }] : []),
+            { id: 'password' as Tab, label: '🔒 Password' },
+            { id: 'info' as Tab, label: 'ℹ️ Info' },
           ].map((tab) => (
             <button
               key={tab.id}
@@ -712,6 +713,84 @@ export default function SettingsModal({ user, onClose, onUserUpdate }: SettingsM
           {/* TAB: Prodotti */}
           {activeTab === 'prodotti' && (
             <FamiglieProdottoTab />
+          )}
+
+          {/* TAB: Info */}
+          {activeTab === 'info' && (
+            <div style={{
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              textAlign: 'center',
+              padding: '40px 20px',
+              minHeight: '300px',
+            }}>
+              {/* Logo o titolo */}
+              <div style={{
+                fontSize: '32px',
+                fontWeight: 700,
+                marginBottom: '8px',
+                background: 'linear-gradient(135deg, var(--primary), #8b5cf6)',
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent',
+              }}>
+                GenAgenTa
+              </div>
+              <div style={{
+                fontSize: '13px',
+                color: 'var(--text-secondary)',
+                marginBottom: '32px',
+              }}>
+                v1.0.1
+              </div>
+
+              {/* Copyright */}
+              <div style={{
+                fontSize: '14px',
+                color: 'var(--text-primary)',
+                marginBottom: '8px',
+              }}>
+                © 2025 Gennaro Colacioppo. All rights reserved.
+              </div>
+              <div style={{
+                fontSize: '13px',
+                color: 'var(--text-secondary)',
+                marginBottom: '24px',
+              }}>
+                Interface Design Registered.
+              </div>
+
+              {/* Links */}
+              <div style={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '8px',
+              }}>
+                <a
+                  href="https://www.gruppogea.net"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{
+                    color: 'var(--primary)',
+                    textDecoration: 'none',
+                    fontSize: '14px',
+                  }}
+                >
+                  www.gruppogea.net
+                </a>
+                <a
+                  href="mailto:infoph@gruppogea.net"
+                  style={{
+                    color: 'var(--primary)',
+                    textDecoration: 'none',
+                    fontSize: '14px',
+                  }}
+                >
+                  infoph@gruppogea.net
+                </a>
+              </div>
+            </div>
           )}
         </div>
       </div>
