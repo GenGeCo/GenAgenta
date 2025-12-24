@@ -129,6 +129,15 @@ export default function Dashboard() {
           }),
         ]);
 
+        console.log('DEBUG loadData:', {
+          filtri: { dataInizio: filtri.dataInizio, dataFine: filtri.dataFine },
+          sinapsiCaricate: sinapsiRes.data.length,
+          primiDue: sinapsiRes.data.slice(0, 2).map((s: { id: string; data_inizio: string; data_fine: string | null }) => ({
+            id: s.id,
+            data_inizio: s.data_inizio,
+            data_fine: s.data_fine
+          }))
+        });
         setNeuroni(neuroniRes.data);
         setSinapsi(sinapsiRes.data);
       } catch (error) {

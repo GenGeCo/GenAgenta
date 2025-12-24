@@ -546,10 +546,15 @@ export default function MapView({
     }
 
     // Sinapsi - applica filtri visibilità
+    // NOTA: il backend già filtra per data, qui filtriamo solo per coordinate valide
     let sinapsiFiltered = sinapsi.filter((s) => {
-      if (filtri.dataInizio && s.data_fine && s.data_fine < filtri.dataInizio) return false;
-      if (filtri.dataFine && s.data_inizio > filtri.dataFine) return false;
       return s.lat_da && s.lng_da && s.lat_a && s.lng_a;
+    });
+
+    console.log('DEBUG MapView sinapsi:', {
+      totali: sinapsi.length,
+      conCoordinate: sinapsiFiltered.length,
+      filtri: { dataInizio: filtri.dataInizio, dataFine: filtri.dataFine }
     });
 
     // Nascondi tutte le connessioni se il flag è disattivato
