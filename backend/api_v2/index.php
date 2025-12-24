@@ -71,6 +71,9 @@ $routes = [
     'team' => 'team/index.php',
     'team/membri' => 'team/membri.php',
     'team/inviti' => 'team/inviti.php',
+
+    // Preferenze utente
+    'preferenze' => 'preferenze/index.php',
 ];
 
 // Find route
