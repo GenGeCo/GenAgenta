@@ -129,17 +129,29 @@ export default function SinapsiFormModal({
         note: note || null,
       };
 
+      console.log('DEBUG sinapsi submit:', sinapsiData);
+
       if (isEditing && sinapsiDaModificare) {
         await api.updateSinapsi(sinapsiDaModificare.id, sinapsiData);
       } else {
-        await api.createSinapsi(sinapsiData);
+        const result = await api.createSinapsi(sinapsiData);
+        console.log('DEBUG sinapsi created:', result);
       }
 
       onSaved();
       onClose();
     } catch (err: unknown) {
       console.error('Errore salvataggio sinapsi:', err);
-      const errorMessage = err instanceof Error ? err.message : 'Errore durante il salvataggio';
+      // Estrai messaggio da risposta Axios o errore generico
+      let errorMessage = 'Errore durante il salvataggio';
+      if (err && typeof err === 'object') {
+        const axiosErr = err as { response?: { data?: { error?: string } }; message?: string };
+        if (axiosErr.response?.data?.error) {
+          errorMessage = axiosErr.response.data.error;
+        } else if (axiosErr.message) {
+          errorMessage = axiosErr.message;
+        }
+      }
       setError(errorMessage);
     } finally {
       setSaving(false);
