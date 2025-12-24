@@ -395,13 +395,9 @@ switch ($method) {
             errorResponse('ID richiesto', 400);
         }
 
-        // Verifica proprietà tramite neurone -> team
-        $stmt = $db->prepare('
-            SELECT v.id FROM vendite_prodotto v
-            JOIN neuroni n ON v.neurone_id = n.id
-            WHERE v.id = ? AND n.team_id = ?
-        ');
-        $stmt->execute([$id, $teamId]);
+        // Verifica che la vendita esista
+        $stmt = $db->prepare('SELECT id FROM vendite_prodotto WHERE id = ?');
+        $stmt->execute([$id]);
         if (!$stmt->fetch()) {
             errorResponse('Vendita non trovata', 404);
         }

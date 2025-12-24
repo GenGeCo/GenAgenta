@@ -723,6 +723,11 @@ function VenditeTab({
   };
 
   const deleteVendita = async (venditaId: string) => {
+    // Conferma prima di eliminare
+    if (!window.confirm('Sei sicuro di voler eliminare questa vendita?')) {
+      return;
+    }
+
     setSaving(true);
     try {
       await api.delete(`/vendite/${venditaId}`);
