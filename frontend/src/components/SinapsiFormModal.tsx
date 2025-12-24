@@ -44,9 +44,6 @@ export default function SinapsiFormModal({
       : '')
   );
   const [tipoConnessione, setTipoConnessione] = useState(sinapsiDaModificare?.tipo_connessione || '');
-  const [direzione, setDirezione] = useState<'uscita' | 'entrata'>(
-    sinapsiDaModificare?.neurone_da === neuroneCorrente.id ? 'uscita' : 'entrata'
-  );
   const [dataInizio, setDataInizio] = useState(
     sinapsiDaModificare?.data_inizio || new Date().toISOString().split('T')[0]
   );
@@ -115,8 +112,8 @@ export default function SinapsiFormModal({
     setSaving(true);
     try {
       const sinapsiData = {
-        neurone_da: direzione === 'uscita' ? neuroneCorrente.id : neuroneCollegato,
-        neurone_a: direzione === 'uscita' ? neuroneCollegato : neuroneCorrente.id,
+        neurone_da: neuroneCorrente.id,
+        neurone_a: neuroneCollegato,
         tipo_connessione: tipoConnessione,
         famiglia_prodotto_id: famigliaProdottoId || null,
         data_inizio: dataInizio,
@@ -199,31 +196,8 @@ export default function SinapsiFormModal({
         <form onSubmit={handleSubmit}>
           {/* Neurone corrente */}
           <div style={{ marginBottom: '16px', padding: '12px', background: 'var(--bg-secondary)', borderRadius: '8px' }}>
-            <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Da/A</div>
+            <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Da</div>
             <div style={{ fontWeight: 500 }}>{neuroneCorrente.nome}</div>
-          </div>
-
-          {/* Direzione */}
-          <div className="form-group">
-            <label className="form-label">Direzione</label>
-            <div style={{ display: 'flex', gap: '8px' }}>
-              <button
-                type="button"
-                className={`btn ${direzione === 'uscita' ? 'btn-primary' : ''}`}
-                onClick={() => setDirezione('uscita')}
-                style={{ flex: 1 }}
-              >
-                {neuroneCorrente.nome} &rarr; ...
-              </button>
-              <button
-                type="button"
-                className={`btn ${direzione === 'entrata' ? 'btn-primary' : ''}`}
-                onClick={() => setDirezione('entrata')}
-                style={{ flex: 1 }}
-              >
-                ... &rarr; {neuroneCorrente.nome}
-              </button>
-            </div>
           </div>
 
           {/* Selezione entità collegata */}

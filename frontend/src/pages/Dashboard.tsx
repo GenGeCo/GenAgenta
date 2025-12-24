@@ -244,6 +244,11 @@ export default function Dashboard() {
               console.log('DEBUG onSelectNeurone:', neurone.nome, 'connectionPickingMode:', connectionPickingMode);
               // Se siamo in modalità picking connessione, usa il neurone come target
               if (connectionPickingMode) {
+                // Non permettere di selezionare se stesso
+                if (selectedNeurone && neurone.id === selectedNeurone.id) {
+                  console.log('DEBUG: Impossibile collegare a se stesso');
+                  return;
+                }
                 console.log('DEBUG: Impostando connectionTargetEntity:', neurone.nome);
                 setConnectionTargetEntity({
                   id: neurone.id,
