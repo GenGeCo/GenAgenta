@@ -443,7 +443,9 @@ function ConnessioniTab({
 
   // Apri automaticamente il form se c'è un'entità pre-selezionata dalla mappa
   useEffect(() => {
+    console.log('DEBUG ConnessioniTab preselectedEntity:', preselectedEntity);
     if (preselectedEntity) {
+      console.log('DEBUG: Aprendo form con preselectedEntity:', preselectedEntity.nome);
       setEditingSinapsi(undefined);
       setShowForm(true);
     }
