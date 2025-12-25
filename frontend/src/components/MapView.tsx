@@ -999,6 +999,11 @@ export default function MapView({
             valore: Number(s.valore) || 1,
             certezza: s.certezza,
             elevation: parabola.elevation, // array di altezze per line-z-offset
+            // Nomi entità per popup connessione
+            neurone_da_nome: neuroneDa?.nome || 'Sconosciuto',
+            neurone_a_nome: neuroneA?.nome || 'Sconosciuto',
+            neurone_da_tipo: neuroneDa?.tipo || '',
+            neurone_a_tipo: neuroneA?.tipo || '',
           },
           geometry: {
             type: 'LineString' as const,
@@ -1319,6 +1324,113 @@ export default function MapView({
               }
             }, 250);
           }
+        }
+      });
+
+      // Handler per le connessioni (sinapsi) - hover e click
+      m.on('mouseenter', 'sinapsi-lines', (e) => {
+        m.getCanvas().style.cursor = 'pointer';
+        if (e.features && e.features[0] && popup.current) {
+          const props = e.features[0].properties;
+          const tipo = props?.tipo || 'Connessione';
+          const certezza = props?.certezza || '';
+          const neuroneDA = props?.neurone_da_nome || '';
+          const neuroneA = props?.neurone_a_nome || '';
+
+          // Popup breve con tipo connessione
+          const tipoLabel = tipo.charAt(0).toUpperCase() + tipo.slice(1);
+          const certezzaColor = certezza === 'certo' ? '#22c55e' : certezza === 'probabile' ? '#eab308' : '#94a3b8';
+
+          popup.current.setOffset([0, -10]);
+          popup.current
+            .setLngLat(e.lngLat)
+            .setHTML(`
+              <div style="padding: 4px 8px;">
+                <strong style="font-size: 13px;">${tipoLabel}</strong>
+                <div style="font-size: 11px; color: #64748b; margin-top: 2px;">
+                  ${neuroneDA} → ${neuroneA}
+                </div>
+                ${certezza ? `<div style="font-size: 10px; color: ${certezzaColor}; margin-top: 2px;">● ${certezza}</div>` : ''}
+              </div>
+            `)
+            .addTo(m);
+        }
+      });
+
+      m.on('mouseleave', 'sinapsi-lines', () => {
+        m.getCanvas().style.cursor = '';
+        popup.current?.remove();
+      });
+
+      // Click su connessione - mostra popup dettagliato
+      m.on('click', 'sinapsi-lines', (e) => {
+        if (pickingModeRef.current || connectionPickingModeRef.current || quickMapModeRef.current) return;
+
+        if (e.features && e.features[0] && salesPopup.current) {
+          const props = e.features[0].properties;
+          const tipo = props?.tipo || 'Connessione';
+          const certezza = props?.certezza || '';
+          const valore = props?.valore || 0;
+          const neuroneDA = props?.neurone_da_nome || 'Sconosciuto';
+          const neuroneA = props?.neurone_a_nome || 'Sconosciuto';
+          const tipoDA = props?.neurone_da_tipo || '';
+          const tipoA = props?.neurone_a_tipo || '';
+
+          // Chiudi popup hover
+          popup.current?.remove();
+
+          // Label del tipo di connessione
+          const tipoLabel = tipo.charAt(0).toUpperCase() + tipo.slice(1);
+          const certezzaColor = certezza === 'certo' ? '#22c55e' : certezza === 'probabile' ? '#eab308' : '#94a3b8';
+          const certezzaLabel = certezza === 'certo' ? 'Certo' : certezza === 'probabile' ? 'Probabile' : 'Ipotetico';
+
+          // Icona in base al tipo di connessione
+          let tipoIcon = '🔗';
+          if (tipo.toLowerCase().includes('vendita') || tipo.toLowerCase().includes('acquisto')) {
+            tipoIcon = '💰';
+          } else if (tipo.toLowerCase().includes('collabora')) {
+            tipoIcon = '🤝';
+          } else if (tipo.toLowerCase().includes('influencer') || tipo.toLowerCase().includes('influenza')) {
+            tipoIcon = '⭐';
+          } else if (tipo.toLowerCase().includes('partner')) {
+            tipoIcon = '🤝';
+          } else if (tipo.toLowerCase().includes('forni')) {
+            tipoIcon = '📦';
+          } else if (tipo.toLowerCase().includes('client')) {
+            tipoIcon = '👤';
+          }
+
+          const popupHtml = `
+            <div style="padding: 10px; min-width: 200px;">
+              <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                <span style="font-size: 20px;">${tipoIcon}</span>
+                <span style="font-weight: 600; font-size: 15px;">${tipoLabel}</span>
+              </div>
+
+              <div style="background: #f8fafc; border-radius: 6px; padding: 8px; margin-bottom: 8px;">
+                <div style="font-size: 12px; color: #64748b; margin-bottom: 4px;">Da:</div>
+                <div style="font-weight: 500; font-size: 13px;">${neuroneDA}</div>
+                ${tipoDA ? `<div style="font-size: 11px; color: #94a3b8;">${tipoDA}</div>` : ''}
+
+                <div style="text-align: center; color: #94a3b8; margin: 6px 0;">↓</div>
+
+                <div style="font-size: 12px; color: #64748b; margin-bottom: 4px;">A:</div>
+                <div style="font-weight: 500; font-size: 13px;">${neuroneA}</div>
+                ${tipoA ? `<div style="font-size: 11px; color: #94a3b8;">${tipoA}</div>` : ''}
+              </div>
+
+              <div style="display: flex; justify-content: space-between; font-size: 11px;">
+                <span style="color: ${certezzaColor};">● ${certezzaLabel}</span>
+                ${valore > 0 ? `<span style="color: #64748b;">Valore: ${valore}</span>` : ''}
+              </div>
+            </div>
+          `;
+
+          salesPopup.current.setOffset([0, -10]);
+          salesPopup.current
+            .setLngLat(e.lngLat)
+            .setHTML(popupHtml)
+            .addTo(m);
         }
       });
 
