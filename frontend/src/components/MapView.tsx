@@ -1049,12 +1049,13 @@ export default function MapView({
                   const totaleVenduto = venditeRes.data.totale_venduto || 0;
                   const percentuale = potenziale > 0 ? Math.round((totaleVenduto / potenziale) * 100) : 0;
 
-                  // Genera HTML colonne prodotti
+                  // Genera HTML colonne prodotti (se ci sono vendite)
                   let colonneHtml = '';
-                  if (vendite.length > 0 && potenziale > 0) {
+                  if (vendite.length > 0) {
                     colonneHtml = '<div style="display: flex; align-items: flex-end; gap: 3px; height: 50px; margin: 8px 0;">';
+                    const maxImporto = potenziale > 0 ? potenziale : Math.max(...vendite.map(v => v.importo), 1);
                     vendite.forEach((v, i) => {
-                      const altezza = Math.max((v.importo / potenziale) * 100, 5);
+                      const altezza = Math.max((v.importo / maxImporto) * 100, 5);
                       const colore = coloriProdotti[i % coloriProdotti.length];
                       colonneHtml += `<div title="${v.famiglia_nome || 'Prodotto'}: €${v.importo.toLocaleString('it-IT')}" style="width: 20px; height: ${altezza}%; background: ${colore}; border-radius: 2px 2px 0 0;"></div>`;
                     });
@@ -1062,21 +1063,25 @@ export default function MapView({
                   }
 
                   // Genera HTML popup completo
+                  // Mostra dati vendite se ci sono vendite OPPURE se c'è un potenziale impostato
+                  const hasDatiVendite = totaleVenduto > 0 || potenziale > 0;
                   const popupHtml = `
                     <div style="padding: 8px; min-width: 220px;">
                       <div style="font-weight: 600; font-size: 14px; margin-bottom: 4px;">${neurone.nome}</div>
                       <div style="color: #64748b; font-size: 11px; margin-bottom: 8px;">${neurone.tipo} ${neurone.categorie?.length ? '• ' + neurone.categorie.join(', ') : ''}</div>
 
-                      ${potenziale > 0 ? `
+                      ${hasDatiVendite ? `
                         <div style="margin-bottom: 4px;">
                           <div style="display: flex; justify-content: space-between; font-size: 11px; color: #64748b;">
                             <span>Venduto: €${totaleVenduto.toLocaleString('it-IT')}</span>
-                            <span style="font-weight: 600; color: ${percentuale >= 100 ? '#22c55e' : '#1e293b'};">${percentuale}%</span>
+                            ${potenziale > 0 ? `<span style="font-weight: 600; color: ${percentuale >= 100 ? '#22c55e' : '#1e293b'};">${percentuale}%</span>` : ''}
                           </div>
-                          <div style="height: 6px; background: #e2e8f0; border-radius: 3px; margin-top: 2px;">
-                            <div style="height: 100%; width: ${Math.min(percentuale, 100)}%; background: ${percentuale >= 100 ? '#22c55e' : percentuale >= 50 ? '#eab308' : '#ef4444'}; border-radius: 3px;"></div>
-                          </div>
-                          <div style="font-size: 10px; color: #94a3b8; margin-top: 2px;">Potenziale: €${potenziale.toLocaleString('it-IT')}</div>
+                          ${potenziale > 0 ? `
+                            <div style="height: 6px; background: #e2e8f0; border-radius: 3px; margin-top: 2px;">
+                              <div style="height: 100%; width: ${Math.min(percentuale, 100)}%; background: ${percentuale >= 100 ? '#22c55e' : percentuale >= 50 ? '#eab308' : '#ef4444'}; border-radius: 3px;"></div>
+                            </div>
+                            <div style="font-size: 10px; color: #94a3b8; margin-top: 2px;">Potenziale: €${potenziale.toLocaleString('it-IT')}</div>
+                          ` : ''}
                         </div>
                         ${colonneHtml}
                       ` : `
