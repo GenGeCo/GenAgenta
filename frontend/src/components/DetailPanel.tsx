@@ -31,6 +31,9 @@ export default function DetailPanel({
   onClearConnectionTarget,
   onSinapsiCreated,
 }: DetailPanelProps) {
+  // Debug connectionTargetEntity
+  console.log('DEBUG DetailPanel render, connectionTargetEntity:', connectionTargetEntity);
+
   const [sinapsi, setSinapsi] = useState<Sinapsi[]>([]);
   const [note, setNote] = useState<NotaPersonale[]>([]);
   const [activeTab, setActiveTab] = useState<'info' | 'vendite' | 'connessioni' | 'note'>('info');

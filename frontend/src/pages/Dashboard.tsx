@@ -241,21 +241,25 @@ export default function Dashboard() {
             tipiNeurone={tipiNeurone}
             selectedId={selectedNeurone?.id || null}
             onSelectNeurone={(neurone) => {
-              console.log('DEBUG onSelectNeurone:', neurone.nome, 'connectionPickingMode:', connectionPickingMode);
+              console.log('DEBUG onSelectNeurone:', neurone.nome, 'connectionPickingMode:', connectionPickingMode, 'selectedNeurone:', selectedNeurone?.nome);
               // Se siamo in modalità picking connessione, usa il neurone come target
               if (connectionPickingMode) {
                 // Non permettere di selezionare se stesso
                 if (selectedNeurone && neurone.id === selectedNeurone.id) {
                   console.log('DEBUG: Impossibile collegare a se stesso');
+                  alert('Non puoi collegare un\'entità a se stessa!');
                   return;
                 }
-                console.log('DEBUG: Impostando connectionTargetEntity:', neurone.nome);
-                setConnectionTargetEntity({
+                console.log('DEBUG: Impostando connectionTargetEntity:', neurone.nome, neurone.id);
+                const target = {
                   id: neurone.id,
                   nome: neurone.nome,
                   tipo: neurone.tipo,
-                });
+                };
+                console.log('DEBUG: target object:', JSON.stringify(target));
+                setConnectionTargetEntity(target);
                 setConnectionPickingMode(false);
+                console.log('DEBUG: connectionPickingMode settato a false');
               } else {
                 handleSelectNeurone(neurone);
               }
