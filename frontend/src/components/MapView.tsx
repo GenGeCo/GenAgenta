@@ -657,7 +657,27 @@ export default function MapView({
     const m = map.current;
 
     // Filtra neuroni con coordinate
-    const neuroniConCoord = neuroni.filter((n) => n.lat && n.lng);
+    let neuroniConCoord = neuroni.filter((n) => n.lat && n.lng);
+
+    // Applica filtri se attivi
+    if (filtri.tipiSelezionati.length > 0) {
+      neuroniConCoord = neuroniConCoord.filter(n => filtri.tipiSelezionati.includes(n.tipo));
+    }
+    if (filtri.categorieSelezionate.length > 0) {
+      neuroniConCoord = neuroniConCoord.filter(n =>
+        n.categorie.some(cat =>
+          filtri.categorieSelezionate.some(fc => fc.toLowerCase() === cat.toLowerCase())
+        )
+      );
+    }
+    if (filtri.ricerca.trim()) {
+      const searchLower = filtri.ricerca.toLowerCase().trim();
+      neuroniConCoord = neuroniConCoord.filter(n =>
+        n.nome.toLowerCase().includes(searchLower) ||
+        n.indirizzo?.toLowerCase().includes(searchLower) ||
+        n.categorie.some(c => c.toLowerCase().includes(searchLower))
+      );
+    }
 
     // Rimuovi source e layer esistenti
     try {

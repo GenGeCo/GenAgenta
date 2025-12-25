@@ -99,6 +99,9 @@ export default function Dashboard() {
     centro: null,
     mostraConnessioni: true,
     soloConnessioniSelezionate: false,
+    tipiSelezionati: [], // Tutti i tipi se vuoto
+    categorieSelezionate: [], // Tutte le categorie se vuoto
+    ricerca: '',
   });
 
   // Controlla inviti pendenti al caricamento
@@ -243,6 +246,8 @@ export default function Dashboard() {
         loading={loading}
         onAddNeurone={() => setShowNeuroneForm(true)}
         onQuickMapMode={() => setQuickMapMode(true)}
+        tipiNeurone={tipiNeurone}
+        categorie={categorie}
       />
 
       {/* Main content */}

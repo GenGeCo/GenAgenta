@@ -103,6 +103,10 @@ export interface FiltriMappa {
   centro: { lat: number; lng: number } | null;
   mostraConnessioni: boolean;
   soloConnessioniSelezionate: boolean;
+  // Nuovi filtri
+  tipiSelezionati: string[]; // Array di nomi tipo selezionati
+  categorieSelezionate: string[]; // Array di nomi categoria selezionati
+  ricerca: string; // Testo di ricerca
 }
 
 export interface DashboardStats {

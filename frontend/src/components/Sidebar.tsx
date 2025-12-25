@@ -1,7 +1,7 @@
 // GenAgenTa - Sidebar Component
 
-import { useState, useRef, useEffect } from 'react';
-import type { Neurone, FiltriMappa } from '../types';
+import { useState, useRef, useEffect, useMemo } from 'react';
+import type { Neurone, FiltriMappa, TipoNeuroneConfig, Categoria } from '../types';
 
 interface SidebarProps {
   neuroni: Neurone[];
@@ -11,7 +11,9 @@ interface SidebarProps {
   onFiltriChange: (filtri: FiltriMappa) => void;
   loading: boolean;
   onAddNeurone?: () => void;
-  onQuickMapMode?: () => void; // Nuova prop per modalità mappa rapida
+  onQuickMapMode?: () => void;
+  tipiNeurone: TipoNeuroneConfig[];
+  categorie: Categoria[];
 }
 
 export default function Sidebar({
@@ -23,6 +25,8 @@ export default function Sidebar({
   loading,
   onAddNeurone,
   onQuickMapMode,
+  tipiNeurone,
+  categorie,
 }: SidebarProps) {
   const [showQuickMenu, setShowQuickMenu] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -40,12 +44,72 @@ export default function Sidebar({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [showQuickMenu]);
 
-  // Raggruppa per tipo
-  const neuroniPerTipo = {
-    persona: neuroni.filter((n) => n.tipo === 'persona'),
-    impresa: neuroni.filter((n) => n.tipo === 'impresa'),
-    luogo: neuroni.filter((n) => n.tipo === 'luogo'),
+  // Filtra neuroni in base ai filtri attivi
+  const neuroniFiltrati = useMemo(() => {
+    let result = neuroni;
+
+    // Filtro per tipi selezionati
+    if (filtri.tipiSelezionati.length > 0) {
+      result = result.filter(n => filtri.tipiSelezionati.includes(n.tipo));
+    }
+
+    // Filtro per categorie selezionate
+    if (filtri.categorieSelezionate.length > 0) {
+      result = result.filter(n =>
+        n.categorie.some(cat =>
+          filtri.categorieSelezionate.some(fc => fc.toLowerCase() === cat.toLowerCase())
+        )
+      );
+    }
+
+    // Filtro per ricerca
+    if (filtri.ricerca.trim()) {
+      const searchLower = filtri.ricerca.toLowerCase().trim();
+      result = result.filter(n =>
+        n.nome.toLowerCase().includes(searchLower) ||
+        n.indirizzo?.toLowerCase().includes(searchLower) ||
+        n.categorie.some(c => c.toLowerCase().includes(searchLower))
+      );
+    }
+
+    return result;
+  }, [neuroni, filtri.tipiSelezionati, filtri.categorieSelezionate, filtri.ricerca]);
+
+  // Raggruppa neuroni per tipo
+  const neuroniPerTipo = useMemo(() => {
+    const grouped: Record<string, Neurone[]> = {};
+    tipiNeurone.forEach(tipo => {
+      grouped[tipo.nome] = neuroniFiltrati.filter(n => n.tipo === tipo.nome);
+    });
+    return grouped;
+  }, [neuroniFiltrati, tipiNeurone]);
+
+  // Toggle tipo selezionato
+  const toggleTipo = (tipoNome: string) => {
+    const nuovi = filtri.tipiSelezionati.includes(tipoNome)
+      ? filtri.tipiSelezionati.filter(t => t !== tipoNome)
+      : [...filtri.tipiSelezionati, tipoNome];
+    onFiltriChange({ ...filtri, tipiSelezionati: nuovi });
   };
+
+  // Toggle categoria selezionata
+  const toggleCategoria = (catNome: string) => {
+    const nuovi = filtri.categorieSelezionate.includes(catNome)
+      ? filtri.categorieSelezionate.filter(c => c !== catNome)
+      : [...filtri.categorieSelezionate, catNome];
+    onFiltriChange({ ...filtri, categorieSelezionate: nuovi });
+  };
+
+  // Categorie filtrate per i tipi selezionati
+  const categorieVisibili = useMemo(() => {
+    if (filtri.tipiSelezionati.length === 0) {
+      return categorie;
+    }
+    const tipiIds = tipiNeurone
+      .filter(t => filtri.tipiSelezionati.includes(t.nome))
+      .map(t => t.id);
+    return categorie.filter(c => tipiIds.includes(c.tipo_id));
+  }, [categorie, filtri.tipiSelezionati, tipiNeurone]);
 
   return (
     <aside className="sidebar">
@@ -156,36 +220,88 @@ export default function Sidebar({
 
       {/* Filtri */}
       <div style={{ padding: '12px', borderBottom: '1px solid var(--border-color)' }}>
-        <div className="form-group" style={{ marginBottom: '8px' }}>
-          <label className="form-label" style={{ fontSize: '12px' }}>Tipo</label>
-          <select
-            className="form-input"
-            value={filtri.tipoNeurone || ''}
-            onChange={(e) => onFiltriChange({
-              ...filtri,
-              tipoNeurone: e.target.value as 'persona' | 'impresa' | 'luogo' || null,
-            })}
-            style={{ fontSize: '13px', padding: '6px 8px' }}
-          >
-            <option value="">Tutti</option>
-            <option value="persona">Persone</option>
-            <option value="impresa">Imprese</option>
-            <option value="luogo">Cantieri/Luoghi</option>
-          </select>
-        </div>
-
-        <div className="form-group" style={{ marginBottom: '8px' }}>
-          <label className="form-label" style={{ fontSize: '12px' }}>Cerca</label>
+        {/* Ricerca */}
+        <div className="form-group" style={{ marginBottom: '10px' }}>
           <input
             type="search"
             className="form-input"
-            placeholder="Nome, indirizzo..."
-            style={{ fontSize: '13px', padding: '6px 8px' }}
+            placeholder="Cerca nome, indirizzo..."
+            value={filtri.ricerca}
+            onChange={(e) => onFiltriChange({ ...filtri, ricerca: e.target.value })}
+            style={{ fontSize: '13px', padding: '8px 10px' }}
           />
         </div>
 
+        {/* Tipi con checkbox */}
+        {tipiNeurone.length > 0 && (
+          <div style={{ marginBottom: '10px' }}>
+            <label style={{ fontSize: '11px', color: 'var(--text-secondary)', marginBottom: '6px', display: 'block', fontWeight: 500 }}>
+              Tipi
+            </label>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+              {tipiNeurone.map((tipo) => {
+                const isSelected = filtri.tipiSelezionati.length === 0 || filtri.tipiSelezionati.includes(tipo.nome);
+                const count = neuroni.filter(n => n.tipo === tipo.nome).length;
+                return (
+                  <button
+                    key={tipo.id}
+                    onClick={() => toggleTipo(tipo.nome)}
+                    style={{
+                      padding: '4px 8px',
+                      fontSize: '11px',
+                      border: 'none',
+                      borderRadius: '6px',
+                      cursor: 'pointer',
+                      background: isSelected ? 'var(--primary)' : 'var(--bg-tertiary)',
+                      color: isSelected ? 'white' : 'var(--text-secondary)',
+                      opacity: isSelected ? 1 : 0.6,
+                      transition: 'all 0.15s ease',
+                    }}
+                  >
+                    {tipo.nome} ({count})
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* Categorie con checkbox colorati */}
+        {categorieVisibili.length > 0 && (
+          <div style={{ marginBottom: '10px' }}>
+            <label style={{ fontSize: '11px', color: 'var(--text-secondary)', marginBottom: '6px', display: 'block', fontWeight: 500 }}>
+              Categorie
+            </label>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+              {categorieVisibili.map((cat) => {
+                const isSelected = filtri.categorieSelezionate.length === 0 || filtri.categorieSelezionate.includes(cat.nome);
+                const count = neuroni.filter(n => n.categorie.some(c => c.toLowerCase() === cat.nome.toLowerCase())).length;
+                return (
+                  <button
+                    key={cat.id}
+                    onClick={() => toggleCategoria(cat.nome)}
+                    style={{
+                      padding: '4px 8px',
+                      fontSize: '11px',
+                      border: isSelected ? `2px solid ${cat.colore}` : '2px solid transparent',
+                      borderRadius: '6px',
+                      cursor: 'pointer',
+                      background: isSelected ? cat.colore : 'var(--bg-tertiary)',
+                      color: isSelected ? 'white' : 'var(--text-secondary)',
+                      opacity: isSelected ? 1 : 0.5,
+                      transition: 'all 0.15s ease',
+                    }}
+                  >
+                    {cat.nome} ({count})
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
         {/* Toggle connessioni */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginTop: '8px' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginTop: '8px', paddingTop: '8px', borderTop: '1px solid var(--border-color)' }}>
           <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', cursor: 'pointer' }}>
             <input
               type="checkbox"
@@ -219,37 +335,26 @@ export default function Sidebar({
           <p style={{ padding: '16px', color: 'var(--text-secondary)', textAlign: 'center' }}>
             Caricamento...
           </p>
+        ) : neuroniFiltrati.length === 0 ? (
+          <p style={{ padding: '16px', color: 'var(--text-secondary)', textAlign: 'center' }}>
+            Nessun risultato
+          </p>
         ) : (
           <>
-            {/* Cantieri */}
-            {neuroniPerTipo.luogo.length > 0 && (
-              <NeuroneGroup
-                titolo="Cantieri"
-                neuroni={neuroniPerTipo.luogo}
-                selectedId={selectedId}
-                onSelect={onSelect}
-              />
-            )}
-
-            {/* Imprese */}
-            {neuroniPerTipo.impresa.length > 0 && (
-              <NeuroneGroup
-                titolo="Imprese"
-                neuroni={neuroniPerTipo.impresa}
-                selectedId={selectedId}
-                onSelect={onSelect}
-              />
-            )}
-
-            {/* Persone */}
-            {neuroniPerTipo.persona.length > 0 && (
-              <NeuroneGroup
-                titolo="Persone"
-                neuroni={neuroniPerTipo.persona}
-                selectedId={selectedId}
-                onSelect={onSelect}
-              />
-            )}
+            {tipiNeurone.map((tipo) => {
+              const neuroniTipo = neuroniPerTipo[tipo.nome] || [];
+              if (neuroniTipo.length === 0) return null;
+              return (
+                <NeuroneGroup
+                  key={tipo.id}
+                  titolo={tipo.nome}
+                  neuroni={neuroniTipo}
+                  selectedId={selectedId}
+                  onSelect={onSelect}
+                  categorie={categorie}
+                />
+              );
+            })}
           </>
         )}
       </div>
@@ -261,7 +366,9 @@ export default function Sidebar({
         fontSize: '12px',
         color: 'var(--text-secondary)',
       }}>
-        {neuroni.length} neuroni caricati
+        {neuroniFiltrati.length === neuroni.length
+          ? `${neuroni.length} entità`
+          : `${neuroniFiltrati.length} di ${neuroni.length} entità`}
       </div>
     </aside>
   );
@@ -273,21 +380,29 @@ function NeuroneGroup({
   neuroni,
   selectedId,
   onSelect,
+  categorie,
 }: {
   titolo: string;
   neuroni: Neurone[];
   selectedId: string | null;
   onSelect: (neurone: Neurone) => void;
+  categorie: Categoria[];
 }) {
+  // Trova colore categoria
+  const getCategoriaColore = (catNome: string) => {
+    const cat = categorie.find(c => c.nome.toLowerCase() === catNome.toLowerCase());
+    return cat?.colore || '#6b7280';
+  };
+
   return (
-    <div style={{ marginBottom: '16px' }}>
+    <div style={{ marginBottom: '8px' }}>
       <h3 style={{
         fontSize: '11px',
         fontWeight: 600,
         textTransform: 'uppercase',
         letterSpacing: '0.5px',
         color: 'var(--text-secondary)',
-        padding: '8px 12px',
+        padding: '8px 12px 4px',
       }}>
         {titolo} ({neuroni.length})
       </h3>
@@ -306,15 +421,29 @@ function NeuroneGroup({
               </span>
             )}
           </div>
-          <div className="neurone-item-meta">
-            {neurone.categorie.slice(0, 2).join(', ')}
-            {neurone.indirizzo && ` • ${neurone.indirizzo.split(',')[0]}`}
+          <div className="neurone-item-meta" style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+            {neurone.categorie.slice(0, 2).map((cat, i) => (
+              <span
+                key={i}
+                style={{
+                  display: 'inline-block',
+                  width: '8px',
+                  height: '8px',
+                  borderRadius: '50%',
+                  background: getCategoriaColore(cat),
+                }}
+                title={cat}
+              />
+            ))}
+            <span style={{ marginLeft: '2px' }}>
+              {neurone.categorie.slice(0, 2).join(', ')}
+            </span>
           </div>
         </div>
       ))}
 
       {neuroni.length > 50 && (
-        <p style={{ padding: '8px 12px', fontSize: '12px', color: 'var(--text-secondary)' }}>
+        <p style={{ padding: '4px 12px', fontSize: '11px', color: 'var(--text-secondary)' }}>
           +{neuroni.length - 50} altri...
         </p>
       )}
