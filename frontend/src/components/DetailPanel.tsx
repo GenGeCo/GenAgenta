@@ -1280,38 +1280,47 @@ function NuovaVenditaForm({
           </select>
         </div>
 
-        {/* Controparte (opzionale) */}
-        {controparti.length > 0 && (
-          <div>
-            <label style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '4px', display: 'block' }}>
-              {getEtichettaTipo()} (opzionale - crea transazione bilaterale)
-            </label>
-            <select
-              className="form-input"
-              value={controparteId}
-              onChange={(e) => setControparteId(e.target.value)}
-            >
-              <option value="">-- Nessuna controparte --</option>
-              {controparti.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.nome}
-                </option>
-              ))}
-            </select>
-            {controparteId && (
-              <div style={{
-                marginTop: '6px',
-                padding: '8px',
-                background: tipoTransazione === 'acquisto' ? 'rgba(59, 130, 246, 0.1)' : 'rgba(34, 197, 94, 0.1)',
-                borderRadius: '4px',
-                fontSize: '11px',
-                color: tipoTransazione === 'acquisto' ? '#3b82f6' : '#22c55e',
-              }}>
-                💡 La transazione verrà registrata automaticamente anche su "{controparti.find(c => c.id === controparteId)?.nome}" come {tipoTransazione === 'acquisto' ? 'vendita' : 'acquisto'}
-              </div>
-            )}
-          </div>
-        )}
+        {/* Controparte */}
+        <div>
+          <label style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '4px', display: 'block' }}>
+            {getEtichettaTipo()}
+          </label>
+          <select
+            className="form-input"
+            value={controparteId}
+            onChange={(e) => setControparteId(e.target.value)}
+          >
+            <option value="">👤 Cliente generico/occasionale</option>
+            {controparti.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.nome}
+              </option>
+            ))}
+          </select>
+          {controparteId ? (
+            <div style={{
+              marginTop: '6px',
+              padding: '8px',
+              background: tipoTransazione === 'acquisto' ? 'rgba(59, 130, 246, 0.1)' : 'rgba(34, 197, 94, 0.1)',
+              borderRadius: '4px',
+              fontSize: '11px',
+              color: tipoTransazione === 'acquisto' ? '#3b82f6' : '#22c55e',
+            }}>
+              🔗 Transazione bilaterale: verrà registrata anche su "{controparti.find(c => c.id === controparteId)?.nome}"
+            </div>
+          ) : (
+            <div style={{
+              marginTop: '6px',
+              padding: '8px',
+              background: 'rgba(156, 163, 175, 0.1)',
+              borderRadius: '4px',
+              fontSize: '11px',
+              color: '#6b7280',
+            }}>
+              💡 Per tracciare chi compra/vende, prima crea una connessione con l'entità
+            </div>
+          )}
+        </div>
 
         {/* Importo e Data */}
         <div style={{ display: 'flex', gap: '12px' }}>
@@ -1347,7 +1356,7 @@ function NuovaVenditaForm({
           className="btn btn-primary"
           style={{ marginTop: '8px' }}
         >
-          {saving ? 'Salvataggio...' : controparteId ? 'Salva transazione bilaterale' : 'Aggiungi transazione'}
+          {saving ? 'Salvataggio...' : controparteId ? 'Salva (bilaterale)' : 'Salva (cliente generico)'}
         </button>
       </div>
     </div>
