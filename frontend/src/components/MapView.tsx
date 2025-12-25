@@ -1245,66 +1245,63 @@ export default function MapView({
     <div style={{ position: 'relative', width: '100%', height: '100%' }}>
       <div ref={mapContainer} style={{ width: '100%', height: '100%' }} />
 
-      {/* Legenda collapsabile - header in basso, contenuto si espande verso l'alto */}
-      {categorie.length > 0 && (
+      {/* Legenda: contenuto che appare SOPRA il bottone */}
+      {categorie.length > 0 && showLegend && (
         <div style={{
           position: 'absolute',
-          bottom: '30px',
+          bottom: '66px', // Sopra il bottone (30px + 36px altezza bottone)
           left: '10px',
           background: 'white',
           borderRadius: '8px',
           boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
           fontSize: '12px',
           zIndex: 10,
-          display: 'flex',
-          flexDirection: 'column',
+          padding: '10px 12px',
+          maxHeight: '180px',
+          overflowY: 'auto',
         }}>
-          {/* Contenuto che appare SOPRA l'header */}
-          {showLegend && (
-            <div style={{
-              padding: '8px 12px',
-              paddingBottom: '0',
-              maxHeight: '180px',
-              overflowY: 'auto',
-              borderBottom: '1px solid #e2e8f0',
-            }}>
-              <div style={{ paddingBottom: '8px' }}>
-                {categorie.slice(0, 10).map((cat) => (
-                  <div key={cat.id} style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
-                    <div style={{ width: 10, height: 10, borderRadius: '3px', background: cat.colore, flexShrink: 0 }} />
-                    <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '90px', fontSize: '11px', color: '#334155' }}>{cat.nome}</span>
-                  </div>
-                ))}
-                {categorie.length > 10 && (
-                  <div style={{ fontSize: '10px', color: '#64748b' }}>+{categorie.length - 10} altre...</div>
-                )}
-                <div style={{ fontSize: '9px', color: '#64748b', borderTop: '1px solid #e2e8f0', paddingTop: '6px', marginTop: '4px' }}>
-                  Altezza = valore/relazioni
-                </div>
-              </div>
+          {categorie.slice(0, 10).map((cat) => (
+            <div key={cat.id} style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+              <div style={{ width: 10, height: 10, borderRadius: '3px', background: cat.colore, flexShrink: 0 }} />
+              <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '90px', fontSize: '11px', color: '#334155' }}>{cat.nome}</span>
             </div>
+          ))}
+          {categorie.length > 10 && (
+            <div style={{ fontSize: '10px', color: '#64748b' }}>+{categorie.length - 10} altre...</div>
           )}
-          {/* Header sempre in basso - cliccabile per toggle */}
-          <div
-            onClick={() => setShowLegend(!showLegend)}
-            style={{
-              padding: '8px 12px',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              gap: '12px',
-              userSelect: 'none',
-            }}
-          >
-            <span style={{ fontWeight: 600, fontSize: '11px', color: '#1e293b' }}>Legenda</span>
-            <span style={{
-              fontSize: '8px',
-              color: '#64748b',
-              transform: showLegend ? 'rotate(180deg)' : 'none',
-              transition: 'transform 0.2s ease',
-            }}>▲</span>
+          <div style={{ fontSize: '9px', color: '#64748b', borderTop: '1px solid #e2e8f0', paddingTop: '6px', marginTop: '4px' }}>
+            Altezza = valore/relazioni
           </div>
+        </div>
+      )}
+
+      {/* Bottone Legenda - SEMPRE fisso in basso */}
+      {categorie.length > 0 && (
+        <div
+          onClick={() => setShowLegend(!showLegend)}
+          style={{
+            position: 'absolute',
+            bottom: '30px',
+            left: '10px',
+            background: 'white',
+            borderRadius: '8px',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+            padding: '8px 12px',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            userSelect: 'none',
+            zIndex: 10,
+          }}
+        >
+          <span style={{ fontWeight: 600, fontSize: '11px', color: '#1e293b' }}>Legenda</span>
+          <span style={{
+            fontSize: '8px',
+            color: '#64748b',
+            transform: showLegend ? 'rotate(180deg)' : 'none',
+            transition: 'transform 0.2s ease',
+          }}>▲</span>
         </div>
       )}
 
