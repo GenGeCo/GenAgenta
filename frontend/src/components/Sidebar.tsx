@@ -3,6 +3,167 @@
 import { useState, useRef, useEffect, useMemo } from 'react';
 import type { Neurone, FiltriMappa, TipoNeuroneConfig, Categoria } from '../types';
 
+// Componente Dropdown Multi-Select compatto
+interface DropdownOption {
+  id: string;
+  label: string;
+  count: number;
+  colore?: string;
+}
+
+function MultiSelectDropdown({
+  label,
+  options,
+  selected,
+  onToggle,
+  placeholder,
+}: {
+  label: string;
+  options: DropdownOption[];
+  selected: string[];
+  onToggle: (id: string) => void;
+  placeholder?: string;
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+    if (isOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [isOpen]);
+
+  const selectedCount = selected.length;
+  const buttonLabel = selectedCount === 0
+    ? (placeholder || label)
+    : selectedCount === options.length
+      ? 'Tutti'
+      : `${selectedCount} ${label.toLowerCase()}`;
+
+  return (
+    <div ref={ref} style={{ position: 'relative', flex: 1 }}>
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        style={{
+          width: '100%',
+          padding: '6px 10px',
+          fontSize: '12px',
+          border: '1px solid var(--border-color)',
+          borderRadius: '6px',
+          background: selectedCount > 0 ? 'var(--primary)' : 'var(--bg-secondary)',
+          color: selectedCount > 0 ? 'white' : 'var(--text-primary)',
+          cursor: 'pointer',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: '4px',
+        }}
+      >
+        <span style={{
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+          whiteSpace: 'nowrap'
+        }}>
+          {buttonLabel}
+        </span>
+        <span style={{
+          fontSize: '10px',
+          transform: isOpen ? 'rotate(180deg)' : 'none',
+          transition: 'transform 0.15s ease',
+        }}>
+          ▼
+        </span>
+      </button>
+
+      {isOpen && (
+        <div style={{
+          position: 'absolute',
+          top: '100%',
+          left: 0,
+          right: 0,
+          marginTop: '4px',
+          background: 'white',
+          border: '1px solid var(--border-color)',
+          borderRadius: '8px',
+          boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+          zIndex: 100,
+          maxHeight: '200px',
+          overflowY: 'auto',
+        }}>
+          {options.map((opt) => {
+            const isSelected = selected.includes(opt.id);
+            return (
+              <label
+                key={opt.id}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  padding: '8px 10px',
+                  cursor: 'pointer',
+                  borderBottom: '1px solid var(--border-color)',
+                  background: isSelected ? 'var(--bg-tertiary)' : 'transparent',
+                }}
+                onMouseEnter={(e) => {
+                  if (!isSelected) e.currentTarget.style.background = 'var(--bg-secondary)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = isSelected ? 'var(--bg-tertiary)' : 'transparent';
+                }}
+              >
+                <input
+                  type="checkbox"
+                  checked={isSelected}
+                  onChange={() => onToggle(opt.id)}
+                  style={{ accentColor: opt.colore || 'var(--primary)' }}
+                />
+                {opt.colore && (
+                  <span style={{
+                    width: '10px',
+                    height: '10px',
+                    borderRadius: '50%',
+                    background: opt.colore,
+                    flexShrink: 0,
+                  }} />
+                )}
+                <span style={{
+                  flex: 1,
+                  fontSize: '12px',
+                  color: 'var(--text-primary)',
+                }}>
+                  {opt.label}
+                </span>
+                <span style={{
+                  fontSize: '11px',
+                  color: 'var(--text-secondary)',
+                }}>
+                  {opt.count}
+                </span>
+              </label>
+            );
+          })}
+          {options.length === 0 && (
+            <div style={{
+              padding: '12px',
+              fontSize: '12px',
+              color: 'var(--text-secondary)',
+              textAlign: 'center',
+            }}>
+              Nessuna opzione
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 interface SidebarProps {
   neuroni: Neurone[];
   selectedId: string | null;
@@ -218,113 +379,71 @@ export default function Sidebar({
         </div>
       </div>
 
-      {/* Filtri */}
-      <div style={{ padding: '12px', borderBottom: '1px solid var(--border-color)' }}>
+      {/* Filtri compatti */}
+      <div style={{ padding: '10px 12px', borderBottom: '1px solid var(--border-color)' }}>
         {/* Ricerca */}
-        <div className="form-group" style={{ marginBottom: '10px' }}>
-          <input
-            type="search"
-            className="form-input"
-            placeholder="Cerca nome, indirizzo..."
-            value={filtri.ricerca}
-            onChange={(e) => onFiltriChange({ ...filtri, ricerca: e.target.value })}
-            style={{ fontSize: '13px', padding: '8px 10px' }}
+        <input
+          type="search"
+          className="form-input"
+          placeholder="Cerca..."
+          value={filtri.ricerca}
+          onChange={(e) => onFiltriChange({ ...filtri, ricerca: e.target.value })}
+          style={{ fontSize: '12px', padding: '6px 10px', marginBottom: '8px' }}
+        />
+
+        {/* Dropdown Tipi e Categorie affiancati */}
+        <div style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
+          <MultiSelectDropdown
+            label="Tipi"
+            placeholder="Tutti i tipi"
+            options={tipiNeurone.map(t => ({
+              id: t.nome,
+              label: t.nome,
+              count: neuroni.filter(n => n.tipo === t.nome).length,
+            }))}
+            selected={filtri.tipiSelezionati}
+            onToggle={toggleTipo}
+          />
+          <MultiSelectDropdown
+            label="Categorie"
+            placeholder="Tutte"
+            options={categorieVisibili.map(c => ({
+              id: c.nome,
+              label: c.nome,
+              count: neuroni.filter(n => n.categorie.some(cat => cat.toLowerCase() === c.nome.toLowerCase())).length,
+              colore: c.colore,
+            }))}
+            selected={filtri.categorieSelezionate}
+            onToggle={toggleCategoria}
           />
         </div>
 
-        {/* Tipi con checkbox */}
-        {tipiNeurone.length > 0 && (
-          <div style={{ marginBottom: '10px' }}>
-            <label style={{ fontSize: '11px', color: 'var(--text-secondary)', marginBottom: '6px', display: 'block', fontWeight: 500 }}>
-              Tipi
-            </label>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
-              {tipiNeurone.map((tipo) => {
-                const isSelected = filtri.tipiSelezionati.length === 0 || filtri.tipiSelezionati.includes(tipo.nome);
-                const count = neuroni.filter(n => n.tipo === tipo.nome).length;
-                return (
-                  <button
-                    key={tipo.id}
-                    onClick={() => toggleTipo(tipo.nome)}
-                    style={{
-                      padding: '4px 8px',
-                      fontSize: '11px',
-                      border: 'none',
-                      borderRadius: '6px',
-                      cursor: 'pointer',
-                      background: isSelected ? 'var(--primary)' : 'var(--bg-tertiary)',
-                      color: isSelected ? 'white' : 'var(--text-secondary)',
-                      opacity: isSelected ? 1 : 0.6,
-                      transition: 'all 0.15s ease',
-                    }}
-                  >
-                    {tipo.nome} ({count})
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        )}
-
-        {/* Categorie con checkbox colorati */}
-        {categorieVisibili.length > 0 && (
-          <div style={{ marginBottom: '10px' }}>
-            <label style={{ fontSize: '11px', color: 'var(--text-secondary)', marginBottom: '6px', display: 'block', fontWeight: 500 }}>
-              Categorie
-            </label>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
-              {categorieVisibili.map((cat) => {
-                const isSelected = filtri.categorieSelezionate.length === 0 || filtri.categorieSelezionate.includes(cat.nome);
-                const count = neuroni.filter(n => n.categorie.some(c => c.toLowerCase() === cat.nome.toLowerCase())).length;
-                return (
-                  <button
-                    key={cat.id}
-                    onClick={() => toggleCategoria(cat.nome)}
-                    style={{
-                      padding: '4px 8px',
-                      fontSize: '11px',
-                      border: isSelected ? `2px solid ${cat.colore}` : '2px solid transparent',
-                      borderRadius: '6px',
-                      cursor: 'pointer',
-                      background: isSelected ? cat.colore : 'var(--bg-tertiary)',
-                      color: isSelected ? 'white' : 'var(--text-secondary)',
-                      opacity: isSelected ? 1 : 0.5,
-                      transition: 'all 0.15s ease',
-                    }}
-                  >
-                    {cat.nome} ({count})
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        )}
-
-        {/* Toggle connessioni */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginTop: '8px', paddingTop: '8px', borderTop: '1px solid var(--border-color)' }}>
-          <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', cursor: 'pointer' }}>
+        {/* Toggle connessioni compatti */}
+        <div style={{ display: 'flex', gap: '12px', fontSize: '11px' }}>
+          <label style={{ display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer' }}>
             <input
               type="checkbox"
               checked={filtri.mostraConnessioni}
               onChange={(e) => onFiltriChange({ ...filtri, mostraConnessioni: e.target.checked })}
+              style={{ width: '14px', height: '14px' }}
             />
-            Mostra connessioni
+            Connessioni
           </label>
           <label style={{
             display: 'flex',
             alignItems: 'center',
-            gap: '8px',
-            fontSize: '12px',
+            gap: '4px',
             cursor: 'pointer',
-            opacity: filtri.mostraConnessioni ? 1 : 0.5,
+            opacity: filtri.mostraConnessioni ? 1 : 0.4,
           }}>
             <input
               type="checkbox"
               checked={filtri.soloConnessioniSelezionate}
               onChange={(e) => onFiltriChange({ ...filtri, soloConnessioniSelezionate: e.target.checked })}
               disabled={!filtri.mostraConnessioni}
+              style={{ width: '14px', height: '14px' }}
             />
-            Solo del selezionato
+            Solo selezionato
           </label>
         </div>
       </div>
