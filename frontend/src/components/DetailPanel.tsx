@@ -470,6 +470,20 @@ function ConnessioniTab({
     setShowForm(true);
   };
 
+  const handleDeleteClick = async (s: Sinapsi, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!window.confirm(`Eliminare la connessione con "${s.neurone_da === neurone.id ? s.nome_a : s.nome_da}"?`)) {
+      return;
+    }
+    try {
+      await api.deleteSinapsi(s.id);
+      onSinapsiChange();
+    } catch (error) {
+      console.error('Errore eliminazione sinapsi:', error);
+      alert('Errore durante l\'eliminazione');
+    }
+  };
+
   // Icona certezza
   const getCertezzaIcon = (certezza: string) => {
     switch (certezza) {
@@ -550,6 +564,20 @@ function ConnessioniTab({
                     title="Modifica"
                   >
                     ✏️
+                  </button>
+                  <button
+                    onClick={(e) => handleDeleteClick(s, e)}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      cursor: 'pointer',
+                      fontSize: '14px',
+                      opacity: 0.6,
+                      color: '#ef4444',
+                    }}
+                    title="Elimina"
+                  >
+                    🗑️
                   </button>
                 </div>
               </div>
