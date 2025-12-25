@@ -610,6 +610,7 @@ export default function Dashboard() {
             <DetailPanel
               neurone={selectedNeurone}
               personalAccess={personalAccess}
+              categorie={categorie}
               onClose={() => {
                 setSelectedNeurone(null);
                 setConnectionPickingMode(false);

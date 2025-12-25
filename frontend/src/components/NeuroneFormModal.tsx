@@ -59,6 +59,9 @@ export default function NeuroneFormModal({
   // Form state
   const [tipoId, setTipoId] = useState<string>('');
   const [categoriaId, setCategoriaId] = useState<string>('');
+  // Valori originali per modifica (per avviso cambio tipo/categoria)
+  const [tipoIdOriginale, setTipoIdOriginale] = useState<string>('');
+  const [categoriaIdOriginale, setCategoriaIdOriginale] = useState<string>('');
   const [nome, setNome] = useState(neurone?.nome || '');
   const [indirizzo, setIndirizzo] = useState(neurone?.indirizzo || '');
   const [telefono, setTelefono] = useState(neurone?.telefono || '');
@@ -126,6 +129,7 @@ export default function NeuroneFormModal({
         );
         if (tipoMatch) {
           setTipoId(tipoMatch.id);
+          setTipoIdOriginale(tipoMatch.id); // Salva originale per avviso modifica
           // Cerca la tipologia
           const catMatch = categorieMapped.find((c: Categoria) =>
             c.tipo_id === tipoMatch.id &&
@@ -133,6 +137,7 @@ export default function NeuroneFormModal({
           );
           if (catMatch) {
             setCategoriaId(catMatch.id);
+            setCategoriaIdOriginale(catMatch.id); // Salva originale per avviso modifica
           }
         }
       } else if (tipiMapped.length > 0) {
@@ -179,6 +184,34 @@ export default function NeuroneFormModal({
   // Aggiorna un valore campo personalizzato
   const updateValoreCampo = (nomeCampo: string, valore: string) => {
     setValoriCampi(prev => ({ ...prev, [nomeCampo]: valore }));
+  };
+
+  // Handler per cambio tipo con conferma (solo in modifica)
+  const handleTipoChange = (nuovoTipoId: string) => {
+    // Se non siamo in modifica o è lo stesso tipo, cambia direttamente
+    if (!isEdit || nuovoTipoId === tipoIdOriginale) {
+      setTipoId(nuovoTipoId);
+      setCategoriaId('');
+      return;
+    }
+    // In modifica con tipo diverso: chiedi conferma
+    if (window.confirm('Attenzione: stai cambiando il tipo dell\'entità. Questo potrebbe influenzare la visualizzazione sulla mappa e i campi personalizzati. Vuoi procedere?')) {
+      setTipoId(nuovoTipoId);
+      setCategoriaId('');
+    }
+  };
+
+  // Handler per cambio categoria con conferma (solo in modifica)
+  const handleCategoriaChange = (nuovaCategoriaId: string) => {
+    // Se non siamo in modifica o è la stessa categoria, cambia direttamente
+    if (!isEdit || nuovaCategoriaId === categoriaIdOriginale) {
+      setCategoriaId(nuovaCategoriaId);
+      return;
+    }
+    // In modifica con categoria diversa: chiedi conferma
+    if (window.confirm('Attenzione: stai cambiando la categoria dell\'entità. Questo potrebbe influenzare il colore e il raggruppamento. Vuoi procedere?')) {
+      setCategoriaId(nuovaCategoriaId);
+    }
   };
 
   // Rileva resize
@@ -559,7 +592,7 @@ export default function NeuroneFormModal({
                       <button
                         key={t.id}
                         type="button"
-                        onClick={() => { setTipoId(t.id); setCategoriaId(''); }}
+                        onClick={() => handleTipoChange(t.id)}
                         style={{
                           padding: '6px 10px',
                           border: 'none',
@@ -592,7 +625,7 @@ export default function NeuroneFormModal({
                           <button
                             key={cat.id}
                             type="button"
-                            onClick={() => setCategoriaId(cat.id)}
+                            onClick={() => handleCategoriaChange(cat.id)}
                             style={{
                               padding: '4px 8px',
                               borderRadius: '8px',
@@ -745,7 +778,7 @@ export default function NeuroneFormModal({
                     <button
                       key={t.id}
                       type="button"
-                      onClick={() => { setTipoId(t.id); setCategoriaId(''); }}
+                      onClick={() => handleTipoChange(t.id)}
                       style={{
                         padding: '10px 16px',
                         border: 'none',
@@ -780,7 +813,7 @@ export default function NeuroneFormModal({
                         <button
                           key={cat.id}
                           type="button"
-                          onClick={() => setCategoriaId(cat.id)}
+                          onClick={() => handleCategoriaChange(cat.id)}
                           style={{
                             padding: '8px 14px',
                             borderRadius: '10px',

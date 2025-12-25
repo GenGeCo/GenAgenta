@@ -338,6 +338,8 @@ export default function MapView({
   const quickMapModeRef = useRef(quickMapMode);
   const onQuickMapClickRef = useRef(onQuickMapClick);
   const onQuickEntityClickRef = useRef(onQuickEntityClick);
+  // Ref per selectedId (per cambiare panel al click su altra entità)
+  const selectedIdRef = useRef(selectedId);
 
   // Colori default per le famiglie prodotto nel popup
   const coloriProdotti = ['#ef4444', '#f97316', '#eab308', '#22c55e', '#14b8a6', '#3b82f6', '#8b5cf6', '#ec4899'];
@@ -351,6 +353,10 @@ export default function MapView({
   useEffect(() => {
     onSelectNeuroneRef.current = onSelectNeurone;
   }, [onSelectNeurone]);
+
+  useEffect(() => {
+    selectedIdRef.current = selectedId;
+  }, [selectedId]);
 
   // Aggiorna refs per connection picking
   useEffect(() => {
@@ -1024,7 +1030,16 @@ export default function MapView({
           } else {
             clickTimeout = setTimeout(async () => {
               clickTimeout = null;
-              // È un click singolo - mostra popup vendite
+              // È un click singolo
+              // Se il DetailPanel è già aperto (selectedId è impostato) e si clicca su un altro edificio,
+              // cambia direttamente il panel senza mostrare il popup
+              if (neurone && selectedIdRef.current && neurone.id !== selectedIdRef.current) {
+                salesPopup.current?.remove();
+                onSelectNeuroneRef.current(neurone);
+                return;
+              }
+
+              // Mostra popup vendite
               if (neurone && neurone.lat && neurone.lng && salesPopup.current) {
                 // Chiudi popup hover
                 popup.current?.remove();
