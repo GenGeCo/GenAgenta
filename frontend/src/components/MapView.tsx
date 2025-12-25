@@ -346,6 +346,20 @@ export default function MapView({
   const quickMapModeRef = useRef(quickMapMode);
   const onQuickMapClickRef = useRef(onQuickMapClick);
   const onQuickEntityClickRef = useRef(onQuickEntityClick);
+  // Ref per sinapsi 3D (per hit detection su parabola)
+  const sinapsi3DRef = useRef<Array<{
+    id: string;
+    tipo: string;
+    certezza: string;
+    valore: number;
+    neurone_da_nome: string;
+    neurone_a_nome: string;
+    neurone_da_tipo: string;
+    neurone_a_tipo: string;
+    coordinates: number[][]; // [lng, lat]
+    elevations: number[]; // altezze in metri
+  }>>([]);
+  const sinapsiHoverRef = useRef<string | null>(null); // ID sinapsi in hover
   // Ref per selectedId (per cambiare panel al click su altra entità)
   const selectedIdRef = useRef(selectedId);
   // Ref per onFocusNeurone (per tracciare edificio cliccato)
@@ -420,7 +434,7 @@ export default function MapView({
     const opacity = mapOpacity / 100;
 
     // I nostri layer custom da NON toccare
-    const customLayers = ['neuroni-3d', 'neuroni-borders', 'venduto-rings', 'sinapsi-lines', 'sinapsi-lines-shadow', 'sinapsi-hit'];
+    const customLayers = ['neuroni-3d', 'neuroni-borders', 'venduto-rings', 'sinapsi-lines', 'sinapsi-lines-shadow'];
 
     // Applica opacità a tutti i layer della mappa base
     style.layers.forEach(layer => {
@@ -760,7 +774,6 @@ export default function MapView({
       if (m.getSource('venduto-rings')) m.removeSource('venduto-rings');
       if (m.getLayer('sinapsi-lines')) m.removeLayer('sinapsi-lines');
       if (m.getLayer('sinapsi-lines-shadow')) m.removeLayer('sinapsi-lines-shadow');
-      if (m.getLayer('sinapsi-hit')) m.removeLayer('sinapsi-hit');
       if (m.getSource('sinapsi')) m.removeSource('sinapsi');
     } catch {
       // Layer non esistenti, ignora
@@ -1010,8 +1023,25 @@ export default function MapView({
             type: 'LineString' as const,
             coordinates: parabola.coordinates,
           },
+          // Dati extra per hit detection 3D (non standard GeoJSON ma utili)
+          _sinapsi3D: {
+            id: s.id,
+            tipo: s.tipo_connessione,
+            certezza: s.certezza || '',
+            valore: Number(s.valore) || 0,
+            neurone_da_nome: neuroneDa?.nome || 'Sconosciuto',
+            neurone_a_nome: neuroneA?.nome || 'Sconosciuto',
+            neurone_da_tipo: neuroneDa?.tipo || '',
+            neurone_a_tipo: neuroneA?.tipo || '',
+            coordinates: parabola.coordinates,
+            elevations: parabola.elevation,
+          },
         };
       });
+
+      // Salva dati 3D per hit detection CPU-based
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      sinapsi3DRef.current = sinapsiFeatures.map((f: any) => f._sinapsi3D);
 
       m.addSource('sinapsi', {
         type: 'geojson',
@@ -1074,28 +1104,9 @@ export default function MapView({
         },
       });
 
-      // Layer hit invisibile - segue la parabola ma più largo per catturare click
-      m.addLayer({
-        id: 'sinapsi-hit',
-        type: 'line',
-        source: 'sinapsi',
-        layout: {
-          'line-z-offset': [
-            'interpolate',
-            ['linear'],
-            ['line-progress'],
-            ...Array.from({ length: 16 }, (_, i) => {
-              const t = i / 15;
-              return [t, 4 * 60 * t * (1 - t)]; // stessa parabola
-            }).flat()
-          ],
-        },
-        paint: {
-          'line-color': '#ff0000',
-          'line-width': 25, // molto più largo per hit detection
-          'line-opacity': 0, // invisibile
-        },
-      });
+    } else {
+      // Nessuna sinapsi visibile - reset dati per hit detection
+      sinapsi3DRef.current = [];
     }
 
     // Event handlers (solo una volta)
@@ -1351,77 +1362,123 @@ export default function MapView({
         }
       });
 
-      // Handler per le connessioni (sinapsi) - hover e click
-      // Usa layer 'sinapsi-hit' che è più largo e facile da colpire
-      m.on('mouseenter', 'sinapsi-hit', (e) => {
-        m.getCanvas().style.cursor = 'pointer';
-        if (e.features && e.features[0] && popup.current) {
-          const props = e.features[0].properties;
-          const tipo = props?.tipo || 'Connessione';
-          const certezza = props?.certezza || '';
-          const neuroneDA = props?.neurone_da_nome || '';
-          const neuroneA = props?.neurone_a_nome || '';
+      // Handler per le connessioni (sinapsi) - calcolo CPU su mousemove
+      // Proietta punti parabola 3D in coordinate schermo e calcola distanza dal mouse
+      const HIT_THRESHOLD = 25; // pixel di distanza per considerare hover
 
-          // Popup breve con tipo connessione
-          const tipoLabel = tipo.charAt(0).toUpperCase() + tipo.slice(1);
-          const certezzaColor = certezza === 'certo' ? '#22c55e' : certezza === 'probabile' ? '#eab308' : '#94a3b8';
+      // Funzione per trovare sinapsi vicina al mouse
+      const findNearestSinapsi = (mouseX: number, mouseY: number) => {
+        if (sinapsi3DRef.current.length === 0) return null;
 
-          popup.current.setOffset([0, -10]);
-          popup.current
-            .setLngLat(e.lngLat)
-            .setHTML(`
-              <div style="padding: 4px 8px;">
-                <strong style="font-size: 13px;">${tipoLabel}</strong>
-                <div style="font-size: 11px; color: #64748b; margin-top: 2px;">
-                  ${neuroneDA} → ${neuroneA}
+        let nearest: typeof sinapsi3DRef.current[0] | null = null;
+        let nearestDist = Infinity;
+        let nearestLngLat: [number, number] | null = null;
+
+        for (const sin of sinapsi3DRef.current) {
+          for (let i = 0; i < sin.coordinates.length; i++) {
+            const [lng, lat] = sin.coordinates[i];
+            const elevation = sin.elevations[i];
+
+            // Proietta punto 3D in coordinate schermo
+            // Mapbox project() non considera l'elevazione, quindi la calcoliamo manualmente
+            const basePoint = m.project([lng, lat]);
+
+            // Calcola offset verticale basato su elevazione, pitch e zoom
+            const pitch = m.getPitch();
+            const zoom = m.getZoom();
+            const zoomFactor = Math.pow(2, (zoom - 14) * 0.8);
+            const pitchFactor = Math.sin((pitch * Math.PI) / 180);
+            const elevationOffset = elevation * zoomFactor * pitchFactor * 0.4;
+
+            const screenX = basePoint.x;
+            const screenY = basePoint.y - elevationOffset; // sottrai per andare verso l'alto
+
+            // Distanza dal mouse
+            const dist = Math.sqrt(Math.pow(mouseX - screenX, 2) + Math.pow(mouseY - screenY, 2));
+
+            if (dist < nearestDist && dist < HIT_THRESHOLD) {
+              nearestDist = dist;
+              nearest = sin;
+              nearestLngLat = [lng, lat];
+            }
+          }
+        }
+
+        return nearest ? { sinapsi: nearest, lngLat: nearestLngLat } : null;
+      };
+
+      // Mousemove handler per hover su parabole
+      m.on('mousemove', (e) => {
+        if (pickingModeRef.current || connectionPickingModeRef.current || quickMapModeRef.current) return;
+
+        const result = findNearestSinapsi(e.point.x, e.point.y);
+
+        if (result) {
+          const { sinapsi: sin, lngLat } = result;
+
+          // Mostra cursor pointer
+          m.getCanvas().style.cursor = 'pointer';
+
+          // Mostra popup solo se cambia la sinapsi in hover
+          if (sinapsiHoverRef.current !== sin.id && popup.current && lngLat) {
+            sinapsiHoverRef.current = sin.id;
+
+            const tipoLabel = sin.tipo.charAt(0).toUpperCase() + sin.tipo.slice(1);
+            const certezzaColor = sin.certezza === 'certo' ? '#22c55e' : sin.certezza === 'probabile' ? '#eab308' : '#94a3b8';
+
+            popup.current.setOffset([0, -10]);
+            popup.current
+              .setLngLat(lngLat)
+              .setHTML(`
+                <div style="padding: 4px 8px;">
+                  <strong style="font-size: 13px;">${tipoLabel}</strong>
+                  <div style="font-size: 11px; color: #64748b; margin-top: 2px;">
+                    ${sin.neurone_da_nome} → ${sin.neurone_a_nome}
+                  </div>
+                  ${sin.certezza ? `<div style="font-size: 10px; color: ${certezzaColor}; margin-top: 2px;">● ${sin.certezza}</div>` : ''}
                 </div>
-                ${certezza ? `<div style="font-size: 10px; color: ${certezzaColor}; margin-top: 2px;">● ${certezza}</div>` : ''}
-              </div>
-            `)
-            .addTo(m);
+              `)
+              .addTo(m);
+          }
+        } else {
+          // Nessuna sinapsi vicina - rimuovi hover
+          if (sinapsiHoverRef.current) {
+            sinapsiHoverRef.current = null;
+            // Non rimuovere popup.current qui - potrebbe essere usato per neuroni
+            // popup.current?.remove(); verrà gestito dal mouseleave dei neuroni
+          }
         }
       });
 
-      m.on('mouseleave', 'sinapsi-hit', () => {
-        m.getCanvas().style.cursor = '';
-        popup.current?.remove();
-      });
-
-      // Click su connessione - mostra popup dettagliato
-      m.on('click', 'sinapsi-hit', (e) => {
+      // Click handler per sinapsi
+      m.on('click', (e) => {
         if (pickingModeRef.current || connectionPickingModeRef.current || quickMapModeRef.current) return;
 
-        if (e.features && e.features[0] && salesPopup.current) {
-          const props = e.features[0].properties;
-          const tipo = props?.tipo || 'Connessione';
-          const certezza = props?.certezza || '';
-          const valore = props?.valore || 0;
-          const neuroneDA = props?.neurone_da_nome || 'Sconosciuto';
-          const neuroneA = props?.neurone_a_nome || 'Sconosciuto';
-          const tipoDA = props?.neurone_da_tipo || '';
-          const tipoA = props?.neurone_a_tipo || '';
+        const result = findNearestSinapsi(e.point.x, e.point.y);
+
+        if (result && salesPopup.current) {
+          const { sinapsi: sin, lngLat } = result;
 
           // Chiudi popup hover
           popup.current?.remove();
 
-          // Label del tipo di connessione
-          const tipoLabel = tipo.charAt(0).toUpperCase() + tipo.slice(1);
-          const certezzaColor = certezza === 'certo' ? '#22c55e' : certezza === 'probabile' ? '#eab308' : '#94a3b8';
-          const certezzaLabel = certezza === 'certo' ? 'Certo' : certezza === 'probabile' ? 'Probabile' : 'Ipotetico';
+          const tipoLabel = sin.tipo.charAt(0).toUpperCase() + sin.tipo.slice(1);
+          const certezzaColor = sin.certezza === 'certo' ? '#22c55e' : sin.certezza === 'probabile' ? '#eab308' : '#94a3b8';
+          const certezzaLabel = sin.certezza === 'certo' ? 'Certo' : sin.certezza === 'probabile' ? 'Probabile' : 'Ipotetico';
 
           // Icona in base al tipo di connessione
           let tipoIcon = '🔗';
-          if (tipo.toLowerCase().includes('vendita') || tipo.toLowerCase().includes('acquisto')) {
+          if (sin.tipo.toLowerCase().includes('vendita') || sin.tipo.toLowerCase().includes('acquisto')) {
             tipoIcon = '💰';
-          } else if (tipo.toLowerCase().includes('collabora')) {
+          } else if (sin.tipo.toLowerCase().includes('collabora')) {
             tipoIcon = '🤝';
-          } else if (tipo.toLowerCase().includes('influencer') || tipo.toLowerCase().includes('influenza')) {
+          } else if (sin.tipo.toLowerCase().includes('influencer') || sin.tipo.toLowerCase().includes('influenza')) {
             tipoIcon = '⭐';
-          } else if (tipo.toLowerCase().includes('partner')) {
+          } else if (sin.tipo.toLowerCase().includes('partner')) {
             tipoIcon = '🤝';
-          } else if (tipo.toLowerCase().includes('forni')) {
+          } else if (sin.tipo.toLowerCase().includes('forni')) {
             tipoIcon = '📦';
-          } else if (tipo.toLowerCase().includes('client')) {
+          } else if (sin.tipo.toLowerCase().includes('client')) {
             tipoIcon = '👤';
           }
 
@@ -1434,28 +1491,30 @@ export default function MapView({
 
               <div style="background: #f8fafc; border-radius: 6px; padding: 8px; margin-bottom: 8px;">
                 <div style="font-size: 12px; color: #64748b; margin-bottom: 4px;">Da:</div>
-                <div style="font-weight: 500; font-size: 13px;">${neuroneDA}</div>
-                ${tipoDA ? `<div style="font-size: 11px; color: #94a3b8;">${tipoDA}</div>` : ''}
+                <div style="font-weight: 500; font-size: 13px;">${sin.neurone_da_nome}</div>
+                ${sin.neurone_da_tipo ? `<div style="font-size: 11px; color: #94a3b8;">${sin.neurone_da_tipo}</div>` : ''}
 
                 <div style="text-align: center; color: #94a3b8; margin: 6px 0;">↓</div>
 
                 <div style="font-size: 12px; color: #64748b; margin-bottom: 4px;">A:</div>
-                <div style="font-weight: 500; font-size: 13px;">${neuroneA}</div>
-                ${tipoA ? `<div style="font-size: 11px; color: #94a3b8;">${tipoA}</div>` : ''}
+                <div style="font-weight: 500; font-size: 13px;">${sin.neurone_a_nome}</div>
+                ${sin.neurone_a_tipo ? `<div style="font-size: 11px; color: #94a3b8;">${sin.neurone_a_tipo}</div>` : ''}
               </div>
 
               <div style="display: flex; justify-content: space-between; font-size: 11px;">
                 <span style="color: ${certezzaColor};">● ${certezzaLabel}</span>
-                ${valore > 0 ? `<span style="color: #64748b;">Valore: ${valore}</span>` : ''}
+                ${sin.valore > 0 ? `<span style="color: #64748b;">Valore: ${sin.valore}</span>` : ''}
               </div>
             </div>
           `;
 
-          salesPopup.current.setOffset([0, -10]);
-          salesPopup.current
-            .setLngLat(e.lngLat)
-            .setHTML(popupHtml)
-            .addTo(m);
+          if (lngLat) {
+            salesPopup.current.setOffset([0, -10]);
+            salesPopup.current
+              .setLngLat(lngLat)
+              .setHTML(popupHtml)
+              .addTo(m);
+          }
         }
       });
 
