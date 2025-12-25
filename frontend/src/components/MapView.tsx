@@ -24,6 +24,10 @@ interface MapViewProps {
   connectionPickingMode?: boolean;
   connectionSourceId?: string | null;
   onPickConnectionTarget?: (neurone: Neurone) => void;
+  // Props per Quick Map Mode
+  quickMapMode?: boolean;
+  onQuickMapClick?: (lat: number, lng: number, screenX: number, screenY: number) => void;
+  onQuickEntityClick?: (neurone: Neurone, screenX: number, screenY: number) => void;
 }
 
 // Colore di default se la categoria non viene trovata
@@ -304,6 +308,9 @@ export default function MapView({
   connectionPickingMode = false,
   connectionSourceId = null,
   onPickConnectionTarget,
+  quickMapMode = false,
+  onQuickMapClick,
+  onQuickEntityClick,
 }: MapViewProps) {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
@@ -327,6 +334,10 @@ export default function MapView({
   const connectionPickingModeRef = useRef(connectionPickingMode);
   const connectionSourceIdRef = useRef(connectionSourceId);
   const onPickConnectionTargetRef = useRef(onPickConnectionTarget);
+  // Refs per Quick Map Mode
+  const quickMapModeRef = useRef(quickMapMode);
+  const onQuickMapClickRef = useRef(onQuickMapClick);
+  const onQuickEntityClickRef = useRef(onQuickEntityClick);
 
   // Colori default per le famiglie prodotto nel popup
   const coloriProdotti = ['#ef4444', '#f97316', '#eab308', '#22c55e', '#14b8a6', '#3b82f6', '#8b5cf6', '#ec4899'];
@@ -348,6 +359,13 @@ export default function MapView({
     onPickConnectionTargetRef.current = onPickConnectionTarget;
     console.log('DEBUG MapView: connectionPickingMode aggiornato a:', connectionPickingMode, 'sourceId:', connectionSourceId);
   }, [connectionPickingMode, connectionSourceId, onPickConnectionTarget]);
+
+  // Aggiorna refs per Quick Map Mode
+  useEffect(() => {
+    quickMapModeRef.current = quickMapMode;
+    onQuickMapClickRef.current = onQuickMapClick;
+    onQuickEntityClickRef.current = onQuickEntityClick;
+  }, [quickMapMode, onQuickMapClick, onQuickEntityClick]);
 
   useEffect(() => {
     neuroniRef.current = neuroni;
@@ -519,10 +537,21 @@ export default function MapView({
       setMapReady(true);
     });
 
-    // Click generico sulla mappa per picking mode
+    // Click generico sulla mappa per picking mode e quick mode
     map.current.on('click', (e) => {
       if (pickingModeRef.current && onPickPositionRef.current) {
         onPickPositionRef.current(e.lngLat.lat, e.lngLat.lng);
+        return;
+      }
+
+      // Quick Map Mode - click su zona vuota (non su entità)
+      if (quickMapModeRef.current && onQuickMapClickRef.current) {
+        // Verifica se il click è su un neurone (in tal caso verrà gestito dall'altro handler)
+        const features = map.current?.queryRenderedFeatures(e.point, { layers: ['neuroni-3d'] });
+        if (!features || features.length === 0) {
+          // Click su zona vuota - passa coordinate geografiche e screen
+          onQuickMapClickRef.current(e.lngLat.lat, e.lngLat.lng, e.point.x, e.point.y);
+        }
       }
     });
 
@@ -554,7 +583,7 @@ export default function MapView({
     });
   }, [flyToPosition, mapReady]);
 
-  // Cambia cursore in picking mode
+  // Cambia cursore in picking mode o quick mode
   useEffect(() => {
     if (!map.current || !mapReady) return;
 
@@ -566,12 +595,18 @@ export default function MapView({
       canvas.style.cursor = 'crosshair';
       container.style.cursor = 'crosshair';
       container.classList.add('picking-mode');
+    } else if (quickMapMode) {
+      // Cursore pointer per quick map mode
+      canvas.style.cursor = 'pointer';
+      container.style.cursor = 'pointer';
+      container.classList.add('quick-map-mode');
     } else {
       canvas.style.cursor = '';
       container.style.cursor = '';
       container.classList.remove('picking-mode');
+      container.classList.remove('quick-map-mode');
     }
-  }, [pickingMode, mapReady]);
+  }, [pickingMode, quickMapMode, mapReady]);
 
   // Mostra marker temporaneo quando si seleziona posizione
   useEffect(() => {
@@ -948,6 +983,12 @@ export default function MapView({
         if (e.features && e.features[0]) {
           const id = e.features[0].properties?.id;
           const neurone = neuroniRef.current.find(n => n.id === id);
+
+          // Se siamo in Quick Map Mode, mostra popup azioni per l'entità
+          if (quickMapModeRef.current && neurone && onQuickEntityClickRef.current) {
+            onQuickEntityClickRef.current(neurone, e.point.x, e.point.y);
+            return;
+          }
 
           // Se siamo in modalità connection picking, gestisci selezione target
           if (connectionPickingModeRef.current && neurone) {

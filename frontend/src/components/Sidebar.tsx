@@ -1,5 +1,6 @@
 // GenAgenTa - Sidebar Component
 
+import { useState, useRef, useEffect } from 'react';
 import type { Neurone, FiltriMappa } from '../types';
 
 interface SidebarProps {
@@ -10,6 +11,7 @@ interface SidebarProps {
   onFiltriChange: (filtri: FiltriMappa) => void;
   loading: boolean;
   onAddNeurone?: () => void;
+  onQuickMapMode?: () => void; // Nuova prop per modalità mappa rapida
 }
 
 export default function Sidebar({
@@ -20,7 +22,24 @@ export default function Sidebar({
   onFiltriChange,
   loading,
   onAddNeurone,
+  onQuickMapMode,
 }: SidebarProps) {
+  const [showQuickMenu, setShowQuickMenu] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  // Chiudi menu quando si clicca fuori
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setShowQuickMenu(false);
+      }
+    };
+    if (showQuickMenu) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showQuickMenu]);
+
   // Raggruppa per tipo
   const neuroniPerTipo = {
     persona: neuroni.filter((n) => n.tipo === 'persona'),
@@ -41,25 +60,96 @@ export default function Sidebar({
               Rete Neurale Commerciale
             </p>
           </div>
-          {onAddNeurone && (
-            <button
-              onClick={onAddNeurone}
-              className="btn btn-primary"
-              style={{
-                width: '40px',
-                height: '40px',
-                borderRadius: '50%',
-                padding: 0,
-                fontSize: '24px',
-                lineHeight: 1,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-              title="Aggiungi persona, impresa o cantiere"
-            >
-              +
-            </button>
+          {(onAddNeurone || onQuickMapMode) && (
+            <div ref={menuRef} style={{ position: 'relative' }}>
+              <button
+                onClick={() => setShowQuickMenu(!showQuickMenu)}
+                className="btn btn-primary"
+                style={{
+                  width: '40px',
+                  height: '40px',
+                  borderRadius: '50%',
+                  padding: 0,
+                  fontSize: '24px',
+                  lineHeight: 1,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  transform: showQuickMenu ? 'rotate(45deg)' : 'none',
+                  transition: 'transform 0.2s ease',
+                }}
+                title="Aggiungi"
+              >
+                +
+              </button>
+
+              {/* Quick Menu Popup */}
+              {showQuickMenu && (
+                <div style={{
+                  position: 'absolute',
+                  top: '48px',
+                  right: 0,
+                  background: 'white',
+                  borderRadius: '12px',
+                  boxShadow: '0 4px 20px rgba(0,0,0,0.2)',
+                  overflow: 'hidden',
+                  minWidth: '180px',
+                  zIndex: 1000,
+                }}>
+                  {onAddNeurone && (
+                    <button
+                      onClick={() => {
+                        setShowQuickMenu(false);
+                        onAddNeurone();
+                      }}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '10px',
+                        width: '100%',
+                        padding: '12px 16px',
+                        border: 'none',
+                        background: 'none',
+                        cursor: 'pointer',
+                        fontSize: '14px',
+                        textAlign: 'left',
+                        borderBottom: '1px solid #e5e7eb',
+                      }}
+                      onMouseEnter={(e) => e.currentTarget.style.background = '#f3f4f6'}
+                      onMouseLeave={(e) => e.currentTarget.style.background = 'none'}
+                    >
+                      <span style={{ fontSize: '18px' }}>📝</span>
+                      Nuova entità
+                    </button>
+                  )}
+                  {onQuickMapMode && (
+                    <button
+                      onClick={() => {
+                        setShowQuickMenu(false);
+                        onQuickMapMode();
+                      }}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '10px',
+                        width: '100%',
+                        padding: '12px 16px',
+                        border: 'none',
+                        background: 'none',
+                        cursor: 'pointer',
+                        fontSize: '14px',
+                        textAlign: 'left',
+                      }}
+                      onMouseEnter={(e) => e.currentTarget.style.background = '#f3f4f6'}
+                      onMouseLeave={(e) => e.currentTarget.style.background = 'none'}
+                    >
+                      <span style={{ fontSize: '18px' }}>📍</span>
+                      Nuovo su mappa
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
           )}
         </div>
       </div>

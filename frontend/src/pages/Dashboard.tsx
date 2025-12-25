@@ -11,7 +11,12 @@ import PinModal from '../components/PinModal';
 import UserMenu from '../components/UserMenu';
 import InvitePopup from '../components/InvitePopup';
 import NeuroneFormModal from '../components/NeuroneFormModal';
+import { QuickCreateEntity, QuickEntityActions, QuickSelectTarget, QuickConnectionType } from '../components/QuickActionPopup';
 import type { Neurone, Sinapsi, FiltriMappa, Categoria, TipoNeuroneConfig } from '../types';
+
+// Tipi per quick actions
+type QuickPopupType = 'create' | 'entityActions' | 'selectTarget' | 'connectionType' | null;
+type QuickActionType = 'vendi' | 'compra' | 'connetti' | null;
 
 interface PendingInvite {
   id: string;
@@ -44,6 +49,14 @@ export default function Dashboard() {
   const [connectionPickingMode, setConnectionPickingMode] = useState(false);
   const [connectionTargetEntity, setConnectionTargetEntity] = useState<{ id: string; nome: string; tipo: string } | null>(null);
   const [connectionSourceNeurone, setConnectionSourceNeurone] = useState<Neurone | null>(null); // Neurone origine per connessione
+
+  // Stato per Quick Map Mode (nuovo su mappa)
+  const [quickMapMode, setQuickMapMode] = useState(false);
+  const [quickPopup, setQuickPopup] = useState<QuickPopupType>(null);
+  const [quickPopupPosition, setQuickPopupPosition] = useState<{ lat: number; lng: number; x: number; y: number } | null>(null);
+  const [quickSourceNeurone, setQuickSourceNeurone] = useState<Neurone | null>(null);
+  const [quickAction, setQuickAction] = useState<QuickActionType>(null);
+  const [quickTargetNeurone, setQuickTargetNeurone] = useState<Neurone | null>(null);
 
   // Refs per evitare closure stale nei callback
   const connectionPickingModeRef = useRef(false);
@@ -213,6 +226,7 @@ export default function Dashboard() {
         onFiltriChange={setFiltri}
         loading={loading}
         onAddNeurone={() => setShowNeuroneForm(true)}
+        onQuickMapMode={() => setQuickMapMode(true)}
       />
 
       {/* Main content */}
@@ -281,6 +295,17 @@ export default function Dashboard() {
                 setSelectedNeurone(connectionSourceNeurone);
               }
             }}
+            // Props per Quick Map Mode
+            quickMapMode={quickMapMode}
+            onQuickMapClick={(lat, lng, screenX, screenY) => {
+              setQuickPopupPosition({ lat, lng, x: screenX, y: screenY });
+              setQuickPopup('create');
+            }}
+            onQuickEntityClick={(neurone, screenX, screenY) => {
+              setQuickSourceNeurone(neurone);
+              setQuickPopupPosition({ lat: neurone.lat || 0, lng: neurone.lng || 0, x: screenX, y: screenY });
+              setQuickPopup('entityActions');
+            }}
           />
 
           {/* Indicatore modalità selezione connessione */}
@@ -328,6 +353,182 @@ export default function Dashboard() {
               >
                 Annulla
               </button>
+            </div>
+          )}
+
+          {/* Indicatore Quick Map Mode */}
+          {quickMapMode && !quickPopup && (
+            <div
+              style={{
+                position: 'absolute',
+                top: '16px',
+                left: '50%',
+                transform: 'translateX(-50%)',
+                background: '#f59e0b',
+                color: 'white',
+                padding: '12px 24px',
+                borderRadius: '8px',
+                boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+                zIndex: 1000,
+                display: 'flex',
+                alignItems: 'center',
+                gap: '12px',
+              }}
+            >
+              <span>📍 Clicca sulla mappa o su un'entità</span>
+              <button
+                onClick={() => {
+                  setQuickMapMode(false);
+                  setQuickPopup(null);
+                  setQuickPopupPosition(null);
+                }}
+                style={{
+                  background: 'rgba(255,255,255,0.2)',
+                  border: 'none',
+                  color: 'white',
+                  padding: '4px 12px',
+                  borderRadius: '4px',
+                  cursor: 'pointer',
+                }}
+              >
+                Annulla
+              </button>
+            </div>
+          )}
+
+          {/* Quick Action Popups */}
+          {quickPopup && quickPopupPosition && (
+            <div
+              style={{
+                position: 'absolute',
+                left: Math.min(quickPopupPosition.x, window.innerWidth - 320),
+                top: Math.min(quickPopupPosition.y, window.innerHeight - 400),
+                zIndex: 1001,
+              }}
+            >
+              {/* Popup creazione nuova entità */}
+              {quickPopup === 'create' && (
+                <QuickCreateEntity
+                  position={{ lat: quickPopupPosition.lat, lng: quickPopupPosition.lng }}
+                  onClose={() => {
+                    setQuickPopup(null);
+                    setQuickPopupPosition(null);
+                  }}
+                  onCreateEntity={async (data) => {
+                    try {
+                      const result = await api.createNeurone({
+                        nome: data.nome,
+                        tipo: data.tipo,
+                        categorie: data.categorie,
+                        visibilita: 'aziendale',
+                        lat: data.lat,
+                        lng: data.lng,
+                      });
+                      const newNeurone = await api.getNeurone(result.id);
+                      setNeuroni([newNeurone, ...neuroni]);
+                      setSelectedNeurone(newNeurone);
+                      setQuickMapMode(false);
+                      setQuickPopup(null);
+                      setQuickPopupPosition(null);
+                    } catch (error) {
+                      console.error('Errore creazione:', error);
+                    }
+                  }}
+                />
+              )}
+
+              {/* Popup azioni su entità esistente */}
+              {quickPopup === 'entityActions' && quickSourceNeurone && (
+                <QuickEntityActions
+                  neurone={quickSourceNeurone}
+                  onClose={() => {
+                    setQuickPopup(null);
+                    setQuickPopupPosition(null);
+                    setQuickSourceNeurone(null);
+                  }}
+                  onVendi={() => {
+                    setQuickAction('vendi');
+                    setQuickPopup('selectTarget');
+                  }}
+                  onCompra={() => {
+                    setQuickAction('compra');
+                    setQuickPopup('selectTarget');
+                  }}
+                  onConnetti={() => {
+                    setQuickAction('connetti');
+                    setQuickPopup('selectTarget');
+                  }}
+                />
+              )}
+
+              {/* Popup selezione target */}
+              {quickPopup === 'selectTarget' && quickSourceNeurone && quickAction && (
+                <QuickSelectTarget
+                  sourceNeurone={quickSourceNeurone}
+                  action={quickAction}
+                  onClose={() => {
+                    setQuickPopup(null);
+                    setQuickAction(null);
+                    setQuickSourceNeurone(null);
+                    setQuickPopupPosition(null);
+                  }}
+                  onSelectOnMap={() => {
+                    // Entra in modalità selezione target su mappa
+                    setQuickPopup(null);
+                    // Usa il sistema esistente di connection picking
+                    setConnectionSourceNeurone(quickSourceNeurone);
+                    setConnectionPickingMode(true);
+                  }}
+                  onSelectFromList={() => {
+                    // Seleziona il neurone sorgente per aprire il DetailPanel
+                    setSelectedNeurone(quickSourceNeurone);
+                    setQuickMapMode(false);
+                    setQuickPopup(null);
+                    setQuickAction(null);
+                    setQuickSourceNeurone(null);
+                    setQuickPopupPosition(null);
+                    // Il DetailPanel permetterà di creare la connessione/transazione
+                  }}
+                />
+              )}
+
+              {/* Popup selezione tipo connessione */}
+              {quickPopup === 'connectionType' && (
+                <QuickConnectionType
+                  onClose={() => {
+                    setQuickPopup(null);
+                    setQuickTargetNeurone(null);
+                    setQuickSourceNeurone(null);
+                    setQuickAction(null);
+                    setQuickPopupPosition(null);
+                  }}
+                  onConfirm={async (tipi) => {
+                    if (!quickSourceNeurone || !quickTargetNeurone) return;
+                    try {
+                      await api.createSinapsi({
+                        neurone_da: quickSourceNeurone.id,
+                        neurone_a: quickTargetNeurone.id,
+                        tipo_connessione: tipi,
+                        data_inizio: new Date().toISOString().split('T')[0],
+                        certezza: 'ipotesi',
+                        livello: 'aziendale',
+                      });
+                      // Ricarica sinapsi
+                      const sinapsiRes = await api.getSinapsi({ limit: 1000 });
+                      setSinapsi(sinapsiRes.data);
+                      // Reset
+                      setQuickMapMode(false);
+                      setQuickPopup(null);
+                      setQuickTargetNeurone(null);
+                      setQuickSourceNeurone(null);
+                      setQuickAction(null);
+                      setQuickPopupPosition(null);
+                    } catch (error) {
+                      console.error('Errore creazione connessione:', error);
+                    }
+                  }}
+                />
+              )}
             </div>
           )}
 
