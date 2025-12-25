@@ -985,13 +985,8 @@ export default function MapView({
           const id = e.features[0].properties?.id;
           const neurone = neuroniRef.current.find(n => n.id === id);
 
-          // Se siamo in Quick Map Mode, mostra popup azioni per l'entità
-          if (quickMapModeRef.current && neurone && onQuickEntityClickRef.current) {
-            onQuickEntityClickRef.current(neurone, e.point.x, e.point.y);
-            return;
-          }
-
-          // Se siamo in modalità connection picking, gestisci selezione target
+          // IMPORTANTE: connectionPickingMode va controllato PRIMA di quickMapMode
+          // perché è una modalità più specifica attivata da quick actions
           if (connectionPickingModeRef.current && neurone) {
             console.log('DEBUG MapView click: connectionPickingMode attivo, neurone:', neurone.nome, 'sourceId:', connectionSourceIdRef.current);
             // Non permettere di selezionare se stesso
@@ -1004,6 +999,12 @@ export default function MapView({
               console.log('DEBUG MapView: chiamando onPickConnectionTarget per:', neurone.nome);
               onPickConnectionTargetRef.current(neurone);
             }
+            return;
+          }
+
+          // Se siamo in Quick Map Mode, mostra popup azioni per l'entità
+          if (quickMapModeRef.current && neurone && onQuickEntityClickRef.current) {
+            onQuickEntityClickRef.current(neurone, e.point.x, e.point.y);
             return;
           }
 

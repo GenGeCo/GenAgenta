@@ -501,6 +501,7 @@ export default function Dashboard() {
                   onSelectOnMap={() => {
                     // Entra in modalità selezione target su mappa
                     setQuickPopup(null);
+                    setQuickMapMode(false); // IMPORTANTE: disattiva quick mode per evitare conflitti
                     // Usa il sistema esistente di connection picking
                     setConnectionSourceNeurone(quickSourceNeurone);
                     setConnectionPickingMode(true);
