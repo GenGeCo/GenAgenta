@@ -371,7 +371,7 @@ export default function MapView({
     }
   }, []);
 
-  // Applica opacità alla mappa base
+  // Applica opacità alla mappa base (tutti i tipi di layer)
   useEffect(() => {
     if (!map.current || !mapReady) return;
 
@@ -379,14 +379,40 @@ export default function MapView({
     const style = m.getStyle();
     if (!style?.layers) return;
 
-    // Trova e modifica i layer raster/background della mappa base
+    const opacity = mapOpacity / 100;
+
+    // I nostri layer custom da NON toccare
+    const customLayers = ['neuroni-3d', 'neuroni-borders', 'venduto-rings', 'sinapsi-lines', 'sinapsi-lines-shadow'];
+
+    // Applica opacità a tutti i layer della mappa base
     style.layers.forEach(layer => {
-      if (layer.type === 'raster' || layer.type === 'background') {
-        try {
-          m.setPaintProperty(layer.id, `${layer.type}-opacity`, mapOpacity / 100);
-        } catch (e) {
-          // Ignora errori per layer che non supportano opacity
+      // Salta i nostri layer custom
+      if (customLayers.some(cl => layer.id.includes(cl))) return;
+
+      try {
+        switch (layer.type) {
+          case 'background':
+            m.setPaintProperty(layer.id, 'background-opacity', opacity);
+            break;
+          case 'fill':
+            m.setPaintProperty(layer.id, 'fill-opacity', opacity);
+            break;
+          case 'line':
+            m.setPaintProperty(layer.id, 'line-opacity', opacity);
+            break;
+          case 'symbol':
+            m.setPaintProperty(layer.id, 'icon-opacity', opacity);
+            m.setPaintProperty(layer.id, 'text-opacity', opacity);
+            break;
+          case 'raster':
+            m.setPaintProperty(layer.id, 'raster-opacity', opacity);
+            break;
+          case 'fill-extrusion':
+            m.setPaintProperty(layer.id, 'fill-extrusion-opacity', opacity);
+            break;
         }
+      } catch (e) {
+        // Ignora errori per layer che non supportano la proprietà
       }
     });
   }, [mapOpacity, mapReady, styleLoaded]);
