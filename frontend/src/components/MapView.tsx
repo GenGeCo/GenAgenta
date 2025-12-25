@@ -1245,7 +1245,7 @@ export default function MapView({
     <div style={{ position: 'relative', width: '100%', height: '100%' }}>
       <div ref={mapContainer} style={{ width: '100%', height: '100%' }} />
 
-      {/* Legenda collapsabile */}
+      {/* Legenda collapsabile - header in basso, contenuto si espande verso l'alto */}
       {categorie.length > 0 && (
         <div style={{
           position: 'absolute',
@@ -1256,8 +1256,35 @@ export default function MapView({
           boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
           fontSize: '12px',
           zIndex: 10,
+          display: 'flex',
+          flexDirection: 'column',
         }}>
-          {/* Header sempre cliccabile per toggle */}
+          {/* Contenuto che appare SOPRA l'header */}
+          {showLegend && (
+            <div style={{
+              padding: '8px 12px',
+              paddingBottom: '0',
+              maxHeight: '180px',
+              overflowY: 'auto',
+              borderBottom: '1px solid #e2e8f0',
+            }}>
+              <div style={{ paddingBottom: '8px' }}>
+                {categorie.slice(0, 10).map((cat) => (
+                  <div key={cat.id} style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                    <div style={{ width: 10, height: 10, borderRadius: '3px', background: cat.colore, flexShrink: 0 }} />
+                    <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '90px', fontSize: '11px', color: '#334155' }}>{cat.nome}</span>
+                  </div>
+                ))}
+                {categorie.length > 10 && (
+                  <div style={{ fontSize: '10px', color: '#64748b' }}>+{categorie.length - 10} altre...</div>
+                )}
+                <div style={{ fontSize: '9px', color: '#64748b', borderTop: '1px solid #e2e8f0', paddingTop: '6px', marginTop: '4px' }}>
+                  Altezza = valore/relazioni
+                </div>
+              </div>
+            </div>
+          )}
+          {/* Header sempre in basso - cliccabile per toggle */}
           <div
             onClick={() => setShowLegend(!showLegend)}
             style={{
@@ -1276,33 +1303,8 @@ export default function MapView({
               color: '#64748b',
               transform: showLegend ? 'rotate(180deg)' : 'none',
               transition: 'transform 0.2s ease',
-            }}>▼</span>
+            }}>▲</span>
           </div>
-          {/* Contenuto che appare sotto */}
-          {showLegend && (
-            <div style={{
-              padding: '8px 12px',
-              paddingTop: '0',
-              maxHeight: '180px',
-              overflowY: 'auto',
-              borderTop: '1px solid #e2e8f0',
-            }}>
-              <div style={{ paddingTop: '8px' }}>
-                {categorie.slice(0, 10).map((cat) => (
-                  <div key={cat.id} style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
-                    <div style={{ width: 10, height: 10, borderRadius: '3px', background: cat.colore, flexShrink: 0 }} />
-                    <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '90px', fontSize: '11px', color: '#334155' }}>{cat.nome}</span>
-                  </div>
-                ))}
-                {categorie.length > 10 && (
-                  <div style={{ fontSize: '10px', color: '#64748b' }}>+{categorie.length - 10} altre...</div>
-                )}
-                <div style={{ fontSize: '9px', color: '#64748b', borderTop: '1px solid #e2e8f0', paddingTop: '6px', marginTop: '4px' }}>
-                  Altezza = valore/relazioni
-                </div>
-              </div>
-            </div>
-          )}
         </div>
       )}
 
