@@ -245,7 +245,7 @@ export default function DetailPanel({
               fontSize: '13px',
             }}
           >
-            {tab === 'vendite' ? '📊' : tab}
+            {tab === 'vendite' ? 'transazioni' : tab}
             {tab === 'connessioni' && ` (${sinapsi.length})`}
             {tab === 'note' && personalAccess && ` (${note.length})`}
             {tab === 'note' && !personalAccess && neurone.has_note && ' 🔒'}
