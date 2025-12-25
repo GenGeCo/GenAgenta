@@ -300,7 +300,8 @@ export default function Dashboard() {
             sinapsi={sinapsi}
             categorie={categorie}
             tipiNeurone={tipiNeurone}
-            selectedId={focusedNeuroneId || selectedNeurone?.id || null}
+            selectedId={selectedNeurone?.id || null}
+            filterSelectedId={focusedNeuroneId || selectedNeurone?.id || null}
             onSelectNeurone={handleSelectNeurone}
             onFocusNeurone={(id) => setFocusedNeuroneId(id)}
             filtri={filtri}

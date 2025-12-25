@@ -13,7 +13,8 @@ interface MapViewProps {
   sinapsi: Sinapsi[];
   categorie: Categoria[];
   tipiNeurone: TipoNeuroneConfig[];
-  selectedId: string | null;
+  selectedId: string | null; // ID del neurone nel DetailPanel (per logica click)
+  filterSelectedId?: string | null; // ID per filtro connessioni (può essere diverso da selectedId)
   onSelectNeurone: (neurone: Neurone) => void;
   onFocusNeurone?: (id: string) => void; // Chiamato quando si clicca su un edificio (anche senza aprire dettagli)
   filtri: FiltriMappa;
@@ -300,6 +301,7 @@ export default function MapView({
   categorie,
   tipiNeurone,
   selectedId,
+  filterSelectedId,
   onSelectNeurone,
   onFocusNeurone,
   filtri,
@@ -871,10 +873,15 @@ export default function MapView({
       return s.lat_da && s.lng_da && s.lat_a && s.lng_a;
     });
 
+    // ID da usare per il filtro connessioni (può essere diverso da selectedId)
+    const idPerFiltro = filterSelectedId ?? selectedId;
+
     console.log('DEBUG MapView sinapsi - stato completo:', {
       mostraConnessioni: filtri.mostraConnessioni,
       soloConnessioniSelezionate: filtri.soloConnessioniSelezionate,
       selectedId: selectedId,
+      filterSelectedId: filterSelectedId,
+      idPerFiltro: idPerFiltro,
       sinapsiTotali: sinapsi.length,
       sinapsiConCoord: sinapsiFiltered.length,
     });
@@ -884,24 +891,17 @@ export default function MapView({
       console.log('DEBUG: mostraConnessioni=false -> nascondo tutte');
       sinapsiFiltered = [];
     }
-    // Mostra solo connessioni del neurone selezionato
+    // Mostra solo connessioni del neurone selezionato/in focus
     else if (filtri.soloConnessioniSelezionate) {
-      if (selectedId) {
+      if (idPerFiltro) {
         const prima = sinapsiFiltered.length;
-        console.log('DEBUG soloConnessioniSelezionate: filtro per selectedId=', selectedId);
-        console.log('DEBUG sinapsi sample:', sinapsiFiltered.slice(0, 3).map(s => ({
-          id: s.id,
-          da: s.neurone_da,
-          a: s.neurone_a,
-          match_da: s.neurone_da === selectedId,
-          match_a: s.neurone_a === selectedId
-        })));
+        console.log('DEBUG soloConnessioniSelezionate: filtro per idPerFiltro=', idPerFiltro);
         sinapsiFiltered = sinapsiFiltered.filter(
-          (s) => s.neurone_da === selectedId || s.neurone_a === selectedId
+          (s) => s.neurone_da === idPerFiltro || s.neurone_a === idPerFiltro
         );
         console.log('DEBUG soloConnessioniSelezionate: da', prima, 'a', sinapsiFiltered.length);
       } else {
-        console.log('DEBUG soloConnessioniSelezionate=true ma selectedId=null -> nascondo tutte');
+        console.log('DEBUG soloConnessioniSelezionate=true ma idPerFiltro=null -> nascondo tutte');
         sinapsiFiltered = [];
       }
     }
@@ -1235,7 +1235,7 @@ export default function MapView({
       handlersAdded.current = true;
     }
 
-  }, [neuroni, sinapsi, categorie, tipiNeurone, selectedId, mapReady, filtri, getSinapsiCount, styleLoaded]);
+  }, [neuroni, sinapsi, categorie, tipiNeurone, selectedId, filterSelectedId, mapReady, filtri, getSinapsiCount, styleLoaded]);
 
   // Non fare più zoom automatico sulla selezione
   // Lo zoom si fa solo con doppio click
