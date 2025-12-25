@@ -420,7 +420,7 @@ export default function MapView({
     const opacity = mapOpacity / 100;
 
     // I nostri layer custom da NON toccare
-    const customLayers = ['neuroni-3d', 'neuroni-borders', 'venduto-rings', 'sinapsi-lines', 'sinapsi-lines-shadow'];
+    const customLayers = ['neuroni-3d', 'neuroni-borders', 'venduto-rings', 'sinapsi-lines', 'sinapsi-lines-shadow', 'sinapsi-hit'];
 
     // Applica opacità a tutti i layer della mappa base
     style.layers.forEach(layer => {
@@ -760,6 +760,7 @@ export default function MapView({
       if (m.getSource('venduto-rings')) m.removeSource('venduto-rings');
       if (m.getLayer('sinapsi-lines')) m.removeLayer('sinapsi-lines');
       if (m.getLayer('sinapsi-lines-shadow')) m.removeLayer('sinapsi-lines-shadow');
+      if (m.getLayer('sinapsi-hit')) m.removeLayer('sinapsi-hit');
       if (m.getSource('sinapsi')) m.removeSource('sinapsi');
     } catch {
       // Layer non esistenti, ignora
@@ -1072,6 +1073,29 @@ export default function MapView({
           'line-opacity': 1,
         },
       });
+
+      // Layer hit invisibile - segue la parabola ma più largo per catturare click
+      m.addLayer({
+        id: 'sinapsi-hit',
+        type: 'line',
+        source: 'sinapsi',
+        layout: {
+          'line-z-offset': [
+            'interpolate',
+            ['linear'],
+            ['line-progress'],
+            ...Array.from({ length: 16 }, (_, i) => {
+              const t = i / 15;
+              return [t, 4 * 60 * t * (1 - t)]; // stessa parabola
+            }).flat()
+          ],
+        },
+        paint: {
+          'line-color': '#ff0000',
+          'line-width': 25, // molto più largo per hit detection
+          'line-opacity': 0, // invisibile
+        },
+      });
     }
 
     // Event handlers (solo una volta)
@@ -1328,7 +1352,8 @@ export default function MapView({
       });
 
       // Handler per le connessioni (sinapsi) - hover e click
-      m.on('mouseenter', 'sinapsi-lines', (e) => {
+      // Usa layer 'sinapsi-hit' che è più largo e facile da colpire
+      m.on('mouseenter', 'sinapsi-hit', (e) => {
         m.getCanvas().style.cursor = 'pointer';
         if (e.features && e.features[0] && popup.current) {
           const props = e.features[0].properties;
@@ -1357,13 +1382,13 @@ export default function MapView({
         }
       });
 
-      m.on('mouseleave', 'sinapsi-lines', () => {
+      m.on('mouseleave', 'sinapsi-hit', () => {
         m.getCanvas().style.cursor = '';
         popup.current?.remove();
       });
 
       // Click su connessione - mostra popup dettagliato
-      m.on('click', 'sinapsi-lines', (e) => {
+      m.on('click', 'sinapsi-hit', (e) => {
         if (pickingModeRef.current || connectionPickingModeRef.current || quickMapModeRef.current) return;
 
         if (e.features && e.features[0] && salesPopup.current) {
