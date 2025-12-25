@@ -215,7 +215,7 @@ export interface FamigliaProdotto {
   data_creazione: string;
 }
 
-// Vendita per famiglia prodotto
+// Vendita per famiglia prodotto (con supporto transazioni bilaterali)
 export interface VenditaProdotto {
   id: string;
   neurone_id: string;
@@ -225,4 +225,10 @@ export interface VenditaProdotto {
   famiglia_nome?: string;
   colore?: string;
   data_aggiornamento?: string;
+  // Campi per transazioni bilaterali
+  sinapsi_id?: string | null;
+  controparte_id?: string | null;
+  controparte_vendita_id?: string | null;
+  tipo_transazione?: 'acquisto' | 'vendita';
+  controparte_nome?: string; // Nome della controparte (da JOIN)
 }

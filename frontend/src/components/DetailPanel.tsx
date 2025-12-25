@@ -728,6 +728,13 @@ function NoteTab({
   );
 }
 
+// Interfaccia per controparte (neurone connesso)
+interface Controparte {
+  id: string;
+  nome: string;
+  sinapsi_id: string;
+}
+
 // Tab Vendite
 function VenditeTab({
   neurone,
@@ -738,6 +745,7 @@ function VenditeTab({
 }) {
   const [vendite, setVendite] = useState<VenditaProdotto[]>([]);
   const [famiglie, setFamiglie] = useState<FamigliaProdotto[]>([]);
+  const [controparti, setControparti] = useState<Controparte[]>([]);
   const [potenziale, setPotenziale] = useState<number>(neurone.potenziale || 0);
   const [totaleVenduto, setTotaleVenduto] = useState<number>(0);
   const [loading, setLoading] = useState(true);
@@ -772,10 +780,11 @@ function VenditeTab({
   const loadData = async () => {
     setLoading(true);
     try {
-      // Carica famiglie prodotto e vendite in parallelo
-      const [famiglieRes, venditeRes] = await Promise.all([
+      // Carica famiglie prodotto, vendite e sinapsi in parallelo
+      const [famiglieRes, venditeRes, sinapsiRes] = await Promise.all([
         api.getFamiglieProdotto({ flat: true }),
         api.get(`/vendite?neurone_id=${neurone.id}`),
+        api.getNeuroneSinapsi(neurone.id),
       ]);
 
       // Flatten famiglie per select
@@ -789,9 +798,25 @@ function VenditeTab({
       flatten(famiglieRes.data);
       setFamiglie(flatFamiglie);
 
+      // Estrai controparti dalle sinapsi (entità connesse)
+      const listaControparti: Controparte[] = sinapsiRes.data.map((s: Sinapsi) => {
+        const isOutgoing = s.neurone_da === neurone.id;
+        return {
+          id: isOutgoing ? s.neurone_a : s.neurone_da,
+          nome: isOutgoing ? (s.nome_a || 'Sconosciuto') : (s.nome_da || 'Sconosciuto'),
+          sinapsi_id: s.id,
+        };
+      });
+      // Rimuovi duplicati (stessa entità può avere multiple connessioni)
+      const uniqueControparti = listaControparti.filter(
+        (c, index, self) => index === self.findIndex(t => t.id === c.id)
+      );
+      setControparti(uniqueControparti);
+
       console.log('=== DEBUG GET VENDITE ===');
       console.log('Neurone ID:', neurone.id);
       console.log('Risposta GET:', venditeRes.data);
+      console.log('Controparti disponibili:', uniqueControparti);
 
       setVendite(venditeRes.data.data || []);
       setPotenziale(venditeRes.data.potenziale || 0);
@@ -820,7 +845,14 @@ function VenditeTab({
     }
   };
 
-  const saveVendita = async (famigliaId: string, importo: number, dataVendita?: string) => {
+  const saveVendita = async (
+    famigliaId: string,
+    importo: number,
+    dataVendita: string,
+    controparteId?: string,
+    sinapsiId?: string,
+    tipoTransazione: 'acquisto' | 'vendita' = 'vendita'
+  ) => {
     setSaving(true);
     try {
       const postResponse = await api.post('/vendite', {
@@ -828,9 +860,14 @@ function VenditeTab({
         famiglia_id: famigliaId,
         importo,
         data_vendita: dataVendita || new Date().toISOString().split('T')[0],
+        // Parametri transazione bilaterale
+        controparte_id: controparteId || null,
+        sinapsi_id: sinapsiId || null,
+        tipo_transazione: tipoTransazione,
       });
       console.log('=== DEBUG POST VENDITA ===');
       console.log('Neurone ID:', neurone.id);
+      console.log('Bilaterale:', !!controparteId);
       console.log('Risposta POST:', postResponse.data);
 
       await loadData();
@@ -937,6 +974,8 @@ function VenditeTab({
       <NuovaVenditaForm
         famiglie={famiglie}
         coloriDefault={coloriDefault}
+        controparti={controparti}
+        neurone={neurone}
         onSave={saveVendita}
         saving={saving}
       />
@@ -949,13 +988,15 @@ function VenditeTab({
 
         {vendite.length === 0 ? (
           <p style={{ color: 'var(--text-secondary)', fontSize: '13px' }}>
-            Nessuna vendita registrata. Usa il form sopra per aggiungerne una.
+            Nessuna transazione registrata. Usa il form sopra per aggiungerne una.
           </p>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
             {vendite.map((vendita, index) => {
               const famiglia = famiglie.find(f => f.id === vendita.famiglia_id);
               const colore = vendita.colore || famiglia?.colore || coloriDefault[index % coloriDefault.length];
+              const isAcquisto = vendita.tipo_transazione === 'acquisto';
+              const isBilaterale = !!vendita.controparte_id;
 
               return (
                 <div
@@ -970,16 +1011,43 @@ function VenditeTab({
                     borderLeft: `4px solid ${colore}`,
                   }}
                 >
+                  {/* Icona tipo transazione */}
+                  <div style={{
+                    fontSize: '16px',
+                    width: '24px',
+                    textAlign: 'center',
+                  }}>
+                    {isAcquisto ? '🛒' : '🏭'}
+                  </div>
+
                   <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: '13px', fontWeight: 500 }}>
+                    <div style={{ fontSize: '13px', fontWeight: 500, display: 'flex', alignItems: 'center', gap: '6px' }}>
                       {vendita.famiglia_nome || famiglia?.nome || 'Prodotto'}
+                      {isBilaterale && (
+                        <span style={{
+                          fontSize: '10px',
+                          padding: '2px 6px',
+                          background: isAcquisto ? 'rgba(59, 130, 246, 0.15)' : 'rgba(34, 197, 94, 0.15)',
+                          color: isAcquisto ? '#3b82f6' : '#22c55e',
+                          borderRadius: '4px',
+                        }}>
+                          🔗 Bilaterale
+                        </span>
+                      )}
                     </div>
                     <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
                       📅 {vendita.data_vendita ? new Date(vendita.data_vendita).toLocaleDateString('it-IT') : '-'}
+                      {vendita.controparte_nome && (
+                        <span> • {isAcquisto ? 'da' : 'a'} <strong>{vendita.controparte_nome}</strong></span>
+                      )}
                     </div>
                   </div>
-                  <div style={{ fontSize: '14px', fontWeight: 600, color: colore }}>
-                    €{vendita.importo.toLocaleString('it-IT')}
+                  <div style={{
+                    fontSize: '14px',
+                    fontWeight: 600,
+                    color: isAcquisto ? '#ef4444' : colore,
+                  }}>
+                    {isAcquisto ? '-' : '+'}€{vendita.importo.toLocaleString('it-IT')}
                   </div>
                   <button
                     onClick={() => deleteVendita(vendita.id)}
@@ -993,7 +1061,7 @@ function VenditeTab({
                       fontSize: '12px',
                       opacity: 0.6,
                     }}
-                    title="Elimina vendita"
+                    title="Elimina transazione"
                   >
                     🗑️
                   </button>
@@ -1055,27 +1123,69 @@ function VenditeTab({
   );
 }
 
-// Form nuova vendita
+// Form nuova vendita con supporto transazioni bilaterali
 function NuovaVenditaForm({
   famiglie,
+  controparti,
+  neurone,
   onSave,
   saving,
 }: {
   famiglie: FamigliaProdotto[];
   coloriDefault: string[];
-  onSave: (famigliaId: string, importo: number, dataVendita: string) => void;
+  controparti: Controparte[];
+  neurone: Neurone;
+  onSave: (
+    famigliaId: string,
+    importo: number,
+    dataVendita: string,
+    controparteId?: string,
+    sinapsiId?: string,
+    tipoTransazione?: 'acquisto' | 'vendita'
+  ) => void;
   saving: boolean;
 }) {
   const [famigliaId, setFamigliaId] = useState('');
   const [importo, setImporto] = useState('');
   const [dataVendita, setDataVendita] = useState(new Date().toISOString().split('T')[0]);
+  const [controparteId, setControparteId] = useState('');
+  const [tipoTransazione, setTipoTransazione] = useState<'acquisto' | 'vendita'>('vendita');
   const [expanded, setExpanded] = useState(false);
+
+  // Determina il tipo transazione di default in base alla natura del neurone
+  useEffect(() => {
+    if (neurone.is_acquirente && !neurone.is_venditore) {
+      setTipoTransazione('acquisto');
+    } else {
+      setTipoTransazione('vendita');
+    }
+  }, [neurone.is_acquirente, neurone.is_venditore]);
 
   const handleSubmit = () => {
     if (!famigliaId || !importo) return;
-    onSave(famigliaId, parseFloat(importo), dataVendita);
+
+    // Trova sinapsi_id dalla controparte selezionata
+    const controparte = controparti.find(c => c.id === controparteId);
+    const sinapsiId = controparte?.sinapsi_id;
+
+    onSave(
+      famigliaId,
+      parseFloat(importo),
+      dataVendita,
+      controparteId || undefined,
+      sinapsiId,
+      tipoTransazione
+    );
     setImporto('');
-    // Mantieni la stessa famiglia e data per inserimenti rapidi
+    // Mantieni stessa famiglia, controparte e data per inserimenti rapidi
+  };
+
+  // Etichetta dinamica
+  const getEtichettaTipo = () => {
+    if (tipoTransazione === 'acquisto') {
+      return neurone.is_venditore ? 'Acquistato da' : 'Comprato da';
+    }
+    return neurone.is_acquirente ? 'Venduto a' : 'Fornito a';
   };
 
   if (!expanded) {
@@ -1085,7 +1195,7 @@ function NuovaVenditaForm({
         className="btn btn-primary"
         style={{ width: '100%', marginBottom: '12px' }}
       >
-        + Nuova vendita
+        + Nuova transazione
       </button>
     );
   }
@@ -1098,7 +1208,7 @@ function NuovaVenditaForm({
       marginBottom: '12px',
     }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-        <h4 style={{ fontSize: '14px', fontWeight: 600 }}>Nuova vendita</h4>
+        <h4 style={{ fontSize: '14px', fontWeight: 600 }}>Nuova transazione</h4>
         <button
           onClick={() => setExpanded(false)}
           style={{ background: 'none', border: 'none', fontSize: '18px', cursor: 'pointer', color: 'var(--text-secondary)' }}
@@ -1108,6 +1218,47 @@ function NuovaVenditaForm({
       </div>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+        {/* Tipo transazione */}
+        <div>
+          <label style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '4px', display: 'block' }}>
+            Tipo transazione
+          </label>
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <button
+              type="button"
+              onClick={() => setTipoTransazione('vendita')}
+              style={{
+                flex: 1,
+                padding: '8px',
+                border: 'none',
+                borderRadius: '6px',
+                cursor: 'pointer',
+                background: tipoTransazione === 'vendita' ? '#22c55e' : 'var(--bg-primary)',
+                color: tipoTransazione === 'vendita' ? 'white' : 'var(--text-primary)',
+                fontWeight: tipoTransazione === 'vendita' ? 600 : 400,
+              }}
+            >
+              🏭 Vendita
+            </button>
+            <button
+              type="button"
+              onClick={() => setTipoTransazione('acquisto')}
+              style={{
+                flex: 1,
+                padding: '8px',
+                border: 'none',
+                borderRadius: '6px',
+                cursor: 'pointer',
+                background: tipoTransazione === 'acquisto' ? '#3b82f6' : 'var(--bg-primary)',
+                color: tipoTransazione === 'acquisto' ? 'white' : 'var(--text-primary)',
+                fontWeight: tipoTransazione === 'acquisto' ? 600 : 400,
+              }}
+            >
+              🛒 Acquisto
+            </button>
+          </div>
+        </div>
+
         {/* Prodotto */}
         <div>
           <label style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '4px', display: 'block' }}>
@@ -1127,6 +1278,39 @@ function NuovaVenditaForm({
           </select>
         </div>
 
+        {/* Controparte (opzionale) */}
+        {controparti.length > 0 && (
+          <div>
+            <label style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '4px', display: 'block' }}>
+              {getEtichettaTipo()} (opzionale - crea transazione bilaterale)
+            </label>
+            <select
+              className="form-input"
+              value={controparteId}
+              onChange={(e) => setControparteId(e.target.value)}
+            >
+              <option value="">-- Nessuna controparte --</option>
+              {controparti.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.nome}
+                </option>
+              ))}
+            </select>
+            {controparteId && (
+              <div style={{
+                marginTop: '6px',
+                padding: '8px',
+                background: tipoTransazione === 'acquisto' ? 'rgba(59, 130, 246, 0.1)' : 'rgba(34, 197, 94, 0.1)',
+                borderRadius: '4px',
+                fontSize: '11px',
+                color: tipoTransazione === 'acquisto' ? '#3b82f6' : '#22c55e',
+              }}>
+                💡 La transazione verrà registrata automaticamente anche su "{controparti.find(c => c.id === controparteId)?.nome}" come {tipoTransazione === 'acquisto' ? 'vendita' : 'acquisto'}
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Importo e Data */}
         <div style={{ display: 'flex', gap: '12px' }}>
           <div style={{ flex: 1 }}>
@@ -1143,7 +1327,7 @@ function NuovaVenditaForm({
           </div>
           <div style={{ flex: 1 }}>
             <label style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '4px', display: 'block' }}>
-              Data vendita *
+              Data *
             </label>
             <input
               type="date"
@@ -1161,7 +1345,7 @@ function NuovaVenditaForm({
           className="btn btn-primary"
           style={{ marginTop: '8px' }}
         >
-          {saving ? 'Salvataggio...' : 'Aggiungi vendita'}
+          {saving ? 'Salvataggio...' : controparteId ? 'Salva transazione bilaterale' : 'Aggiungi transazione'}
         </button>
       </div>
     </div>
