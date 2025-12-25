@@ -328,6 +328,7 @@ export default function Dashboard() {
               setQuickPopup('create');
             }}
             onQuickEntityClick={(neurone, screenX, screenY) => {
+              setQuickMapMode(true); // Attiva quick mode per il popup
               setQuickSourceNeurone(neurone);
               setQuickPopupPosition({ lat: neurone.lat || 0, lng: neurone.lng || 0, x: screenX, y: screenY });
               setQuickPopup('entityActions');

@@ -1083,43 +1083,70 @@ export default function MapView({
                         <div style="font-size: 11px; color: #94a3b8; margin-bottom: 8px;">Nessun dato vendite</div>
                       `}
 
-                      <button id="btn-dettagli-${neurone.id}" style="width: 100%; padding: 8px; background: #3b82f6; color: white; border: none; border-radius: 6px; font-size: 13px; font-weight: 500; cursor: pointer; margin-top: 8px;">
-                        Dettagli →
-                      </button>
+                      <div style="display: flex; gap: 8px; margin-top: 8px;">
+                        <button id="btn-dettagli-${neurone.id}" style="flex: 1; padding: 8px 12px; background: #3b82f6; color: white; border: none; border-radius: 6px; font-size: 13px; font-weight: 500; cursor: pointer;">
+                          Dettagli →
+                        </button>
+                        <button id="btn-quick-${neurone.id}" style="width: 40px; padding: 8px; background: #f59e0b; color: white; border: none; border-radius: 6px; font-size: 18px; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center;">
+                          +
+                        </button>
+                      </div>
                     </div>
                   `;
 
                   salesPopup.current?.setHTML(popupHtml);
 
-                  // Aggiungi event listener al bottone
+                  // Aggiungi event listener ai bottoni
                   setTimeout(() => {
-                    const btn = document.getElementById(`btn-dettagli-${neurone.id}`);
-                    if (btn) {
-                      btn.onclick = () => {
+                    const btnDettagli = document.getElementById(`btn-dettagli-${neurone.id}`);
+                    if (btnDettagli) {
+                      btnDettagli.onclick = () => {
                         salesPopup.current?.remove();
                         onSelectNeuroneRef.current(neurone);
+                      };
+                    }
+                    const btnQuick = document.getElementById(`btn-quick-${neurone.id}`);
+                    if (btnQuick && onQuickEntityClickRef.current) {
+                      btnQuick.onclick = () => {
+                        salesPopup.current?.remove();
+                        // Apri quick actions popup
+                        const rect = btnQuick.getBoundingClientRect();
+                        onQuickEntityClickRef.current!(neurone, rect.left, rect.top);
                       };
                     }
                   }, 50);
 
                 } catch (error) {
                   console.error('Errore caricamento vendite per popup:', error);
-                  // In caso di errore, mostra comunque il bottone dettagli
+                  // In caso di errore, mostra comunque i bottoni
                   const errorHtml = `
                     <div style="padding: 8px; min-width: 200px;">
                       <div style="font-weight: 600; font-size: 14px; margin-bottom: 8px;">${neurone.nome}</div>
-                      <button id="btn-dettagli-${neurone.id}" style="width: 100%; padding: 8px; background: #3b82f6; color: white; border: none; border-radius: 6px; font-size: 13px; font-weight: 500; cursor: pointer;">
-                        Dettagli →
-                      </button>
+                      <div style="display: flex; gap: 8px;">
+                        <button id="btn-dettagli-${neurone.id}" style="flex: 1; padding: 8px 12px; background: #3b82f6; color: white; border: none; border-radius: 6px; font-size: 13px; font-weight: 500; cursor: pointer;">
+                          Dettagli →
+                        </button>
+                        <button id="btn-quick-${neurone.id}" style="width: 40px; padding: 8px; background: #f59e0b; color: white; border: none; border-radius: 6px; font-size: 18px; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center;">
+                          +
+                        </button>
+                      </div>
                     </div>
                   `;
                   salesPopup.current?.setHTML(errorHtml);
                   setTimeout(() => {
-                    const btn = document.getElementById(`btn-dettagli-${neurone.id}`);
-                    if (btn) {
-                      btn.onclick = () => {
+                    const btnDettagli = document.getElementById(`btn-dettagli-${neurone.id}`);
+                    if (btnDettagli) {
+                      btnDettagli.onclick = () => {
                         salesPopup.current?.remove();
                         onSelectNeuroneRef.current(neurone);
+                      };
+                    }
+                    const btnQuick = document.getElementById(`btn-quick-${neurone.id}`);
+                    if (btnQuick && onQuickEntityClickRef.current) {
+                      btnQuick.onclick = () => {
+                        salesPopup.current?.remove();
+                        const rect = btnQuick.getBoundingClientRect();
+                        onQuickEntityClickRef.current!(neurone, rect.left, rect.top);
                       };
                     }
                   }, 50);
