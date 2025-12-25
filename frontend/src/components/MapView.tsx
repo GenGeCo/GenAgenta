@@ -326,6 +326,7 @@ export default function MapView({
   const [styleLoaded, setStyleLoaded] = useState(0); // incrementa per forzare re-render dopo cambio stile
   const [mapOpacity, setMapOpacity] = useState(100); // Opacità mappa 0-100
   const [showMapControls, setShowMapControls] = useState(false); // Mostra/nascondi controlli avanzati
+  const [showLegend, setShowLegend] = useState(false); // Mostra/nascondi legenda categorie
   const [preferenzeCaricate, setPreferenzeCaricate] = useState(false);
   const savePositionTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   const saveMapPositionRef = useRef<() => void>(() => {});
@@ -1244,34 +1245,56 @@ export default function MapView({
     <div style={{ position: 'relative', width: '100%', height: '100%' }}>
       <div ref={mapContainer} style={{ width: '100%', height: '100%' }} />
 
-      {/* Legenda dinamica basata sulle categorie */}
+      {/* Legenda collapsabile */}
       {categorie.length > 0 && (
         <div style={{
           position: 'absolute',
-          bottom: '80px',
-          left: '16px',
+          bottom: '30px',
+          left: '10px',
           background: 'white',
-          padding: '12px',
           borderRadius: '8px',
           boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
           fontSize: '12px',
           zIndex: 10,
-          maxHeight: '200px',
-          overflowY: 'auto',
+          overflow: 'hidden',
         }}>
-          <div style={{ fontWeight: 600, marginBottom: '8px' }}>Categorie</div>
-          {categorie.slice(0, 10).map((cat) => (
-            <div key={cat.id} style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
-              <div style={{ width: 12, height: 12, borderRadius: '4px', background: cat.colore, flexShrink: 0 }} />
-              <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '100px' }}>{cat.nome}</span>
-            </div>
-          ))}
-          {categorie.length > 10 && (
-            <div style={{ fontSize: '10px', color: '#64748b' }}>+{categorie.length - 10} altre...</div>
-          )}
-          <div style={{ fontSize: '10px', color: '#64748b', borderTop: '1px solid #e2e8f0', paddingTop: '8px', marginTop: '4px' }}>
-            Altezza = valore/relazioni
+          {/* Header cliccabile */}
+          <div
+            onClick={() => setShowLegend(!showLegend)}
+            style={{
+              padding: '8px 12px',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: '8px',
+              borderBottom: showLegend ? '1px solid #e2e8f0' : 'none',
+            }}
+          >
+            <span style={{ fontWeight: 600, fontSize: '11px' }}>Legenda</span>
+            <span style={{
+              fontSize: '10px',
+              transform: showLegend ? 'rotate(180deg)' : 'none',
+              transition: 'transform 0.2s ease',
+            }}>▼</span>
           </div>
+          {/* Contenuto */}
+          {showLegend && (
+            <div style={{ padding: '8px 12px', maxHeight: '180px', overflowY: 'auto' }}>
+              {categorie.slice(0, 10).map((cat) => (
+                <div key={cat.id} style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                  <div style={{ width: 10, height: 10, borderRadius: '3px', background: cat.colore, flexShrink: 0 }} />
+                  <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '90px', fontSize: '11px' }}>{cat.nome}</span>
+                </div>
+              ))}
+              {categorie.length > 10 && (
+                <div style={{ fontSize: '10px', color: '#64748b' }}>+{categorie.length - 10} altre...</div>
+              )}
+              <div style={{ fontSize: '9px', color: '#64748b', borderTop: '1px solid #e2e8f0', paddingTop: '6px', marginTop: '4px' }}>
+                Altezza = valore/relazioni
+              </div>
+            </div>
+          )}
         </div>
       )}
 
