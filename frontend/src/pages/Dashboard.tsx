@@ -275,6 +275,9 @@ export default function Dashboard() {
                   nome: neurone.nome,
                   tipo: neurone.tipo,
                 };
+                // Aggiorna ref immediatamente
+                connectionPickingModeRef.current = false;
+                // Poi aggiorna state
                 setConnectionTargetEntity(target);
                 setConnectionPickingMode(false);
                 // Ripristina il neurone origine come selezionato
@@ -316,6 +319,10 @@ export default function Dashboard() {
               <span>Clicca su un'entità per collegarla</span>
               <button
                 onClick={() => {
+                  // Aggiorna refs immediatamente
+                  connectionPickingModeRef.current = false;
+                  connectionSourceNeuroneRef.current = null;
+                  // Poi aggiorna state
                   setConnectionPickingMode(false);
                   setConnectionTargetEntity(null);
                   // Ripristina il neurone origine
@@ -374,11 +381,18 @@ export default function Dashboard() {
               }}
               onRequestConnectionMapPick={() => {
                 // Salva il neurone origine prima di entrare in modalità picking
+                // Aggiorna refs IMMEDIATAMENTE (prima del re-render)
+                connectionSourceNeuroneRef.current = selectedNeurone;
+                connectionPickingModeRef.current = true;
+                // Poi aggiorna lo state
                 setConnectionSourceNeurone(selectedNeurone);
                 setConnectionPickingMode(true);
               }}
               connectionTargetEntity={connectionTargetEntity}
               onClearConnectionTarget={() => {
+                // Aggiorna ref immediatamente
+                connectionSourceNeuroneRef.current = null;
+                // Poi aggiorna state
                 setConnectionTargetEntity(null);
                 setConnectionSourceNeurone(null);
               }}
