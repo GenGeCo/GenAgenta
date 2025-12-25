@@ -43,6 +43,7 @@ export default function Dashboard() {
   // Stato per connessione su mappa (selezione entità target)
   const [connectionPickingMode, setConnectionPickingMode] = useState(false);
   const [connectionTargetEntity, setConnectionTargetEntity] = useState<{ id: string; nome: string; tipo: string } | null>(null);
+  const [connectionSourceNeurone, setConnectionSourceNeurone] = useState<Neurone | null>(null); // Neurone origine per connessione
 
   // Filtri
   const [filtri, setFiltri] = useState<FiltriMappa>({
@@ -241,11 +242,11 @@ export default function Dashboard() {
             tipiNeurone={tipiNeurone}
             selectedId={selectedNeurone?.id || null}
             onSelectNeurone={(neurone) => {
-              console.log('DEBUG onSelectNeurone:', neurone.nome, 'connectionPickingMode:', connectionPickingMode, 'selectedNeurone:', selectedNeurone?.nome);
+              console.log('DEBUG onSelectNeurone:', neurone.nome, 'connectionPickingMode:', connectionPickingMode, 'connectionSourceNeurone:', connectionSourceNeurone?.nome);
               // Se siamo in modalità picking connessione, usa il neurone come target
-              if (connectionPickingMode) {
+              if (connectionPickingMode && connectionSourceNeurone) {
                 // Non permettere di selezionare se stesso
-                if (selectedNeurone && neurone.id === selectedNeurone.id) {
+                if (neurone.id === connectionSourceNeurone.id) {
                   console.log('DEBUG: Impossibile collegare a se stesso');
                   alert('Non puoi collegare un\'entità a se stessa!');
                   return;
@@ -256,10 +257,11 @@ export default function Dashboard() {
                   nome: neurone.nome,
                   tipo: neurone.tipo,
                 };
-                console.log('DEBUG: target object:', JSON.stringify(target));
                 setConnectionTargetEntity(target);
                 setConnectionPickingMode(false);
-                console.log('DEBUG: connectionPickingMode settato a false');
+                // Ripristina il neurone origine come selezionato
+                setSelectedNeurone(connectionSourceNeurone);
+                console.log('DEBUG: Target impostato, ripristinato selectedNeurone:', connectionSourceNeurone.nome);
               } else {
                 handleSelectNeurone(neurone);
               }
@@ -298,6 +300,11 @@ export default function Dashboard() {
                 onClick={() => {
                   setConnectionPickingMode(false);
                   setConnectionTargetEntity(null);
+                  // Ripristina il neurone origine
+                  if (connectionSourceNeurone) {
+                    setSelectedNeurone(connectionSourceNeurone);
+                  }
+                  setConnectionSourceNeurone(null);
                 }}
                 style={{
                   background: 'rgba(255,255,255,0.2)',
@@ -347,9 +354,16 @@ export default function Dashboard() {
                 setEditingNeurone(selectedNeurone);
                 setShowNeuroneForm(true);
               }}
-              onRequestConnectionMapPick={() => setConnectionPickingMode(true)}
+              onRequestConnectionMapPick={() => {
+                // Salva il neurone origine prima di entrare in modalità picking
+                setConnectionSourceNeurone(selectedNeurone);
+                setConnectionPickingMode(true);
+              }}
               connectionTargetEntity={connectionTargetEntity}
-              onClearConnectionTarget={() => setConnectionTargetEntity(null)}
+              onClearConnectionTarget={() => {
+                setConnectionTargetEntity(null);
+                setConnectionSourceNeurone(null);
+              }}
               onSinapsiCreated={reloadSinapsi}
             />
           )}
