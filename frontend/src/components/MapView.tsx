@@ -1083,13 +1083,13 @@ export default function MapView({
           const pitch = m.getPitch();
           const zoom = m.getZoom();
           // Conversione altezza edificio (metri) in pixel sullo schermo
-          // A zoom 14 e pitch 60°, 1 metro ≈ 0.5 pixel verticali
-          const zoomFactor = Math.pow(2, zoom - 14);
+          // Fattore zoom: scala più dolcemente per evitare popup troppo alti a zoom bassi
+          const zoomFactor = Math.pow(2, (zoom - 14) * 0.7); // esponente ridotto
           const pitchFactor = Math.sin((pitch * Math.PI) / 180);
-          // Fattore 0.6 per coprire l'altezza visiva dell'edificio 3D
-          const heightPixels = buildingHeight * zoomFactor * pitchFactor * 0.6;
-          // Margine fisso sopra la cima (circa 1cm = 30px)
-          const totalOffset = 30 + Math.min(heightPixels, 200);
+          // Fattore 0.35 calibrato per stare appena sopra la cima
+          const heightPixels = buildingHeight * zoomFactor * pitchFactor * 0.35;
+          // Margine fisso ridotto (20px) + altezza proporzionale
+          const totalOffset = 20 + Math.min(heightPixels, 120);
 
           popup.current.setOffset([0, -totalOffset]);
           popup.current
@@ -1175,13 +1175,13 @@ export default function MapView({
                 const buildingHeight = calculateHeight(neurone, getSinapsiCount(neurone.id));
                 const pitch = m.getPitch();
                 const zoom = m.getZoom();
-                // Conversione altezza edificio (metri) in pixel sullo schermo
-                const zoomFactor = Math.pow(2, zoom - 14);
+                // Fattore zoom: scala più dolcemente per evitare popup troppo alti a zoom bassi
+                const zoomFactor = Math.pow(2, (zoom - 14) * 0.7); // esponente ridotto
                 const pitchFactor = Math.sin((pitch * Math.PI) / 180);
-                // Fattore 0.6 per coprire l'altezza visiva dell'edificio 3D
-                const heightPixels = buildingHeight * zoomFactor * pitchFactor * 0.6;
-                // Margine fisso sopra la cima (circa 1cm = 30px)
-                const totalOffset = 30 + Math.min(heightPixels, 200);
+                // Fattore 0.35 calibrato per stare appena sopra la cima
+                const heightPixels = buildingHeight * zoomFactor * pitchFactor * 0.35;
+                // Margine fisso ridotto (20px) + altezza proporzionale
+                const totalOffset = 20 + Math.min(heightPixels, 120);
 
                 salesPopup.current.setOffset([0, -totalOffset]);
 
