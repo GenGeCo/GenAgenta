@@ -61,6 +61,7 @@ export default function Dashboard() {
   // Refs per evitare closure stale nei callback
   const connectionPickingModeRef = useRef(false);
   const connectionSourceNeuroneRef = useRef<Neurone | null>(null);
+  const quickActionRef = useRef<QuickActionType>(null);
 
   // Sincronizza refs con state
   useEffect(() => {
@@ -70,6 +71,11 @@ export default function Dashboard() {
   useEffect(() => {
     connectionSourceNeuroneRef.current = connectionSourceNeurone;
   }, [connectionSourceNeurone]);
+
+  useEffect(() => {
+    quickActionRef.current = quickAction;
+    console.log('DEBUG quickAction aggiornato a:', quickAction);
+  }, [quickAction]);
 
   // Filtri
   const [filtri, setFiltri] = useState<FiltriMappa>({
@@ -281,10 +287,12 @@ export default function Dashboard() {
             connectionPickingMode={connectionPickingMode}
             connectionSourceId={connectionSourceNeurone?.id || null}
             onPickConnectionTarget={(neurone) => {
-              console.log('DEBUG onPickConnectionTarget:', neurone.nome, 'quickAction:', quickAction);
+              // Usa il ref per evitare closure stale
+              const currentQuickAction = quickActionRef.current;
+              console.log('DEBUG onPickConnectionTarget:', neurone.nome, 'quickAction:', currentQuickAction);
 
               // Se siamo in quick mode con azione vendi/compra, mostra form transazione
-              if (quickAction === 'vendi' || quickAction === 'compra') {
+              if (currentQuickAction === 'vendi' || currentQuickAction === 'compra') {
                 setQuickTargetNeurone(neurone);
                 setConnectionPickingMode(false);
                 setQuickMapMode(true); // Mantieni quick mode attivo
