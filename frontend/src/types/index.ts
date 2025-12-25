@@ -38,7 +38,7 @@ export interface Sinapsi {
   id: string;
   neurone_da: string;
   neurone_a: string;
-  tipo_connessione: string;
+  tipo_connessione: string[];  // Array di tipi (multi-select)
   famiglia_prodotto_id: string | null;  // Prodotto coinvolto nella relazione
   data_inizio: string;
   data_fine: string | null;

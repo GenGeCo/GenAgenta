@@ -36,9 +36,11 @@ if (!$hasPersonalAccess) {
     $params[] = $user['user_id'];
 }
 
-// Filtro tipo connessione
+// Filtro tipo connessione (supporta JSON array)
 if ($tipoConnessione) {
-    $where[] = "s.tipo_connessione = ?";
+    // Cerca sia nel formato JSON array che stringa legacy
+    $where[] = "(s.tipo_connessione LIKE ? OR s.tipo_connessione = ?)";
+    $params[] = '%"' . $tipoConnessione . '"%';
     $params[] = $tipoConnessione;
 }
 
@@ -102,13 +104,26 @@ $stmt = $db->prepare($sql);
 $stmt->execute($params);
 $sinapsi = $stmt->fetchAll();
 
-// Converti coordinate a float (MySQL le restituisce come stringhe)
+// Converti coordinate a float e parse tipo_connessione JSON
 foreach ($sinapsi as &$s) {
     $s['lat_da'] = $s['lat_da'] !== null ? (float)$s['lat_da'] : null;
     $s['lng_da'] = $s['lng_da'] !== null ? (float)$s['lng_da'] : null;
     $s['lat_a'] = $s['lat_a'] !== null ? (float)$s['lat_a'] : null;
     $s['lng_a'] = $s['lng_a'] !== null ? (float)$s['lng_a'] : null;
     $s['valore'] = $s['valore'] !== null ? (float)$s['valore'] : null;
+
+    // Decodifica tipo_connessione da JSON a array
+    if (!empty($s['tipo_connessione'])) {
+        $decoded = json_decode($s['tipo_connessione'], true);
+        if (is_array($decoded)) {
+            $s['tipo_connessione'] = $decoded;
+        } else {
+            // Legacy: stringa singola - converti in array
+            $s['tipo_connessione'] = [$s['tipo_connessione']];
+        }
+    } else {
+        $s['tipo_connessione'] = [];
+    }
 }
 
 jsonResponse([

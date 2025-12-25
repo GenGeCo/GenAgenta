@@ -15,6 +15,17 @@ foreach ($required as $field) {
     }
 }
 
+// tipo_connessione può essere array (multi-select) o stringa singola
+// Salviamo sempre come JSON array per consistenza
+$tipoConnessione = $data['tipo_connessione'];
+if (is_array($tipoConnessione)) {
+    $tipoConnessione = json_encode($tipoConnessione);
+} elseif (is_string($tipoConnessione) && substr($tipoConnessione, 0, 1) !== '[') {
+    // Stringa singola legacy - convertiamo in array JSON
+    $tipoConnessione = json_encode([$tipoConnessione]);
+}
+// Se già JSON string, lasciamo così
+
 $db = getDB();
 
 // Verifica esistenza neuroni
@@ -46,7 +57,7 @@ $stmt->execute([
     $id,
     $data['neurone_da'],
     $data['neurone_a'],
-    $data['tipo_connessione'],
+    $tipoConnessione,
     $data['famiglia_prodotto_id'] ?? null,
     $data['data_inizio'],
     $data['data_fine'] ?? null,

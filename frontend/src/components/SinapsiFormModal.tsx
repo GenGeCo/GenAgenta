@@ -43,7 +43,10 @@ export default function SinapsiFormModal({
         : sinapsiDaModificare.nome_da || ''
       : '')
   );
-  const [tipoConnessione, setTipoConnessione] = useState(sinapsiDaModificare?.tipo_connessione || '');
+  // Multi-select per tipi connessione (array)
+  const [tipiConnessioneSelezionati, setTipiConnessioneSelezionati] = useState<string[]>(
+    sinapsiDaModificare?.tipo_connessione || []
+  );
   const [dataInizio, setDataInizio] = useState(
     sinapsiDaModificare?.data_inizio || new Date().toISOString().split('T')[0]
   );
@@ -74,9 +77,6 @@ export default function SinapsiFormModal({
           api.getFamiglieProdotto()
         ]);
         setTipiSinapsi(tipiRes.data);
-        if (tipiRes.data.length > 0 && !tipoConnessione) {
-          setTipoConnessione(tipiRes.data[0].nome);
-        }
         setFamiglieProdotto(famiglieRes.data);
       } catch (err) {
         console.error('Errore caricamento dati:', err);
@@ -99,6 +99,15 @@ export default function SinapsiFormModal({
     onRequestMapPick?.();
   };
 
+  // Toggle selezione tipo connessione
+  const toggleTipoConnessione = (nome: string) => {
+    setTipiConnessioneSelezionati(prev =>
+      prev.includes(nome)
+        ? prev.filter(t => t !== nome)
+        : [...prev, nome]
+    );
+  };
+
   // Salvataggio
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -109,12 +118,17 @@ export default function SinapsiFormModal({
       return;
     }
 
+    if (tipiConnessioneSelezionati.length === 0) {
+      setError('Seleziona almeno un tipo di connessione');
+      return;
+    }
+
     setSaving(true);
     try {
       const sinapsiData = {
         neurone_da: neuroneCorrente.id,
         neurone_a: neuroneCollegato,
-        tipo_connessione: tipoConnessione,
+        tipo_connessione: tipiConnessioneSelezionati,  // Array di tipi
         famiglia_prodotto_id: famigliaProdottoId || null,
         data_inizio: dataInizio,
         data_fine: dataFine || null,
@@ -264,9 +278,16 @@ export default function SinapsiFormModal({
             )}
           </div>
 
-          {/* Tipo connessione */}
+          {/* Tipi connessione (multi-select con checkbox) */}
           <div className="form-group">
-            <label className="form-label">Tipo Connessione</label>
+            <label className="form-label">
+              Tipi Connessione
+              {tipiConnessioneSelezionati.length > 0 && (
+                <span style={{ fontWeight: 400, color: 'var(--text-secondary)', marginLeft: '8px' }}>
+                  ({tipiConnessioneSelezionati.length} selezionati)
+                </span>
+              )}
+            </label>
             {tipiSinapsi.length === 0 ? (
               <div style={{
                 padding: '12px',
@@ -283,18 +304,41 @@ export default function SinapsiFormModal({
                 </span>
               </div>
             ) : (
-              <select
-                className="form-input"
-                value={tipoConnessione}
-                onChange={(e) => setTipoConnessione(e.target.value)}
-                required
-              >
-                {tipiSinapsi.map((t) => (
-                  <option key={t.id} value={t.nome}>
-                    {t.nome.replace(/_/g, ' ')}
-                  </option>
-                ))}
-              </select>
+              <div style={{
+                display: 'flex',
+                flexWrap: 'wrap',
+                gap: '8px',
+                padding: '12px',
+                background: 'var(--bg-primary)',
+                borderRadius: '8px',
+                border: '1px solid var(--border-color)',
+                maxHeight: '200px',
+                overflowY: 'auto',
+              }}>
+                {tipiSinapsi.map((t) => {
+                  const isSelected = tipiConnessioneSelezionati.includes(t.nome);
+                  return (
+                    <button
+                      key={t.id}
+                      type="button"
+                      onClick={() => toggleTipoConnessione(t.nome)}
+                      style={{
+                        padding: '6px 12px',
+                        borderRadius: '16px',
+                        border: 'none',
+                        cursor: 'pointer',
+                        fontSize: '13px',
+                        fontWeight: isSelected ? 600 : 400,
+                        background: isSelected ? t.colore || 'var(--primary)' : 'var(--bg-secondary)',
+                        color: isSelected ? 'white' : 'var(--text-primary)',
+                        transition: 'all 0.15s ease',
+                      }}
+                    >
+                      {isSelected && '✓ '}{t.nome.replace(/_/g, ' ')}
+                    </button>
+                  );
+                })}
+              </div>
             )}
           </div>
 
@@ -446,7 +490,7 @@ export default function SinapsiFormModal({
             <button type="button" className="btn" onClick={onClose} disabled={saving}>
               Annulla
             </button>
-            <button type="submit" className="btn btn-primary" disabled={saving || !neuroneCollegato || tipiSinapsi.length === 0}>
+            <button type="submit" className="btn btn-primary" disabled={saving || !neuroneCollegato || tipiConnessioneSelezionati.length === 0}>
               {saving ? 'Salvataggio...' : isEditing ? 'Salva modifiche' : 'Crea connessione'}
             </button>
           </div>

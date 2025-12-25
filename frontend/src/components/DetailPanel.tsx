@@ -540,7 +540,9 @@ function ConnessioniTab({
                     {isOutgoing ? '→' : '←'} {altroNome}
                   </div>
                   <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
-                    {s.tipo_connessione.replace(/_/g, ' ')}
+                    {Array.isArray(s.tipo_connessione)
+                      ? s.tipo_connessione.map(t => t.replace(/_/g, ' ')).join(' • ')
+                      : String(s.tipo_connessione || '').replace(/_/g, ' ')}
                     {s.prodotto_nome && (
                       <span style={{ marginLeft: '6px', background: 'var(--bg-tertiary)', padding: '2px 6px', borderRadius: '4px' }}>
                         📦 {s.prodotto_nome}

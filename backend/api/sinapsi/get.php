@@ -39,6 +39,19 @@ if (!$sinapsi) {
     errorResponse('Sinapsi non trovata', 404);
 }
 
+// Decodifica tipo_connessione da JSON a array
+if (!empty($sinapsi['tipo_connessione'])) {
+    $decoded = json_decode($sinapsi['tipo_connessione'], true);
+    if (is_array($decoded)) {
+        $sinapsi['tipo_connessione'] = $decoded;
+    } else {
+        // Legacy: stringa singola - converti in array
+        $sinapsi['tipo_connessione'] = [$sinapsi['tipo_connessione']];
+    }
+} else {
+    $sinapsi['tipo_connessione'] = [];
+}
+
 // Controllo visibilità e azienda
 if ($sinapsi['livello'] === 'aziendale') {
     // Dati aziendali: verifico che sia della MIA azienda

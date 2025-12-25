@@ -39,8 +39,20 @@ $allowedFields = ['tipo_connessione', 'famiglia_prodotto_id', 'data_inizio', 'da
 
 foreach ($allowedFields as $field) {
     if (array_key_exists($field, $data)) {
+        $value = $data[$field];
+
+        // tipo_connessione: converti array in JSON
+        if ($field === 'tipo_connessione') {
+            if (is_array($value)) {
+                $value = json_encode($value);
+            } elseif (is_string($value) && substr($value, 0, 1) !== '[') {
+                // Stringa singola legacy - convertiamo in array JSON
+                $value = json_encode([$value]);
+            }
+        }
+
         $updates[] = "$field = ?";
-        $params[] = $data[$field];
+        $params[] = $value;
     }
 }
 
