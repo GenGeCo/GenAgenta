@@ -11,11 +11,11 @@ import PinModal from '../components/PinModal';
 import UserMenu from '../components/UserMenu';
 import InvitePopup from '../components/InvitePopup';
 import NeuroneFormModal from '../components/NeuroneFormModal';
-import { QuickCreateEntity, QuickEntityActions, QuickSelectTarget, QuickConnectionType } from '../components/QuickActionPopup';
+import { QuickCreateEntity, QuickEntityActions, QuickSelectTarget, QuickConnectionType, QuickTransactionForm } from '../components/QuickActionPopup';
 import type { Neurone, Sinapsi, FiltriMappa, Categoria, TipoNeuroneConfig } from '../types';
 
 // Tipi per quick actions
-type QuickPopupType = 'create' | 'entityActions' | 'selectTarget' | 'connectionType' | null;
+type QuickPopupType = 'create' | 'entityActions' | 'selectTarget' | 'connectionType' | 'transactionForm' | null;
 type QuickActionType = 'vendi' | 'compra' | 'connetti' | null;
 
 interface PendingInvite {
@@ -281,7 +281,25 @@ export default function Dashboard() {
             connectionPickingMode={connectionPickingMode}
             connectionSourceId={connectionSourceNeurone?.id || null}
             onPickConnectionTarget={(neurone) => {
-              console.log('DEBUG onPickConnectionTarget:', neurone.nome);
+              console.log('DEBUG onPickConnectionTarget:', neurone.nome, 'quickAction:', quickAction);
+
+              // Se siamo in quick mode con azione vendi/compra, mostra form transazione
+              if (quickAction === 'vendi' || quickAction === 'compra') {
+                setQuickTargetNeurone(neurone);
+                setConnectionPickingMode(false);
+                setQuickMapMode(true); // Mantieni quick mode attivo
+                setQuickPopup('transactionForm');
+                // Posiziona popup al centro dello schermo
+                setQuickPopupPosition({
+                  lat: neurone.lat || 0,
+                  lng: neurone.lng || 0,
+                  x: window.innerWidth / 2 - 140,
+                  y: window.innerHeight / 2 - 150
+                });
+                return;
+              }
+
+              // Altrimenti comportamento standard per connessioni
               const target = {
                 id: neurone.id,
                 nome: neurone.nome,
@@ -525,6 +543,51 @@ export default function Dashboard() {
                       setQuickPopupPosition(null);
                     } catch (error) {
                       console.error('Errore creazione connessione:', error);
+                    }
+                  }}
+                />
+              )}
+
+              {/* Form transazione rapida (Vendi/Compra) */}
+              {quickPopup === 'transactionForm' && quickSourceNeurone && quickTargetNeurone && quickAction && (quickAction === 'vendi' || quickAction === 'compra') && (
+                <QuickTransactionForm
+                  sourceNeurone={quickSourceNeurone}
+                  targetNeurone={quickTargetNeurone}
+                  action={quickAction}
+                  onClose={() => {
+                    setQuickPopup(null);
+                    setQuickTargetNeurone(null);
+                    setQuickSourceNeurone(null);
+                    setQuickAction(null);
+                    setQuickPopupPosition(null);
+                    setQuickMapMode(false);
+                  }}
+                  onConfirm={async (data) => {
+                    try {
+                      // Determina chi è il venditore e chi l'acquirente
+                      const venditorId = quickAction === 'vendi' ? quickSourceNeurone.id : quickTargetNeurone.id;
+
+                      // Crea la vendita
+                      await api.createVendita({
+                        neurone_id: venditorId,
+                        famiglia_id: data.famigliaId,
+                        importo: data.importo,
+                        data_vendita: data.data,
+                      });
+
+                      // Ricarica neuroni per aggiornare venduto_totale
+                      const neuroniRes = await api.getNeuroni({ limit: 500 });
+                      setNeuroni(neuroniRes.data);
+
+                      // Reset
+                      setQuickMapMode(false);
+                      setQuickPopup(null);
+                      setQuickTargetNeurone(null);
+                      setQuickSourceNeurone(null);
+                      setQuickAction(null);
+                      setQuickPopupPosition(null);
+                    } catch (error) {
+                      console.error('Errore creazione vendita:', error);
                     }
                   }}
                 />

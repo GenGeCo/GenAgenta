@@ -596,9 +596,10 @@ export default function MapView({
       container.style.cursor = 'crosshair';
       container.classList.add('picking-mode');
     } else if (quickMapMode) {
-      // Cursore pointer per quick map mode
-      canvas.style.cursor = 'pointer';
-      container.style.cursor = 'pointer';
+      // Cursore crosshair per quick map mode (sulla mappa vuota)
+      // Il cursore pointer sulle entità viene gestito da mouseenter/mouseleave
+      canvas.style.cursor = 'crosshair';
+      container.style.cursor = 'crosshair';
       container.classList.add('quick-map-mode');
     } else {
       canvas.style.cursor = '';

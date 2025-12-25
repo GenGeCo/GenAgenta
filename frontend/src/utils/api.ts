@@ -417,6 +417,22 @@ class ApiClient {
   }
 
   // =====================================================
+  // Vendite Prodotto
+  // =====================================================
+  async createVendita(vendita: {
+    neurone_id: string;
+    famiglia_id: string;
+    importo: number;
+    data_vendita: string;
+    controparte_id?: string;
+    tipo_transazione?: 'vendita' | 'acquisto';
+  }): Promise<{ id: string; message: string }> {
+    const client = this.getV2Client();
+    const { data } = await client.post('/vendite', vendita);
+    return data;
+  }
+
+  // =====================================================
   // API v2 - Metodi generici per nuova architettura
   // =====================================================
 

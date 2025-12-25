@@ -328,6 +328,119 @@ export function QuickConnectionType({ onClose, onConfirm }: QuickConnectionTypeP
   );
 }
 
+// Popup per transazione rapida (dopo selezione target per Vendi/Compra)
+interface QuickTransactionFormProps {
+  sourceNeurone: Neurone;
+  targetNeurone: Neurone;
+  action: 'vendi' | 'compra';
+  onClose: () => void;
+  onConfirm: (data: { famigliaId: string; importo: number; data: string }) => void;
+}
+
+export function QuickTransactionForm({ sourceNeurone, targetNeurone, action, onClose, onConfirm }: QuickTransactionFormProps) {
+  const [famiglie, setFamiglie] = useState<{ id: string; nome: string; colore: string | null }[]>([]);
+  const [famigliaId, setFamigliaId] = useState('');
+  const [importo, setImporto] = useState('');
+  const [data, setData] = useState(new Date().toISOString().split('T')[0]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const res = await api.getFamiglieProdotto();
+        setFamiglie(res.data);
+        if (res.data.length > 0) {
+          setFamigliaId(res.data[0].id);
+        }
+      } catch (err) {
+        console.error('Errore:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    load();
+  }, []);
+
+  const handleSubmit = () => {
+    if (!famigliaId || !importo) return;
+    onConfirm({
+      famigliaId,
+      importo: parseFloat(importo),
+      data
+    });
+  };
+
+  const titolo = action === 'vendi'
+    ? `${sourceNeurone.nome} vende a ${targetNeurone.nome}`
+    : `${sourceNeurone.nome} compra da ${targetNeurone.nome}`;
+
+  if (loading) {
+    return <div style={popupStyle}><div style={{ padding: '20px' }}>Caricamento...</div></div>;
+  }
+
+  return (
+    <div style={{ ...popupStyle, minWidth: '280px' }}>
+      <div style={headerStyle}>
+        <span style={{ fontWeight: 600, fontSize: '13px' }}>{titolo}</span>
+        <button onClick={onClose} style={closeButtonStyle}>✕</button>
+      </div>
+      <div style={contentStyle}>
+        {famiglie.length === 0 ? (
+          <div style={{ padding: '12px', background: '#fef3c7', borderRadius: '8px', fontSize: '13px', color: '#92400e' }}>
+            Nessuna famiglia prodotto configurata.
+          </div>
+        ) : (
+          <>
+            <div>
+              <label style={{ fontSize: '12px', color: '#6b7280', marginBottom: '4px', display: 'block' }}>Prodotto</label>
+              <select
+                value={famigliaId}
+                onChange={(e) => setFamigliaId(e.target.value)}
+                style={{ ...inputStyle, marginBottom: '8px' }}
+              >
+                {famiglie.map(f => (
+                  <option key={f.id} value={f.id}>{f.nome}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label style={{ fontSize: '12px', color: '#6b7280', marginBottom: '4px', display: 'block' }}>Importo (€)</label>
+              <input
+                type="number"
+                value={importo}
+                onChange={(e) => setImporto(e.target.value)}
+                placeholder="0.00"
+                style={{ ...inputStyle, marginBottom: '8px' }}
+                autoFocus
+              />
+            </div>
+            <div>
+              <label style={{ fontSize: '12px', color: '#6b7280', marginBottom: '4px', display: 'block' }}>Data</label>
+              <input
+                type="date"
+                value={data}
+                onChange={(e) => setData(e.target.value)}
+                style={{ ...inputStyle, marginBottom: '12px' }}
+              />
+            </div>
+            <button
+              onClick={handleSubmit}
+              disabled={!famigliaId || !importo}
+              style={{
+                ...confirmButtonStyle,
+                opacity: (!famigliaId || !importo) ? 0.5 : 1,
+                background: action === 'vendi' ? '#10b981' : '#3b82f6'
+              }}
+            >
+              {action === 'vendi' ? 'Registra Vendita' : 'Registra Acquisto'}
+            </button>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // Stili condivisi
 const popupStyle: React.CSSProperties = {
   background: 'white',
