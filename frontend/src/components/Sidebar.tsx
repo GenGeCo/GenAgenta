@@ -17,12 +17,14 @@ function MultiSelectDropdown({
   selected,
   onToggle,
   placeholder,
+  onSelectAll,
 }: {
   label: string;
   options: DropdownOption[];
   selected: string[];
   onToggle: (id: string) => void;
   placeholder?: string;
+  onSelectAll?: () => void;
 }) {
   const [isOpen, setIsOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -96,6 +98,35 @@ function MultiSelectDropdown({
           maxHeight: '200px',
           overflowY: 'auto',
         }}>
+          {/* Opzione "Tutti" per deselezionare tutto */}
+          {onSelectAll && (
+            <div
+              onClick={() => {
+                onSelectAll();
+                setIsOpen(false);
+              }}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '8px 10px',
+                cursor: 'pointer',
+                borderBottom: '2px solid var(--border-color)',
+                background: selected.length === 0 ? 'var(--bg-tertiary)' : 'transparent',
+                fontWeight: selected.length === 0 ? 600 : 400,
+              }}
+              onMouseEnter={(e) => {
+                if (selected.length > 0) e.currentTarget.style.background = 'var(--bg-secondary)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = selected.length === 0 ? 'var(--bg-tertiary)' : 'transparent';
+              }}
+            >
+              <span style={{ fontSize: '12px', color: 'var(--text-primary)' }}>
+                Tutti
+              </span>
+            </div>
+          )}
           {options.map((opt) => {
             const isSelected = selected.includes(opt.id);
             return (
@@ -391,8 +422,8 @@ export default function Sidebar({
           style={{ fontSize: '12px', padding: '6px 10px', marginBottom: '8px' }}
         />
 
-        {/* Dropdown Tipi e Categorie affiancati */}
-        <div style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
+        {/* Dropdown Tipi e Categorie in verticale */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginBottom: '8px' }}>
           <MultiSelectDropdown
             label="Tipi"
             placeholder="Tutti i tipi"
@@ -403,10 +434,11 @@ export default function Sidebar({
             }))}
             selected={filtri.tipiSelezionati}
             onToggle={toggleTipo}
+            onSelectAll={() => onFiltriChange({ ...filtri, tipiSelezionati: [] })}
           />
           <MultiSelectDropdown
             label="Categorie"
-            placeholder="Tutte"
+            placeholder="Tutte le categorie"
             options={categorieVisibili.map(c => ({
               id: c.nome,
               label: c.nome,
@@ -415,6 +447,7 @@ export default function Sidebar({
             }))}
             selected={filtri.categorieSelezionate}
             onToggle={toggleCategoria}
+            onSelectAll={() => onFiltriChange({ ...filtri, categorieSelezionate: [] })}
           />
         </div>
 
