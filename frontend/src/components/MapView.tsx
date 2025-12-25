@@ -1084,11 +1084,11 @@ export default function MapView({
                       `}
 
                       <div style="display: flex; gap: 8px; margin-top: 8px;">
-                        <button id="btn-dettagli-${neurone.id}" style="flex: 1; padding: 8px 12px; background: #3b82f6; color: white; border: none; border-radius: 6px; font-size: 13px; font-weight: 500; cursor: pointer;">
-                          Dettagli →
-                        </button>
                         <button id="btn-quick-${neurone.id}" style="width: 40px; padding: 8px; background: #f59e0b; color: white; border: none; border-radius: 6px; font-size: 18px; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center;">
                           +
+                        </button>
+                        <button id="btn-dettagli-${neurone.id}" style="flex: 1; padding: 8px 12px; background: #3b82f6; color: white; border: none; border-radius: 6px; font-size: 13px; font-weight: 500; cursor: pointer;">
+                          Dettagli →
                         </button>
                       </div>
                     </div>
@@ -1106,12 +1106,14 @@ export default function MapView({
                       };
                     }
                     const btnQuick = document.getElementById(`btn-quick-${neurone.id}`);
-                    if (btnQuick && onQuickEntityClickRef.current) {
+                    if (btnQuick && onQuickEntityClickRef.current && map.current) {
                       btnQuick.onclick = () => {
+                        // Calcola posizione screen del neurone PRIMA di rimuovere il popup
+                        const point = map.current?.project([neurone.lng!, neurone.lat!]);
                         salesPopup.current?.remove();
-                        // Apri quick actions popup
-                        const rect = btnQuick.getBoundingClientRect();
-                        onQuickEntityClickRef.current!(neurone, rect.left, rect.top);
+                        if (point) {
+                          onQuickEntityClickRef.current!(neurone, point.x, point.y);
+                        }
                       };
                     }
                   }, 50);
@@ -1123,11 +1125,11 @@ export default function MapView({
                     <div style="padding: 8px; min-width: 200px;">
                       <div style="font-weight: 600; font-size: 14px; margin-bottom: 8px;">${neurone.nome}</div>
                       <div style="display: flex; gap: 8px;">
-                        <button id="btn-dettagli-${neurone.id}" style="flex: 1; padding: 8px 12px; background: #3b82f6; color: white; border: none; border-radius: 6px; font-size: 13px; font-weight: 500; cursor: pointer;">
-                          Dettagli →
-                        </button>
                         <button id="btn-quick-${neurone.id}" style="width: 40px; padding: 8px; background: #f59e0b; color: white; border: none; border-radius: 6px; font-size: 18px; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center;">
                           +
+                        </button>
+                        <button id="btn-dettagli-${neurone.id}" style="flex: 1; padding: 8px 12px; background: #3b82f6; color: white; border: none; border-radius: 6px; font-size: 13px; font-weight: 500; cursor: pointer;">
+                          Dettagli →
                         </button>
                       </div>
                     </div>
@@ -1142,11 +1144,13 @@ export default function MapView({
                       };
                     }
                     const btnQuick = document.getElementById(`btn-quick-${neurone.id}`);
-                    if (btnQuick && onQuickEntityClickRef.current) {
+                    if (btnQuick && onQuickEntityClickRef.current && map.current) {
                       btnQuick.onclick = () => {
+                        const point = map.current?.project([neurone.lng!, neurone.lat!]);
                         salesPopup.current?.remove();
-                        const rect = btnQuick.getBoundingClientRect();
-                        onQuickEntityClickRef.current!(neurone, rect.left, rect.top);
+                        if (point) {
+                          onQuickEntityClickRef.current!(neurone, point.x, point.y);
+                        }
                       };
                     }
                   }, 50);
