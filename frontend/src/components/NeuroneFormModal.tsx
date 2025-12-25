@@ -152,6 +152,53 @@ export default function NeuroneFormModal({
     )
   );
 
+  // Aggiorna tutti i campi del form quando cambia l'entità selezionata
+  useEffect(() => {
+    if (neurone) {
+      // Reset campi base
+      setNome(neurone.nome || '');
+      setIndirizzo(neurone.indirizzo || '');
+      setTelefono(neurone.telefono || '');
+      setEmail(neurone.email || '');
+      setVisibilita(neurone.visibilita || 'aziendale');
+      setLat(neurone.lat != null ? Number(neurone.lat) : null);
+      setLng(neurone.lng != null ? Number(neurone.lng) : null);
+      setDimensione(neurone.dimensione != null ? String(neurone.dimensione) : '');
+
+      // Reset campi personalizzati
+      const datiExtra = (neurone.dati_extra as Record<string, unknown>) || {};
+      setValoriCampi(
+        Object.fromEntries(
+          Object.entries(datiExtra).map(([k, v]) => [k, v != null ? String(v) : ''])
+        )
+      );
+
+      // Reset stato eliminazione
+      setDeleteStep(0);
+      setError('');
+
+      // Re-imposta tipo e categoria se i tipi sono già caricati
+      if (tipiNeurone.length > 0) {
+        const tipoMatch = tipiNeurone.find(t => t.nome.toLowerCase() === neurone.tipo?.toLowerCase());
+        if (tipoMatch) {
+          setTipoId(tipoMatch.id);
+          setTipoIdOriginale(tipoMatch.id);
+          const catMatch = categorieDB.find(c =>
+            c.tipo_id === tipoMatch.id &&
+            neurone.categorie?.includes(c.nome.toLowerCase())
+          );
+          if (catMatch) {
+            setCategoriaId(catMatch.id);
+            setCategoriaIdOriginale(catMatch.id);
+          } else {
+            setCategoriaId('');
+            setCategoriaIdOriginale('');
+          }
+        }
+      }
+    }
+  }, [neurone?.id]); // Si attiva solo quando cambia l'ID dell'entità
+
   // Carica tipi e categorie dal DB
   useEffect(() => {
     loadTipiCategorie();
