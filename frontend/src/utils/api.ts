@@ -485,6 +485,7 @@ class ApiClient {
     mappa_zoom?: number;
     mappa_pitch?: number;
     mappa_bearing?: number;
+    mappa_trasparenza?: number;
   } | null> {
     try {
       const { data } = await this.getV2Client().get('/preferenze');
@@ -500,6 +501,7 @@ class ApiClient {
     mappa_zoom?: number;
     mappa_pitch?: number;
     mappa_bearing?: number;
+    mappa_trasparenza?: number;
   }): Promise<void> {
     await this.getV2Client().post('/preferenze', preferenze);
   }

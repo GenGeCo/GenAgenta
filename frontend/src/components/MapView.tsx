@@ -326,9 +326,12 @@ export default function MapView({
   const [styleLoaded, setStyleLoaded] = useState(0); // incrementa per forzare re-render dopo cambio stile
   const [mapOpacity, setMapOpacity] = useState(100); // Opacità mappa 0-100
   const [showMapControls, setShowMapControls] = useState(false); // Mostra/nascondi controlli avanzati
+  const [controlsFading, setControlsFading] = useState(false); // Per dissolvenza pannello controlli
   const [showLegend, setShowLegend] = useState(false); // Mostra/nascondi legenda categorie
   const [preferenzeCaricate, setPreferenzeCaricate] = useState(false);
   const savePositionTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const controlsAutoCloseTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const saveOpacityTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   const saveMapPositionRef = useRef<() => void>(() => {});
   const neuroniRef = useRef<Neurone[]>(neuroni);
   const handlersAdded = useRef(false);
@@ -481,6 +484,59 @@ export default function MapView({
     saveMapPositionRef.current = saveMapPosition;
   }, [saveMapPosition]);
 
+  // Salva trasparenza mappa (debounced)
+  useEffect(() => {
+    if (!preferenzeCaricate) return; // Non salvare durante il caricamento iniziale
+
+    if (saveOpacityTimeout.current) {
+      clearTimeout(saveOpacityTimeout.current);
+    }
+
+    saveOpacityTimeout.current = setTimeout(() => {
+      api.savePreferenze({ mappa_trasparenza: mapOpacity }).catch(console.error);
+    }, 500);
+
+    return () => {
+      if (saveOpacityTimeout.current) {
+        clearTimeout(saveOpacityTimeout.current);
+      }
+    };
+  }, [mapOpacity, preferenzeCaricate]);
+
+  // Auto-chiusura pannello controlli dopo 2 secondi di inattività
+  const resetControlsTimer = useCallback(() => {
+    if (controlsAutoCloseTimeout.current) {
+      clearTimeout(controlsAutoCloseTimeout.current);
+    }
+    setControlsFading(false);
+
+    controlsAutoCloseTimeout.current = setTimeout(() => {
+      // Inizia dissolvenza
+      setControlsFading(true);
+      // Dopo 300ms (durata animazione), chiudi
+      setTimeout(() => {
+        setShowMapControls(false);
+        setControlsFading(false);
+      }, 300);
+    }, 2000);
+  }, []);
+
+  // Resetta timer quando si aprono i controlli
+  useEffect(() => {
+    if (showMapControls) {
+      resetControlsTimer();
+    } else {
+      if (controlsAutoCloseTimeout.current) {
+        clearTimeout(controlsAutoCloseTimeout.current);
+      }
+    }
+    return () => {
+      if (controlsAutoCloseTimeout.current) {
+        clearTimeout(controlsAutoCloseTimeout.current);
+      }
+    };
+  }, [showMapControls, resetControlsTimer]);
+
   // Carica preferenze utente all'avvio
   useEffect(() => {
     const loadPreferenze = async () => {
@@ -503,6 +559,10 @@ export default function MapView({
               pitch: pref.mappa_pitch ?? 60,
               bearing: pref.mappa_bearing ?? -17.6,
             });
+          }
+          // Applica trasparenza salvata
+          if (pref?.mappa_trasparenza != null) {
+            setMapOpacity(pref.mappa_trasparenza);
           }
         }
         setPreferenzeCaricate(true);
@@ -1315,15 +1375,21 @@ export default function MapView({
         gap: '8px',
         zIndex: 10,
       }}>
-        {/* Slider trasparenza (sopra) */}
+        {/* Slider trasparenza (sopra) - con dissolvenza auto-chiusura */}
         {showMapControls && (
-          <div style={{
-            background: 'white',
-            padding: '10px 12px',
-            borderRadius: '8px',
-            boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
-            minWidth: '180px',
-          }}>
+          <div
+            onMouseMove={resetControlsTimer}
+            onTouchStart={resetControlsTimer}
+            style={{
+              background: 'white',
+              padding: '10px 12px',
+              borderRadius: '8px',
+              boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+              minWidth: '180px',
+              opacity: controlsFading ? 0 : 1,
+              transition: 'opacity 0.3s ease',
+            }}
+          >
             <div style={{ fontSize: '11px', color: '#64748b', marginBottom: '6px', display: 'flex', justifyContent: 'space-between' }}>
               <span>Trasparenza mappa</span>
               <span style={{ fontWeight: 600 }}>{100 - mapOpacity}%</span>
@@ -1333,7 +1399,10 @@ export default function MapView({
               min="10"
               max="100"
               value={mapOpacity}
-              onChange={(e) => setMapOpacity(Number(e.target.value))}
+              onChange={(e) => {
+                setMapOpacity(Number(e.target.value));
+                resetControlsTimer();
+              }}
               style={{
                 width: '100%',
                 height: '6px',
