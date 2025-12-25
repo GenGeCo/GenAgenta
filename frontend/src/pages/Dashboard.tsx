@@ -77,6 +77,16 @@ export default function Dashboard() {
     console.log('DEBUG quickAction aggiornato a:', quickAction);
   }, [quickAction]);
 
+  // Sincronizza scheda modifica con entità selezionata
+  useEffect(() => {
+    if (showNeuroneForm && selectedNeurone && editingNeurone) {
+      // Se il form è aperto in modifica e l'entità selezionata cambia, aggiorna il form
+      if (selectedNeurone.id !== editingNeurone.id) {
+        setEditingNeurone(selectedNeurone);
+      }
+    }
+  }, [selectedNeurone, showNeuroneForm, editingNeurone]);
+
   // Filtri
   const [filtri, setFiltri] = useState<FiltriMappa>({
     dataInizio: new Date(Date.now() - 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // 1 anno fa
@@ -631,11 +641,6 @@ export default function Dashboard() {
                   }
                 }
               }}
-              onDelete={() => {
-                // Rimuovi il neurone dalla lista
-                setNeuroni(neuroni.filter(n => n.id !== selectedNeurone.id));
-                setSelectedNeurone(null);
-              }}
               onEdit={() => {
                 setEditingNeurone(selectedNeurone);
                 setShowNeuroneForm(true);
@@ -698,6 +703,7 @@ export default function Dashboard() {
       {showNeuroneForm && (
         <NeuroneFormModal
           neurone={editingNeurone || undefined}
+          categorie={categorie}
           onSave={(neurone) => {
             if (editingNeurone) {
               // Modifica: aggiorna nella lista
@@ -721,6 +727,19 @@ export default function Dashboard() {
             setPickedPosition(null);
             setFlyToPosition(null);
           }}
+          onDelete={editingNeurone ? async () => {
+            // Elimina il neurone
+            try {
+              await api.deleteNeurone(editingNeurone.id);
+              setNeuroni(neuroni.filter(n => n.id !== editingNeurone.id));
+              setSelectedNeurone(null);
+              setShowNeuroneForm(false);
+              setEditingNeurone(null);
+            } catch (error) {
+              console.error('Errore eliminazione:', error);
+              alert('Errore durante l\'eliminazione');
+            }
+          } : undefined}
           onRequestMapPick={() => setMapPickingMode(true)}
           pickedPosition={pickedPosition}
           isPickingMap={mapPickingMode}

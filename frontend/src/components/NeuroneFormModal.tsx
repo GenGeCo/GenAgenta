@@ -16,10 +16,21 @@ interface CampoPersonalizzato {
   ordine: number;
 }
 
+// Tipo per categoria con colore (per testata colorata)
+interface CategoriaConfig {
+  id: string;
+  tipo_id: string;
+  nome: string;
+  colore: string;
+  ordine: number;
+}
+
 interface NeuroneFormModalProps {
   neurone?: Neurone;
+  categorie?: CategoriaConfig[]; // Per colore testata
   onSave: (neurone: Neurone) => void;
   onClose: () => void;
+  onDelete?: () => void; // Per eliminare entità
   onRequestMapPick?: () => void;
   pickedPosition?: { lat: number; lng: number } | null;
   isPickingMap?: boolean;
@@ -41,8 +52,10 @@ const formaLabels: Record<FormaNeurone, string> = {
 
 export default function NeuroneFormModal({
   neurone,
+  categorie = [],
   onSave,
   onClose,
+  onDelete,
   onRequestMapPick,
   pickedPosition,
   isPickingMap = false,
@@ -50,6 +63,58 @@ export default function NeuroneFormModal({
 }: NeuroneFormModalProps) {
   const isEdit = !!neurone;
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
+
+  // Stato per eliminazione con doppio avviso
+  const [deleteStep, setDeleteStep] = useState<0 | 1 | 2>(0);
+  const [deleting, setDeleting] = useState(false);
+
+  // Ottieni colore testata dalla categoria dell'entità
+  const getHeaderColor = () => {
+    if (neurone?.categorie && neurone.categorie.length > 0 && categorie.length > 0) {
+      const primaCat = neurone.categorie[0];
+      const catConfig = categorie.find(c => c.nome.toLowerCase() === primaCat.toLowerCase());
+      if (catConfig?.colore) {
+        return catConfig.colore;
+      }
+    }
+    // Colore default per tipo
+    const coloriTipo: Record<string, string> = {
+      persona: '#3b82f6',
+      impresa: '#22c55e',
+      cantiere: '#f97316',
+      ente: '#8b5cf6',
+    };
+    return coloriTipo[neurone?.tipo || ''] || '#6366f1';
+  };
+
+  const headerColor = isEdit ? getHeaderColor() : '#6366f1';
+
+  // Handler eliminazione
+  const handleDelete = async () => {
+    if (deleteStep === 0) {
+      setDeleteStep(1);
+      return;
+    }
+    if (deleteStep === 1) {
+      setDeleteStep(2);
+      return;
+    }
+    // Step 2: eliminazione effettiva
+    setDeleting(true);
+    try {
+      await onDelete?.();
+    } catch (error) {
+      console.error('Errore eliminazione:', error);
+      alert('Errore durante l\'eliminazione');
+    } finally {
+      setDeleting(false);
+      setDeleteStep(0);
+    }
+  };
+
+  const cancelDelete = () => {
+    setDeleteStep(0);
+  };
 
   // Dati dal database
   const [tipiNeurone, setTipiNeurone] = useState<TipoNeuroneConfig[]>([]);
@@ -570,12 +635,21 @@ export default function NeuroneFormModal({
             borderRadius: '0 0 12px 12px',
           }}
         >
-          {/* Header */}
-          <div style={{ padding: '10px 14px', borderBottom: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
-            <h2 style={{ fontSize: '15px', fontWeight: 600, margin: 0 }}>
+          {/* Header con colore categoria */}
+          <div style={{
+            padding: '10px 14px',
+            borderBottom: '1px solid var(--border-color)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            flexShrink: 0,
+            background: isEdit ? `linear-gradient(135deg, ${headerColor}20 0%, ${headerColor}05 100%)` : undefined,
+            borderLeft: isEdit ? `4px solid ${headerColor}` : undefined,
+          }}>
+            <h2 style={{ fontSize: '15px', fontWeight: 600, margin: 0, color: isEdit ? headerColor : undefined }}>
               {isEdit ? 'Modifica' : 'Nuovo'} {tipoSelezionato ? tipoSelezionato.nome : 'Neurone'}
             </h2>
-            <button onClick={onClose} style={{ background: 'transparent', border: 'none', fontSize: '18px', cursor: 'pointer', color: 'var(--text-secondary)', padding: '2px 6px' }}>✕</button>
+            <button onClick={onClose} style={{ background: 'transparent', border: 'none', fontSize: '18px', cursor: 'pointer', color: isEdit ? headerColor : 'var(--text-secondary)', padding: '2px 6px' }}>✕</button>
           </div>
 
           {loadingTipi ? (
@@ -708,12 +782,72 @@ export default function NeuroneFormModal({
                 )}
 
                 {error && <div style={{ padding: '6px', borderRadius: '4px', background: 'rgba(239,68,68,0.1)', color: '#ef4444', fontSize: '11px' }}>{error}</div>}
+
+                {/* Sezione Elimina - solo in modifica */}
+                {isEdit && onDelete && (
+                  <div style={{
+                    marginTop: '16px',
+                    paddingTop: '12px',
+                    borderTop: '1px dashed var(--border-color)',
+                  }}>
+                    {deleteStep > 0 && (
+                      <div style={{
+                        padding: '8px',
+                        marginBottom: '8px',
+                        background: deleteStep === 1 ? '#fef3c7' : '#fee2e2',
+                        borderRadius: '6px',
+                        fontSize: '11px',
+                        color: deleteStep === 1 ? '#92400e' : '#b91c1c',
+                      }}>
+                        {deleteStep === 1 ? (
+                          <><strong>Attenzione!</strong> Stai per eliminare "{neurone?.nome}". Clicca di nuovo per confermare.</>
+                        ) : (
+                          <><strong>ULTIMA CONFERMA!</strong> L'eliminazione è irreversibile.</>
+                        )}
+                      </div>
+                    )}
+                    <div style={{ display: 'flex', gap: '6px' }}>
+                      <button
+                        onClick={handleDelete}
+                        disabled={deleting}
+                        style={{
+                          flex: 1,
+                          padding: '8px',
+                          border: deleteStep > 0 ? 'none' : '1px solid #ef4444',
+                          borderRadius: '6px',
+                          background: deleteStep > 0 ? '#ef4444' : 'transparent',
+                          color: deleteStep > 0 ? 'white' : '#ef4444',
+                          cursor: 'pointer',
+                          fontSize: '12px',
+                          fontWeight: 500,
+                        }}
+                      >
+                        {deleting ? '...' : deleteStep === 0 ? '🗑️ Elimina' : deleteStep === 1 ? 'Conferma?' : 'ELIMINA!'}
+                      </button>
+                      {deleteStep > 0 && (
+                        <button
+                          onClick={cancelDelete}
+                          style={{
+                            padding: '8px 12px',
+                            border: '1px solid var(--border-color)',
+                            borderRadius: '6px',
+                            background: 'transparent',
+                            cursor: 'pointer',
+                            fontSize: '12px',
+                          }}
+                        >
+                          Annulla
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Footer */}
               <div style={{ padding: '10px 14px', borderTop: '1px solid var(--border-color)', display: 'flex', gap: '6px', flexShrink: 0 }}>
                 <button onClick={onClose} style={{ flex: 1, padding: '8px', border: '1px solid var(--border-color)', borderRadius: '6px', background: 'transparent', cursor: 'pointer', fontSize: '13px' }}>Annulla</button>
-                <button onClick={handleSubmit} disabled={saving} style={{ flex: 1, padding: '8px', border: 'none', borderRadius: '6px', background: 'var(--primary)', color: 'white', cursor: 'pointer', fontSize: '13px', fontWeight: 600 }}>{saving ? '...' : 'Salva'}</button>
+                <button onClick={handleSubmit} disabled={saving} style={{ flex: 1, padding: '8px', border: 'none', borderRadius: '6px', background: isEdit ? headerColor : 'var(--primary)', color: 'white', cursor: 'pointer', fontSize: '13px', fontWeight: 600 }}>{saving ? '...' : 'Salva'}</button>
               </div>
             </>
           )}
@@ -756,12 +890,20 @@ export default function NeuroneFormModal({
           flexDirection: 'column',
         }}
       >
-        {/* Header */}
-        <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <h2 style={{ fontSize: '18px', fontWeight: 600, margin: 0 }}>
+        {/* Header con colore categoria */}
+        <div style={{
+          padding: '16px 20px',
+          borderBottom: '1px solid var(--border-color)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          background: isEdit ? `linear-gradient(135deg, ${headerColor}20 0%, ${headerColor}05 100%)` : undefined,
+          borderLeft: isEdit ? `4px solid ${headerColor}` : undefined,
+        }}>
+          <h2 style={{ fontSize: '18px', fontWeight: 600, margin: 0, color: isEdit ? headerColor : undefined }}>
             {isEdit ? 'Modifica' : 'Nuovo'} {tipoSelezionato ? tipoSelezionato.nome : 'Neurone'}
           </h2>
-          <button onClick={onClose} style={{ background: 'transparent', border: 'none', fontSize: '22px', cursor: 'pointer', color: 'var(--text-secondary)', padding: '4px 8px' }}>✕</button>
+          <button onClick={onClose} style={{ background: 'transparent', border: 'none', fontSize: '22px', cursor: 'pointer', color: isEdit ? headerColor : 'var(--text-secondary)', padding: '4px 8px' }}>✕</button>
         </div>
 
         {loadingTipi ? (
@@ -922,12 +1064,71 @@ export default function NeuroneFormModal({
               )}
 
               {error && <div style={{ padding: '10px', borderRadius: '8px', background: 'rgba(239,68,68,0.1)', color: '#ef4444', fontSize: '13px' }}>{error}</div>}
+
+              {/* Sezione Elimina - solo in modifica */}
+              {isEdit && onDelete && (
+                <div style={{
+                  marginTop: '24px',
+                  paddingTop: '16px',
+                  borderTop: '1px dashed var(--border-color)',
+                }}>
+                  {deleteStep > 0 && (
+                    <div style={{
+                      padding: '12px',
+                      marginBottom: '12px',
+                      background: deleteStep === 1 ? '#fef3c7' : '#fee2e2',
+                      borderRadius: '8px',
+                      fontSize: '13px',
+                      color: deleteStep === 1 ? '#92400e' : '#b91c1c',
+                    }}>
+                      {deleteStep === 1 ? (
+                        <><strong>Attenzione!</strong> Stai per eliminare "{neurone?.nome}". Clicca di nuovo per confermare.</>
+                      ) : (
+                        <><strong>ULTIMA CONFERMA!</strong> L'eliminazione è irreversibile.</>
+                      )}
+                    </div>
+                  )}
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <button
+                      onClick={handleDelete}
+                      disabled={deleting}
+                      style={{
+                        padding: '10px 16px',
+                        border: deleteStep > 0 ? 'none' : '1px solid #ef4444',
+                        borderRadius: '8px',
+                        background: deleteStep > 0 ? '#ef4444' : 'transparent',
+                        color: deleteStep > 0 ? 'white' : '#ef4444',
+                        cursor: 'pointer',
+                        fontSize: '13px',
+                        fontWeight: 500,
+                      }}
+                    >
+                      {deleting ? 'Eliminazione...' : deleteStep === 0 ? '🗑️ Elimina entità' : deleteStep === 1 ? 'Conferma?' : 'ELIMINA!'}
+                    </button>
+                    {deleteStep > 0 && (
+                      <button
+                        onClick={cancelDelete}
+                        style={{
+                          padding: '10px 16px',
+                          border: '1px solid var(--border-color)',
+                          borderRadius: '8px',
+                          background: 'transparent',
+                          cursor: 'pointer',
+                          fontSize: '13px',
+                        }}
+                      >
+                        Annulla
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Footer */}
             <div style={{ padding: '16px 20px', borderTop: '1px solid var(--border-color)', display: 'flex', gap: '12px' }}>
               <button onClick={onClose} style={{ flex: 1, padding: '12px', border: '1px solid var(--border-color)', borderRadius: '8px', background: 'transparent', cursor: 'pointer', fontSize: '14px' }}>Annulla</button>
-              <button onClick={handleSubmit} disabled={saving} style={{ flex: 1, padding: '12px', border: 'none', borderRadius: '8px', background: 'var(--primary)', color: 'white', cursor: 'pointer', fontSize: '14px', fontWeight: 600 }}>{saving ? 'Salvataggio...' : 'Salva'}</button>
+              <button onClick={handleSubmit} disabled={saving} style={{ flex: 1, padding: '12px', border: 'none', borderRadius: '8px', background: isEdit ? headerColor : 'var(--primary)', color: 'white', cursor: 'pointer', fontSize: '14px', fontWeight: 600 }}>{saving ? 'Salvataggio...' : 'Salva'}</button>
             </div>
           </>
         )}

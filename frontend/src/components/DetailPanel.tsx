@@ -19,7 +19,6 @@ interface DetailPanelProps {
   categorie: CategoriaConfig[]; // Per ottenere il colore della testata
   onClose: () => void;
   onSelectNeurone?: (id: string) => void;
-  onDelete?: () => void;
   onEdit?: () => void; // Apre il form di modifica
   // Props per connessione su mappa
   onRequestConnectionMapPick?: () => void;
@@ -34,7 +33,6 @@ export default function DetailPanel({
   categorie,
   onClose,
   onSelectNeurone,
-  onDelete,
   onEdit,
   onRequestConnectionMapPick,
   connectionTargetEntity,
@@ -48,10 +46,6 @@ export default function DetailPanel({
   const [note, setNote] = useState<NotaPersonale[]>([]);
   const [activeTab, setActiveTab] = useState<'info' | 'vendite' | 'connessioni' | 'note'>('info');
   const [loading, setLoading] = useState(true);
-
-  // Stato per eliminazione con doppio avviso
-  const [deleteStep, setDeleteStep] = useState<0 | 1 | 2>(0); // 0=no, 1=primo avviso, 2=conferma finale
-  const [deleting, setDeleting] = useState(false);
 
   // Ottieni il colore della prima categoria del neurone
   const getHeaderColor = () => {
@@ -73,35 +67,6 @@ export default function DetailPanel({
   };
 
   const headerColor = getHeaderColor();
-
-  // Handler eliminazione
-  const handleDelete = async () => {
-    if (deleteStep === 0) {
-      setDeleteStep(1);
-      return;
-    }
-    if (deleteStep === 1) {
-      setDeleteStep(2);
-      return;
-    }
-    // Step 2: eliminazione effettiva
-    setDeleting(true);
-    try {
-      await api.deleteNeurone(neurone.id);
-      onDelete?.();
-      onClose();
-    } catch (error) {
-      console.error('Errore eliminazione:', error);
-      alert('Errore durante l\'eliminazione');
-    } finally {
-      setDeleting(false);
-      setDeleteStep(0);
-    }
-  };
-
-  const cancelDelete = () => {
-    setDeleteStep(0);
-  };
 
   // Quando viene selezionata un'entità dalla mappa, passa automaticamente al tab connessioni
   useEffect(() => {
@@ -234,17 +199,7 @@ export default function DetailPanel({
           <p style={{ color: 'var(--text-secondary)' }}>Caricamento...</p>
         ) : (
           <>
-            {activeTab === 'info' && (
-              <InfoTab
-                neurone={neurone}
-                deleteStep={deleteStep}
-                deleting={deleting}
-                handleDelete={handleDelete}
-                cancelDelete={cancelDelete}
-                sinapsiCount={sinapsi.length}
-                noteCount={note.length}
-              />
-            )}
+            {activeTab === 'info' && <InfoTab neurone={neurone} />}
             {activeTab === 'vendite' && (
               <VenditeTab
                 neurone={neurone}
@@ -284,23 +239,7 @@ export default function DetailPanel({
 }
 
 // Tab Info
-function InfoTab({
-  neurone,
-  deleteStep,
-  deleting,
-  handleDelete,
-  cancelDelete,
-  sinapsiCount,
-  noteCount,
-}: {
-  neurone: Neurone;
-  deleteStep: 0 | 1 | 2;
-  deleting: boolean;
-  handleDelete: () => void;
-  cancelDelete: () => void;
-  sinapsiCount: number;
-  noteCount: number;
-}) {
+function InfoTab({ neurone }: { neurone: Neurone }) {
   const [saving, setSaving] = useState(false);
   const [naturaLocale, setNaturaLocale] = useState({
     is_acquirente: neurone.is_acquirente,
@@ -407,74 +346,6 @@ function InfoTab({
           ))}
         </div>
       )}
-
-      {/* Sezione Elimina entità - in fondo */}
-      <div style={{
-        marginTop: '32px',
-        paddingTop: '16px',
-        borderTop: '1px dashed var(--border-color)',
-      }}>
-        {/* Avviso eliminazione */}
-        {deleteStep > 0 && (
-          <div style={{
-            padding: '12px',
-            marginBottom: '12px',
-            background: deleteStep === 1 ? '#fef3c7' : '#fee2e2',
-            borderRadius: '8px',
-            fontSize: '13px',
-            color: deleteStep === 1 ? '#92400e' : '#b91c1c',
-          }}>
-            {deleteStep === 1 ? (
-              <>
-                <strong>Attenzione!</strong> Stai per eliminare "{neurone.nome}".
-                {sinapsiCount > 0 && ` Verranno eliminate anche ${sinapsiCount} connessioni.`}
-                {noteCount > 0 && ` E ${noteCount} note personali.`}
-                <br />Clicca di nuovo per confermare.
-              </>
-            ) : (
-              <>
-                <strong>ULTIMA CONFERMA!</strong> L'eliminazione è irreversibile.
-                <br />Clicca "ELIMINA!" per procedere o "Annulla" per tornare indietro.
-              </>
-            )}
-          </div>
-        )}
-
-        <div style={{ display: 'flex', gap: '8px' }}>
-          <button
-            onClick={handleDelete}
-            disabled={deleting}
-            style={{
-              background: deleteStep > 0 ? '#ef4444' : 'transparent',
-              border: deleteStep > 0 ? 'none' : '1px solid #ef4444',
-              color: deleteStep > 0 ? 'white' : '#ef4444',
-              padding: '8px 16px',
-              borderRadius: '6px',
-              fontSize: '13px',
-              cursor: 'pointer',
-              fontWeight: 500,
-            }}
-          >
-            {deleting ? 'Eliminazione...' : deleteStep === 0 ? '🗑️ Elimina entità' : deleteStep === 1 ? 'Conferma?' : 'ELIMINA!'}
-          </button>
-          {deleteStep > 0 && (
-            <button
-              onClick={cancelDelete}
-              style={{
-                background: 'transparent',
-                border: '1px solid var(--border-color)',
-                color: 'var(--text-secondary)',
-                padding: '8px 16px',
-                borderRadius: '6px',
-                fontSize: '13px',
-                cursor: 'pointer',
-              }}
-            >
-              Annulla
-            </button>
-          )}
-        </div>
-      </div>
     </div>
   );
 }
