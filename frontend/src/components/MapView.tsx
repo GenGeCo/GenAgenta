@@ -1156,6 +1156,21 @@ export default function MapView({
                   onFocusNeuroneRef.current(neurone.id);
                 }
 
+                // Calcola offset dinamico basato sull'altezza dell'edificio
+                const buildingHeight = calculateHeight(neurone, getSinapsiCount(neurone.id));
+                const pitch = m.getPitch();
+                const zoom = m.getZoom();
+                // Fattore zoom: a zoom 14 ~ 1, scala esponenzialmente
+                const zoomFactor = Math.pow(2, zoom - 14);
+                // Fattore pitch: sin(60°) ≈ 0.87, sin(0°) = 0
+                const pitchFactor = Math.sin((pitch * Math.PI) / 180);
+                // Offset altezza: converte metri in pixel approssimativi
+                const heightOffset = buildingHeight * zoomFactor * pitchFactor * 0.25;
+                // Offset totale: base 25px + offset altezza
+                const totalOffset = 25 + Math.min(heightOffset, 150); // max 150px extra
+
+                salesPopup.current.setOffset([0, -totalOffset]);
+
                 // Mostra popup con loading
                 const loadingHtml = `
                   <div style="padding: 8px; min-width: 200px;">
