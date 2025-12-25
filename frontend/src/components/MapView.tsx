@@ -20,6 +20,10 @@ interface MapViewProps {
   onPickPosition?: (lat: number, lng: number) => void;
   flyToPosition?: { lat: number; lng: number } | null;
   pickedPosition?: { lat: number; lng: number } | null;
+  // Props per picking connessione (target su mappa)
+  connectionPickingMode?: boolean;
+  connectionSourceId?: string | null;
+  onPickConnectionTarget?: (neurone: Neurone) => void;
 }
 
 // Colore di default se la categoria non viene trovata
@@ -297,6 +301,9 @@ export default function MapView({
   onPickPosition,
   flyToPosition,
   pickedPosition,
+  connectionPickingMode = false,
+  connectionSourceId = null,
+  onPickConnectionTarget,
 }: MapViewProps) {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
@@ -314,6 +321,10 @@ export default function MapView({
   const pickingModeRef = useRef(pickingMode);
   const onPickPositionRef = useRef(onPickPosition);
   const onSelectNeuroneRef = useRef(onSelectNeurone);
+  // Refs per connection picking
+  const connectionPickingModeRef = useRef(connectionPickingMode);
+  const connectionSourceIdRef = useRef(connectionSourceId);
+  const onPickConnectionTargetRef = useRef(onPickConnectionTarget);
 
   // Colori default per le famiglie prodotto nel popup
   const coloriProdotti = ['#ef4444', '#f97316', '#eab308', '#22c55e', '#14b8a6', '#3b82f6', '#8b5cf6', '#ec4899'];
@@ -327,6 +338,14 @@ export default function MapView({
   useEffect(() => {
     onSelectNeuroneRef.current = onSelectNeurone;
   }, [onSelectNeurone]);
+
+  // Aggiorna refs per connection picking
+  useEffect(() => {
+    connectionPickingModeRef.current = connectionPickingMode;
+    connectionSourceIdRef.current = connectionSourceId;
+    onPickConnectionTargetRef.current = onPickConnectionTarget;
+    console.log('DEBUG MapView: connectionPickingMode aggiornato a:', connectionPickingMode, 'sourceId:', connectionSourceId);
+  }, [connectionPickingMode, connectionSourceId, onPickConnectionTarget]);
 
   useEffect(() => {
     neuroniRef.current = neuroni;
@@ -875,12 +894,28 @@ export default function MapView({
 
       // Click singolo: mostra popup vendite - ignora se in picking mode
       m.on('click', 'neuroni-3d', (e) => {
-        // Se siamo in picking mode, non gestire click sui neuroni
+        // Se siamo in picking mode per posizione, non gestire click sui neuroni
         if (pickingModeRef.current) return;
 
         if (e.features && e.features[0]) {
           const id = e.features[0].properties?.id;
           const neurone = neuroniRef.current.find(n => n.id === id);
+
+          // Se siamo in modalità connection picking, gestisci selezione target
+          if (connectionPickingModeRef.current && neurone) {
+            console.log('DEBUG MapView click: connectionPickingMode attivo, neurone:', neurone.nome, 'sourceId:', connectionSourceIdRef.current);
+            // Non permettere di selezionare se stesso
+            if (neurone.id === connectionSourceIdRef.current) {
+              alert('Non puoi collegare un\'entità a se stessa!');
+              return;
+            }
+            // Chiama callback per target selezionato
+            if (onPickConnectionTargetRef.current) {
+              console.log('DEBUG MapView: chiamando onPickConnectionTarget per:', neurone.nome);
+              onPickConnectionTargetRef.current(neurone);
+            }
+            return;
+          }
 
           // Aspetta per vedere se è un doppio click
           if (clickTimeout) {

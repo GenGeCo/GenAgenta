@@ -254,39 +254,7 @@ export default function Dashboard() {
             categorie={categorie}
             tipiNeurone={tipiNeurone}
             selectedId={selectedNeurone?.id || null}
-            onSelectNeurone={(neurone) => {
-              // Usa refs per avere sempre i valori correnti (evita closure stale)
-              const isPicking = connectionPickingModeRef.current;
-              const sourceNeurone = connectionSourceNeuroneRef.current;
-
-              console.log('DEBUG onSelectNeurone:', neurone.nome, 'isPicking:', isPicking, 'sourceNeurone:', sourceNeurone?.nome);
-
-              // Se siamo in modalità picking connessione, usa il neurone come target
-              if (isPicking && sourceNeurone) {
-                // Non permettere di selezionare se stesso
-                if (neurone.id === sourceNeurone.id) {
-                  console.log('DEBUG: Impossibile collegare a se stesso');
-                  alert('Non puoi collegare un\'entità a se stessa!');
-                  return;
-                }
-                console.log('DEBUG: Impostando connectionTargetEntity:', neurone.nome, neurone.id);
-                const target = {
-                  id: neurone.id,
-                  nome: neurone.nome,
-                  tipo: neurone.tipo,
-                };
-                // Aggiorna ref immediatamente
-                connectionPickingModeRef.current = false;
-                // Poi aggiorna state
-                setConnectionTargetEntity(target);
-                setConnectionPickingMode(false);
-                // Ripristina il neurone origine come selezionato
-                setSelectedNeurone(sourceNeurone);
-                console.log('DEBUG: Target impostato, ripristinato selectedNeurone:', sourceNeurone.nome);
-              } else {
-                handleSelectNeurone(neurone);
-              }
-            }}
+            onSelectNeurone={handleSelectNeurone}
             filtri={filtri}
             pickingMode={mapPickingMode}
             onPickPosition={(lat, lng) => {
@@ -295,6 +263,24 @@ export default function Dashboard() {
             }}
             flyToPosition={flyToPosition}
             pickedPosition={pickedPosition}
+            // Props per connection picking
+            connectionPickingMode={connectionPickingMode}
+            connectionSourceId={connectionSourceNeurone?.id || null}
+            onPickConnectionTarget={(neurone) => {
+              console.log('DEBUG onPickConnectionTarget:', neurone.nome);
+              const target = {
+                id: neurone.id,
+                nome: neurone.nome,
+                tipo: neurone.tipo,
+              };
+              // Aggiorna state
+              setConnectionTargetEntity(target);
+              setConnectionPickingMode(false);
+              // Ripristina il neurone origine come selezionato
+              if (connectionSourceNeurone) {
+                setSelectedNeurone(connectionSourceNeurone);
+              }
+            }}
           />
 
           {/* Indicatore modalità selezione connessione */}
