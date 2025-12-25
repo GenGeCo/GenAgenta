@@ -875,9 +875,15 @@ export default function MapView({
     }
     // Mostra solo connessioni del neurone selezionato
     else if (filtri.soloConnessioniSelezionate && selectedId) {
+      console.log('DEBUG soloConnessioniSelezionate:', {
+        selectedId,
+        totaliPrima: sinapsiFiltered.length,
+        sinapsiSample: sinapsiFiltered.slice(0, 3).map(s => ({ da: s.neurone_da, a: s.neurone_a }))
+      });
       sinapsiFiltered = sinapsiFiltered.filter(
         (s) => s.neurone_da === selectedId || s.neurone_a === selectedId
       );
+      console.log('DEBUG soloConnessioniSelezionate dopo filtro:', sinapsiFiltered.length);
     }
 
     if (sinapsiFiltered.length > 0) {
