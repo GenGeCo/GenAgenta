@@ -313,6 +313,8 @@ export default function MapView({
   const [mapReady, setMapReady] = useState(false);
   const [mapStyle, setMapStyle] = useState('light-v11');
   const [styleLoaded, setStyleLoaded] = useState(0); // incrementa per forzare re-render dopo cambio stile
+  const [mapOpacity, setMapOpacity] = useState(100); // Opacità mappa 0-100
+  const [showMapControls, setShowMapControls] = useState(false); // Mostra/nascondi controlli avanzati
   const [preferenzeCaricate, setPreferenzeCaricate] = useState(false);
   const savePositionTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   const saveMapPositionRef = useRef<() => void>(() => {});
@@ -368,6 +370,26 @@ export default function MapView({
       api.savePreferenze({ mappa_stile: styleId }).catch(console.error);
     }
   }, []);
+
+  // Applica opacità alla mappa base
+  useEffect(() => {
+    if (!map.current || !mapReady) return;
+
+    const m = map.current;
+    const style = m.getStyle();
+    if (!style?.layers) return;
+
+    // Trova e modifica i layer raster/background della mappa base
+    style.layers.forEach(layer => {
+      if (layer.type === 'raster' || layer.type === 'background') {
+        try {
+          m.setPaintProperty(layer.id, `${layer.type}-opacity`, mapOpacity / 100);
+        } catch (e) {
+          // Ignora errori per layer che non supportano opacity
+        }
+      }
+    });
+  }, [mapOpacity, mapReady, styleLoaded]);
 
   // Salva posizione mappa (debounced)
   const saveMapPosition = useCallback(() => {
@@ -1082,40 +1104,102 @@ export default function MapView({
         </div>
       )}
 
-      {/* Selettore stile mappa - basso destra */}
+      {/* Controlli mappa - basso destra */}
       <div style={{
         position: 'absolute',
         bottom: '30px',
         right: '10px',
         display: 'flex',
-        gap: '4px',
-        background: 'white',
-        padding: '6px',
-        borderRadius: '8px',
-        boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+        flexDirection: 'column',
+        gap: '8px',
         zIndex: 10,
       }}>
-        {MAP_STYLES.map((style) => (
+        {/* Slider trasparenza (sopra) */}
+        {showMapControls && (
+          <div style={{
+            background: 'white',
+            padding: '10px 12px',
+            borderRadius: '8px',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+            minWidth: '180px',
+          }}>
+            <div style={{ fontSize: '11px', color: '#64748b', marginBottom: '6px', display: 'flex', justifyContent: 'space-between' }}>
+              <span>Trasparenza mappa</span>
+              <span style={{ fontWeight: 600 }}>{100 - mapOpacity}%</span>
+            </div>
+            <input
+              type="range"
+              min="10"
+              max="100"
+              value={mapOpacity}
+              onChange={(e) => setMapOpacity(Number(e.target.value))}
+              style={{
+                width: '100%',
+                height: '6px',
+                cursor: 'pointer',
+                accentColor: '#3b82f6',
+              }}
+            />
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '9px', color: '#94a3b8', marginTop: '2px' }}>
+              <span>3D visibile</span>
+              <span>Mappa solida</span>
+            </div>
+          </div>
+        )}
+
+        {/* Stili mappa + toggle controlli */}
+        <div style={{
+          display: 'flex',
+          gap: '4px',
+          background: 'white',
+          padding: '6px',
+          borderRadius: '8px',
+          boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+        }}>
+          {/* Toggle controlli avanzati */}
           <button
-            key={style.id}
-            onClick={() => changeMapStyle(style.id)}
-            title={style.nome}
+            onClick={() => setShowMapControls(!showMapControls)}
+            title={showMapControls ? 'Nascondi controlli' : 'Trasparenza mappa'}
             style={{
               width: '32px',
               height: '32px',
-              border: mapStyle === style.id ? '2px solid #3b82f6' : '1px solid #e2e8f0',
+              border: showMapControls ? '2px solid #3b82f6' : '1px solid #e2e8f0',
               borderRadius: '6px',
-              background: mapStyle === style.id ? '#eff6ff' : 'white',
+              background: showMapControls ? '#eff6ff' : 'white',
               cursor: 'pointer',
-              fontSize: '16px',
+              fontSize: '14px',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
             }}
           >
-            {style.icon}
+            🎚️
           </button>
-        ))}
+
+          <div style={{ width: '1px', background: '#e2e8f0', margin: '4px 2px' }} />
+
+          {MAP_STYLES.map((style) => (
+            <button
+              key={style.id}
+              onClick={() => changeMapStyle(style.id)}
+              title={style.nome}
+              style={{
+                width: '32px',
+                height: '32px',
+                border: mapStyle === style.id ? '2px solid #3b82f6' : '1px solid #e2e8f0',
+                borderRadius: '6px',
+                background: mapStyle === style.id ? '#eff6ff' : 'white',
+                cursor: 'pointer',
+                fontSize: '16px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              {style.icon}
+            </button>
+          ))}
+        </div>
       </div>
     </div>
   );
