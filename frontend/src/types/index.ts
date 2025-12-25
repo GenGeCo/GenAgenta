@@ -117,26 +117,17 @@ export interface DashboardStats {
   sinapsi_per_tipo: { tipo_connessione: string; count: number }[];
 }
 
-// Tipi connessione predefiniti
-export const TIPI_CONNESSIONE = {
-  cantiere: [
-    'progetta', 'dirige_lavori', 'costruisce', 'subappalta', 'fornisce',
-    'applica_pittura', 'applica_cartongesso', 'applica_piastrelle',
-    'impianto_elettrico', 'impianto_idraulico', 'movimento_terra', 'verde',
-    'commissiona', 'amministra', 'segnala', 'preventivo_fatto',
-    'preventivo_accettato', 'preventivo_rifiutato'
-  ],
-  persona_impresa: [
-    'lavora_per', 'titolare_di', 'collabora_con', 'dipendente_di'
-  ],
-  commerciale: [
-    'compra_da', 'vende_a', 'subappalta_a', 'partner', 'consiglia',
-    'rappresenta', 'visita', 'segue_zona', 'usa_prodotto', 'consiglia_marca', 'venduto_tramite'
-  ],
-  personale: [
-    'conosce', 'segnalato_da', 'parente_di', 'amico_di'
-  ]
-} as const;
+// Tipi connessione semplificati (6 categorie base)
+// I tipi specifici sono ora gestiti dal database (tipi_sinapsi)
+// Le transazioni economiche (chi compra/vende cosa) vanno nel tab Transazioni
+export const TIPI_CONNESSIONE_BASE = [
+  'commerciale',    // Rapporto di compravendita
+  'consulenza',     // Relazione professionale/consulenza
+  'collaborazione', // Lavorano insieme
+  'conosce',        // Conoscenza personale
+  'lavora_per',     // Dipendente/collaboratore
+  'parente'         // Relazione familiare
+] as const;
 
 // Categorie neuroni
 export const CATEGORIE_PERSONA = [
