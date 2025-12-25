@@ -863,27 +863,39 @@ export default function MapView({
       return s.lat_da && s.lng_da && s.lat_a && s.lng_a;
     });
 
-    console.log('DEBUG MapView sinapsi:', {
-      totali: sinapsi.length,
-      conCoordinate: sinapsiFiltered.length,
-      filtri: { dataInizio: filtri.dataInizio, dataFine: filtri.dataFine }
+    console.log('DEBUG MapView sinapsi - stato completo:', {
+      mostraConnessioni: filtri.mostraConnessioni,
+      soloConnessioniSelezionate: filtri.soloConnessioniSelezionate,
+      selectedId: selectedId,
+      sinapsiTotali: sinapsi.length,
+      sinapsiConCoord: sinapsiFiltered.length,
     });
 
     // Nascondi tutte le connessioni se il flag è disattivato
     if (!filtri.mostraConnessioni) {
+      console.log('DEBUG: mostraConnessioni=false -> nascondo tutte');
       sinapsiFiltered = [];
     }
     // Mostra solo connessioni del neurone selezionato
-    else if (filtri.soloConnessioniSelezionate && selectedId) {
-      console.log('DEBUG soloConnessioniSelezionate:', {
-        selectedId,
-        totaliPrima: sinapsiFiltered.length,
-        sinapsiSample: sinapsiFiltered.slice(0, 3).map(s => ({ da: s.neurone_da, a: s.neurone_a }))
-      });
-      sinapsiFiltered = sinapsiFiltered.filter(
-        (s) => s.neurone_da === selectedId || s.neurone_a === selectedId
-      );
-      console.log('DEBUG soloConnessioniSelezionate dopo filtro:', sinapsiFiltered.length);
+    else if (filtri.soloConnessioniSelezionate) {
+      if (selectedId) {
+        const prima = sinapsiFiltered.length;
+        console.log('DEBUG soloConnessioniSelezionate: filtro per selectedId=', selectedId);
+        console.log('DEBUG sinapsi sample:', sinapsiFiltered.slice(0, 3).map(s => ({
+          id: s.id,
+          da: s.neurone_da,
+          a: s.neurone_a,
+          match_da: s.neurone_da === selectedId,
+          match_a: s.neurone_a === selectedId
+        })));
+        sinapsiFiltered = sinapsiFiltered.filter(
+          (s) => s.neurone_da === selectedId || s.neurone_a === selectedId
+        );
+        console.log('DEBUG soloConnessioniSelezionate: da', prima, 'a', sinapsiFiltered.length);
+      } else {
+        console.log('DEBUG soloConnessioniSelezionate=true ma selectedId=null -> nascondo tutte');
+        sinapsiFiltered = [];
+      }
     }
 
     if (sinapsiFiltered.length > 0) {
