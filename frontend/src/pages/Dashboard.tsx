@@ -1,6 +1,6 @@
 // GenAgenTa - Dashboard principale
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import { api } from '../utils/api';
 import Sidebar from '../components/Sidebar';
@@ -44,6 +44,19 @@ export default function Dashboard() {
   const [connectionPickingMode, setConnectionPickingMode] = useState(false);
   const [connectionTargetEntity, setConnectionTargetEntity] = useState<{ id: string; nome: string; tipo: string } | null>(null);
   const [connectionSourceNeurone, setConnectionSourceNeurone] = useState<Neurone | null>(null); // Neurone origine per connessione
+
+  // Refs per evitare closure stale nei callback
+  const connectionPickingModeRef = useRef(false);
+  const connectionSourceNeuroneRef = useRef<Neurone | null>(null);
+
+  // Sincronizza refs con state
+  useEffect(() => {
+    connectionPickingModeRef.current = connectionPickingMode;
+  }, [connectionPickingMode]);
+
+  useEffect(() => {
+    connectionSourceNeuroneRef.current = connectionSourceNeurone;
+  }, [connectionSourceNeurone]);
 
   // Filtri
   const [filtri, setFiltri] = useState<FiltriMappa>({
@@ -242,11 +255,16 @@ export default function Dashboard() {
             tipiNeurone={tipiNeurone}
             selectedId={selectedNeurone?.id || null}
             onSelectNeurone={(neurone) => {
-              console.log('DEBUG onSelectNeurone:', neurone.nome, 'connectionPickingMode:', connectionPickingMode, 'connectionSourceNeurone:', connectionSourceNeurone?.nome);
+              // Usa refs per avere sempre i valori correnti (evita closure stale)
+              const isPicking = connectionPickingModeRef.current;
+              const sourceNeurone = connectionSourceNeuroneRef.current;
+
+              console.log('DEBUG onSelectNeurone:', neurone.nome, 'isPicking:', isPicking, 'sourceNeurone:', sourceNeurone?.nome);
+
               // Se siamo in modalità picking connessione, usa il neurone come target
-              if (connectionPickingMode && connectionSourceNeurone) {
+              if (isPicking && sourceNeurone) {
                 // Non permettere di selezionare se stesso
-                if (neurone.id === connectionSourceNeurone.id) {
+                if (neurone.id === sourceNeurone.id) {
                   console.log('DEBUG: Impossibile collegare a se stesso');
                   alert('Non puoi collegare un\'entità a se stessa!');
                   return;
@@ -260,8 +278,8 @@ export default function Dashboard() {
                 setConnectionTargetEntity(target);
                 setConnectionPickingMode(false);
                 // Ripristina il neurone origine come selezionato
-                setSelectedNeurone(connectionSourceNeurone);
-                console.log('DEBUG: Target impostato, ripristinato selectedNeurone:', connectionSourceNeurone.nome);
+                setSelectedNeurone(sourceNeurone);
+                console.log('DEBUG: Target impostato, ripristinato selectedNeurone:', sourceNeurone.nome);
               } else {
                 handleSelectNeurone(neurone);
               }
