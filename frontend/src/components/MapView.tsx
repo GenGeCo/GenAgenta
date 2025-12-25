@@ -1078,14 +1078,18 @@ export default function MapView({
         if (e.features && e.features[0] && popup.current) {
           const props = e.features[0].properties;
 
-          // Calcola offset dinamico basato sull'altezza dell'edificio (come per salesPopup)
+          // Calcola offset dinamico: popup deve stare sopra la CIMA dell'edificio
           const buildingHeight = props?.height || 35;
           const pitch = m.getPitch();
           const zoom = m.getZoom();
+          // Conversione altezza edificio (metri) in pixel sullo schermo
+          // A zoom 14 e pitch 60°, 1 metro ≈ 0.5 pixel verticali
           const zoomFactor = Math.pow(2, zoom - 14);
           const pitchFactor = Math.sin((pitch * Math.PI) / 180);
-          const heightOffset = buildingHeight * zoomFactor * pitchFactor * 0.25;
-          const totalOffset = 25 + Math.min(heightOffset, 150);
+          // Fattore 0.6 per coprire l'altezza visiva dell'edificio 3D
+          const heightPixels = buildingHeight * zoomFactor * pitchFactor * 0.6;
+          // Margine fisso sopra la cima (circa 1cm = 30px)
+          const totalOffset = 30 + Math.min(heightPixels, 200);
 
           popup.current.setOffset([0, -totalOffset]);
           popup.current
@@ -1167,18 +1171,17 @@ export default function MapView({
                   onFocusNeuroneRef.current(neurone.id);
                 }
 
-                // Calcola offset dinamico basato sull'altezza dell'edificio
+                // Calcola offset dinamico: popup deve stare sopra la CIMA dell'edificio
                 const buildingHeight = calculateHeight(neurone, getSinapsiCount(neurone.id));
                 const pitch = m.getPitch();
                 const zoom = m.getZoom();
-                // Fattore zoom: a zoom 14 ~ 1, scala esponenzialmente
+                // Conversione altezza edificio (metri) in pixel sullo schermo
                 const zoomFactor = Math.pow(2, zoom - 14);
-                // Fattore pitch: sin(60°) ≈ 0.87, sin(0°) = 0
                 const pitchFactor = Math.sin((pitch * Math.PI) / 180);
-                // Offset altezza: converte metri in pixel approssimativi
-                const heightOffset = buildingHeight * zoomFactor * pitchFactor * 0.25;
-                // Offset totale: base 25px + offset altezza
-                const totalOffset = 25 + Math.min(heightOffset, 150); // max 150px extra
+                // Fattore 0.6 per coprire l'altezza visiva dell'edificio 3D
+                const heightPixels = buildingHeight * zoomFactor * pitchFactor * 0.6;
+                // Margine fisso sopra la cima (circa 1cm = 30px)
+                const totalOffset = 30 + Math.min(heightPixels, 200);
 
                 salesPopup.current.setOffset([0, -totalOffset]);
 
