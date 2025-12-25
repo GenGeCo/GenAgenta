@@ -1077,6 +1077,17 @@ export default function MapView({
         m.getCanvas().style.cursor = 'pointer';
         if (e.features && e.features[0] && popup.current) {
           const props = e.features[0].properties;
+
+          // Calcola offset dinamico basato sull'altezza dell'edificio (come per salesPopup)
+          const buildingHeight = props?.height || 35;
+          const pitch = m.getPitch();
+          const zoom = m.getZoom();
+          const zoomFactor = Math.pow(2, zoom - 14);
+          const pitchFactor = Math.sin((pitch * Math.PI) / 180);
+          const heightOffset = buildingHeight * zoomFactor * pitchFactor * 0.25;
+          const totalOffset = 25 + Math.min(heightOffset, 150);
+
+          popup.current.setOffset([0, -totalOffset]);
           popup.current
             .setLngLat(e.lngLat)
             .setHTML(`<strong>${props?.nome}</strong><br/><span style="color:#64748b;font-size:12px">${props?.categorie}</span>`)
