@@ -58,6 +58,10 @@ export default function Dashboard() {
   const [quickAction, setQuickAction] = useState<QuickActionType>(null);
   const [quickTargetNeurone, setQuickTargetNeurone] = useState<Neurone | null>(null);
 
+  // ID del neurone "in focus" (cliccato sulla mappa, anche senza aprire dettagli)
+  // Usato per il filtro "Solo del selezionato"
+  const [focusedNeuroneId, setFocusedNeuroneId] = useState<string | null>(null);
+
   // Refs per evitare closure stale nei callback
   const connectionPickingModeRef = useRef(false);
   const connectionSourceNeuroneRef = useRef<Neurone | null>(null);
@@ -86,6 +90,14 @@ export default function Dashboard() {
       }
     }
   }, [selectedNeurone, showNeuroneForm, editingNeurone]);
+
+  // Sincronizza focusedNeuroneId con selectedNeurone
+  // Quando si apre il DetailPanel, il neurone selezionato diventa anche "in focus"
+  useEffect(() => {
+    if (selectedNeurone) {
+      setFocusedNeuroneId(selectedNeurone.id);
+    }
+  }, [selectedNeurone]);
 
   // Filtri
   const [filtri, setFiltri] = useState<FiltriMappa>({
@@ -288,8 +300,9 @@ export default function Dashboard() {
             sinapsi={sinapsi}
             categorie={categorie}
             tipiNeurone={tipiNeurone}
-            selectedId={selectedNeurone?.id || null}
+            selectedId={focusedNeuroneId || selectedNeurone?.id || null}
             onSelectNeurone={handleSelectNeurone}
+            onFocusNeurone={(id) => setFocusedNeuroneId(id)}
             filtri={filtri}
             pickingMode={mapPickingMode}
             onPickPosition={(lat, lng) => {

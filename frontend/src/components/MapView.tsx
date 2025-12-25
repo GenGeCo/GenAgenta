@@ -15,6 +15,7 @@ interface MapViewProps {
   tipiNeurone: TipoNeuroneConfig[];
   selectedId: string | null;
   onSelectNeurone: (neurone: Neurone) => void;
+  onFocusNeurone?: (id: string) => void; // Chiamato quando si clicca su un edificio (anche senza aprire dettagli)
   filtri: FiltriMappa;
   pickingMode?: boolean;
   onPickPosition?: (lat: number, lng: number) => void;
@@ -300,6 +301,7 @@ export default function MapView({
   tipiNeurone,
   selectedId,
   onSelectNeurone,
+  onFocusNeurone,
   filtri,
   pickingMode = false,
   onPickPosition,
@@ -340,6 +342,8 @@ export default function MapView({
   const onQuickEntityClickRef = useRef(onQuickEntityClick);
   // Ref per selectedId (per cambiare panel al click su altra entità)
   const selectedIdRef = useRef(selectedId);
+  // Ref per onFocusNeurone (per tracciare edificio cliccato)
+  const onFocusNeuroneRef = useRef(onFocusNeurone);
 
   // Colori default per le famiglie prodotto nel popup
   const coloriProdotti = ['#ef4444', '#f97316', '#eab308', '#22c55e', '#14b8a6', '#3b82f6', '#8b5cf6', '#ec4899'];
@@ -357,6 +361,10 @@ export default function MapView({
   useEffect(() => {
     selectedIdRef.current = selectedId;
   }, [selectedId]);
+
+  useEffect(() => {
+    onFocusNeuroneRef.current = onFocusNeurone;
+  }, [onFocusNeurone]);
 
   // Aggiorna refs per connection picking
   useEffect(() => {
@@ -1081,6 +1089,11 @@ export default function MapView({
               if (neurone && neurone.lat && neurone.lng && salesPopup.current) {
                 // Chiudi popup hover
                 popup.current?.remove();
+
+                // Notifica che questo neurone è "in focus" (per filtro connessioni)
+                if (onFocusNeuroneRef.current) {
+                  onFocusNeuroneRef.current(neurone.id);
+                }
 
                 // Mostra popup con loading
                 const loadingHtml = `
