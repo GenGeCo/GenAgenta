@@ -30,6 +30,8 @@ interface MapViewProps {
   quickMapMode?: boolean;
   onQuickMapClick?: (lat: number, lng: number, screenX: number, screenY: number) => void;
   onQuickEntityClick?: (neurone: Neurone, screenX: number, screenY: number) => void;
+  // Props per dettagli connessione
+  onSelectSinapsi?: (sinapsiId: string) => void;
 }
 
 // Colore di default se la categoria non viene trovata
@@ -366,6 +368,7 @@ export default function MapView({
   quickMapMode = false,
   onQuickMapClick,
   onQuickEntityClick,
+  onSelectSinapsi,
 }: MapViewProps) {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
@@ -397,6 +400,8 @@ export default function MapView({
   const quickMapModeRef = useRef(quickMapMode);
   const onQuickMapClickRef = useRef(onQuickMapClick);
   const onQuickEntityClickRef = useRef(onQuickEntityClick);
+  // Ref per dettagli sinapsi
+  const onSelectSinapsiRef = useRef(onSelectSinapsi);
   // Ref per selectedId (per cambiare panel al click su altra entità)
   const selectedIdRef = useRef(selectedId);
   // Ref per onFocusNeurone (per tracciare edificio cliccato)
@@ -437,6 +442,11 @@ export default function MapView({
     onQuickMapClickRef.current = onQuickMapClick;
     onQuickEntityClickRef.current = onQuickEntityClick;
   }, [quickMapMode, onQuickMapClick, onQuickEntityClick]);
+
+  // Aggiorna ref per dettagli sinapsi
+  useEffect(() => {
+    onSelectSinapsiRef.current = onSelectSinapsi;
+  }, [onSelectSinapsi]);
 
   useEffect(() => {
     neuroniRef.current = neuroni;
@@ -1622,10 +1632,40 @@ export default function MapView({
                 ${oggettiviHtml}
                 ${soggettiviHtml}
                 ${noDataHtml}
+
+                <button id="btn-sinapsi-dettagli-${sinapsiId}" style="
+                  width: 100%;
+                  margin-top: 10px;
+                  padding: 8px 12px;
+                  background: #6366f1;
+                  color: white;
+                  border: none;
+                  border-radius: 6px;
+                  font-size: 13px;
+                  font-weight: 500;
+                  cursor: pointer;
+                  display: flex;
+                  align-items: center;
+                  justify-content: center;
+                  gap: 6px;
+                ">
+                  Dettagli <span style="font-size: 16px;">→</span>
+                </button>
               </div>
             `;
 
             salesPopup.current?.setHTML(fullHtml);
+
+            // Collega event handler al bottone
+            setTimeout(() => {
+              const btnDettagli = document.getElementById(`btn-sinapsi-dettagli-${sinapsiId}`);
+              if (btnDettagli && onSelectSinapsiRef.current) {
+                btnDettagli.onclick = () => {
+                  salesPopup.current?.remove();
+                  onSelectSinapsiRef.current!(sinapsiId);
+                };
+              }
+            }, 50);
 
           } catch (error) {
             console.error('Errore caricamento dati sinapsi:', error);

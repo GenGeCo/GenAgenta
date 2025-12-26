@@ -11,6 +11,7 @@ import PinModal from '../components/PinModal';
 import UserMenu from '../components/UserMenu';
 import InvitePopup from '../components/InvitePopup';
 import NeuroneFormModal from '../components/NeuroneFormModal';
+import SinapsiDetailPanel from '../components/SinapsiDetailPanel';
 import { QuickCreateEntity, QuickEntityActions, QuickSelectTarget, QuickConnectionType, QuickTransactionForm } from '../components/QuickActionPopup';
 import type { Neurone, Sinapsi, FiltriMappa, Categoria, TipoNeuroneConfig } from '../types';
 
@@ -57,6 +58,9 @@ export default function Dashboard() {
   const [quickSourceNeurone, setQuickSourceNeurone] = useState<Neurone | null>(null);
   const [quickAction, setQuickAction] = useState<QuickActionType>(null);
   const [quickTargetNeurone, setQuickTargetNeurone] = useState<Neurone | null>(null);
+
+  // Stato per pannello dettagli sinapsi
+  const [selectedSinapsiId, setSelectedSinapsiId] = useState<string | null>(null);
 
   // ID del neurone "in focus" (cliccato sulla mappa, anche senza aprire dettagli)
   // Usato per il filtro "Solo del selezionato"
@@ -361,6 +365,11 @@ export default function Dashboard() {
               setQuickSourceNeurone(neurone);
               setQuickPopupPosition({ lat: neurone.lat || 0, lng: neurone.lng || 0, x: screenX, y: screenY });
               setQuickPopup('entityActions');
+            }}
+            // Props per dettagli sinapsi
+            onSelectSinapsi={(sinapsiId) => {
+              setSelectedSinapsiId(sinapsiId);
+              setSelectedNeurone(null); // Chiudi eventuale pannello entità
             }}
           />
 
@@ -682,6 +691,14 @@ export default function Dashboard() {
                 setConnectionSourceNeurone(null);
               }}
               onSinapsiCreated={reloadSinapsi}
+            />
+          )}
+
+          {/* Pannello dettaglio sinapsi */}
+          {selectedSinapsiId && !connectionPickingMode && (
+            <SinapsiDetailPanel
+              sinapsiId={selectedSinapsiId}
+              onClose={() => setSelectedSinapsiId(null)}
             />
           )}
         </div>
