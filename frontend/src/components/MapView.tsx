@@ -785,12 +785,15 @@ export default function MapView({
 
   // Aggiorna layer quando cambiano i dati
   useEffect(() => {
+    console.log('DEBUG MapView useEffect: triggered, neuroni.length:', neuroni.length, 'mapReady:', mapReady);
+
     if (!map.current || !mapReady) return;
 
     const m = map.current;
 
     // Filtra neuroni con coordinate
     let neuroniConCoord = neuroni.filter((n) => n.lat && n.lng);
+    console.log('DEBUG MapView: neuroniConCoord.length:', neuroniConCoord.length);
 
     // Applica filtri se attivi
     if (filtri.tipiSelezionati.length > 0) {
@@ -886,9 +889,12 @@ export default function MapView({
 
     // Usa setData se la source esiste già, altrimenti crea source e layers
     const existingSource = m.getSource('neuroni') as mapboxgl.GeoJSONSource | undefined;
+    console.log('DEBUG MapView: existingSource?', !!existingSource, 'features:', neuroniFeatures.length);
     if (existingSource) {
       // Aggiorna solo i dati, non ricreare i layer
+      console.log('DEBUG MapView: chiamando setData con', neuroniFeatures.length, 'features');
       existingSource.setData(geojsonData);
+      console.log('DEBUG MapView: setData completato');
     } else {
       // Prima volta: crea source e layers
       m.addSource('neuroni', {

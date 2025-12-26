@@ -502,6 +502,7 @@ export default function Dashboard() {
                   }}
                   onCreateEntity={async (data) => {
                     try {
+                      console.log('DEBUG QuickCreate: inizio creazione con data:', data);
                       const result = await api.createNeurone({
                         nome: data.nome,
                         tipo: data.tipo,
@@ -510,8 +511,20 @@ export default function Dashboard() {
                         lat: data.lat,
                         lng: data.lng,
                       });
+                      console.log('DEBUG QuickCreate: neurone creato, id:', result.id);
                       const newNeurone = await api.getNeurone(result.id);
-                      setNeuroni(prev => [newNeurone, ...prev]); // Usa callback per assicurare nuovo riferimento
+                      console.log('DEBUG QuickCreate: newNeurone caricato:', {
+                        id: newNeurone.id,
+                        nome: newNeurone.nome,
+                        tipo: newNeurone.tipo,
+                        lat: newNeurone.lat,
+                        lng: newNeurone.lng,
+                        categorie: newNeurone.categorie
+                      });
+                      setNeuroni(prev => {
+                        console.log('DEBUG QuickCreate: setNeuroni chiamato, prev.length:', prev.length);
+                        return [newNeurone, ...prev];
+                      });
                       setSelectedNeurone(newNeurone);
                       setQuickMapMode(false);
                       setQuickPopup(null);
