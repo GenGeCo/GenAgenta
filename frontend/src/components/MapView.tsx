@@ -90,6 +90,57 @@ function createParabola3D(
   return { coordinates, elevation };
 }
 
+// Genera un poligono "ribbon" (nastro) tra due punti per hit detection 3D
+// Il nastro è largo widthMeters e accorciato di marginMeters agli estremi
+function createRibbonPolygon(
+  lng1: number, lat1: number,
+  lng2: number, lat2: number,
+  widthMeters: number = 15,
+  marginMeters: number = 30 // margine agli estremi per evitare sovrapposizione con entità
+): number[][] {
+  const earthRadius = 6371000;
+
+  // Calcola direzione della linea
+  const dLng = lng2 - lng1;
+  const dLat = lat2 - lat1;
+
+  // Lunghezza in metri (approssimata)
+  const lengthLat = dLat * (Math.PI / 180) * earthRadius;
+  const lengthLng = dLng * (Math.PI / 180) * earthRadius * Math.cos(((lat1 + lat2) / 2) * Math.PI / 180);
+  const totalLength = Math.sqrt(lengthLat * lengthLat + lengthLng * lengthLng);
+
+  // Se la linea è troppo corta, riduci il margine
+  const effectiveMargin = Math.min(marginMeters, totalLength * 0.2);
+  const marginRatio = effectiveMargin / totalLength;
+
+  // Punti accorciati (con margine)
+  const startLng = lng1 + dLng * marginRatio;
+  const startLat = lat1 + dLat * marginRatio;
+  const endLng = lng2 - dLng * marginRatio;
+  const endLat = lat2 - dLat * marginRatio;
+
+  // Vettore perpendicolare normalizzato
+  const perpLat = -dLng;
+  const perpLng = dLat;
+  const perpLength = Math.sqrt(perpLat * perpLat + perpLng * perpLng);
+
+  if (perpLength === 0) return []; // Punti coincidenti
+
+  // Offset in gradi per la larghezza
+  const halfWidth = widthMeters / 2;
+  const offsetLat = (perpLat / perpLength) * (halfWidth / earthRadius) * (180 / Math.PI);
+  const offsetLng = (perpLng / perpLength) * (halfWidth / (earthRadius * Math.cos(((lat1 + lat2) / 2) * Math.PI / 180))) * (180 / Math.PI);
+
+  // 4 vertici del rettangolo
+  return [
+    [startLng - offsetLng, startLat - offsetLat], // bottom-left
+    [endLng - offsetLng, endLat - offsetLat],     // bottom-right
+    [endLng + offsetLng, endLat + offsetLat],     // top-right
+    [startLng + offsetLng, startLat + offsetLat], // top-left
+    [startLng - offsetLng, startLat - offsetLat], // chiudi il poligono
+  ];
+}
+
 // Genera un quadrato (per parallelepipedi)
 function createSquarePolygon(lng: number, lat: number, sizeMeters: number): number[][] {
   const earthRadius = 6371000;
@@ -762,6 +813,7 @@ export default function MapView({
       if (m.getLayer('sinapsi-lines-shadow')) m.removeLayer('sinapsi-lines-shadow');
       if (m.getLayer('sinapsi-hit')) m.removeLayer('sinapsi-hit');
       if (m.getSource('sinapsi')) m.removeSource('sinapsi');
+      if (m.getSource('sinapsi-volumes')) m.removeSource('sinapsi-volumes');
     } catch {
       // Layer non esistenti, ignora
     }
@@ -972,7 +1024,14 @@ export default function MapView({
       // Crea una mappa per lookup veloce dei neuroni per ID
       const neuroniMap = new Map(neuroni.map(n => [n.id, n]));
 
-      const sinapsiFeatures = sinapsiFiltered.map((s) => {
+      // Altezza massima della parabola + 5% margine
+      const PARABOLA_HEIGHT = 50;
+      const VOLUME_HEIGHT = PARABOLA_HEIGHT * 1.05; // 52.5m
+
+      const sinapsiFeatures: GeoJSON.Feature[] = [];
+      const volumeFeatures: GeoJSON.Feature[] = [];
+
+      sinapsiFiltered.forEach((s) => {
         // Usa le coordinate aggiornate dai neuroni (non quelle salvate nella sinapsi)
         const neuroneDa = neuroniMap.get(s.neurone_da);
         const neuroneA = neuroniMap.get(s.neurone_a);
@@ -989,28 +1048,46 @@ export default function MapView({
           lngDa, latDa,
           lngA, latA,
           15,  // 15 punti per curva fluida
-          50   // altezza massima 50 metri al centro
+          PARABOLA_HEIGHT   // altezza massima 50 metri al centro
         );
 
-        return {
+        // Properties comuni
+        const props = {
+          id: s.id,
+          tipo: s.tipo_connessione,
+          valore: Number(s.valore) || 1,
+          certezza: s.certezza,
+          elevation: parabola.elevation, // array di altezze per line-z-offset
+          // Nomi entità per popup connessione
+          neurone_da_nome: neuroneDa?.nome || 'Sconosciuto',
+          neurone_a_nome: neuroneA?.nome || 'Sconosciuto',
+          neurone_da_tipo: neuroneDa?.tipo || '',
+          neurone_a_tipo: neuroneA?.tipo || '',
+        };
+
+        // Feature linea per visualizzazione parabola
+        sinapsiFeatures.push({
           type: 'Feature' as const,
-          properties: {
-            id: s.id,
-            tipo: s.tipo_connessione,
-            valore: Number(s.valore) || 1,
-            certezza: s.certezza,
-            elevation: parabola.elevation, // array di altezze per line-z-offset
-            // Nomi entità per popup connessione
-            neurone_da_nome: neuroneDa?.nome || 'Sconosciuto',
-            neurone_a_nome: neuroneA?.nome || 'Sconosciuto',
-            neurone_da_tipo: neuroneDa?.tipo || '',
-            neurone_a_tipo: neuroneA?.tipo || '',
-          },
+          properties: props,
           geometry: {
             type: 'LineString' as const,
             coordinates: parabola.coordinates,
           },
-        };
+        });
+
+        // Feature volume per hit detection 3D
+        // Larghezza 20m (larghezza visiva + 50%), margine 35m agli estremi
+        const ribbonCoords = createRibbonPolygon(lngDa, latDa, lngA, latA, 20, 35);
+        if (ribbonCoords.length > 0) {
+          volumeFeatures.push({
+            type: 'Feature' as const,
+            properties: props,
+            geometry: {
+              type: 'Polygon' as const,
+              coordinates: [ribbonCoords],
+            },
+          });
+        }
       });
 
       m.addSource('sinapsi', {
@@ -1019,6 +1096,15 @@ export default function MapView({
         data: {
           type: 'FeatureCollection',
           features: sinapsiFeatures,
+        },
+      });
+
+      // Source per volumi hit detection 3D
+      m.addSource('sinapsi-volumes', {
+        type: 'geojson',
+        data: {
+          type: 'FeatureCollection',
+          features: volumeFeatures,
         },
       });
 
@@ -1074,26 +1160,16 @@ export default function MapView({
         },
       });
 
-      // Layer hit invisibile - segue la parabola ma più largo per catturare click
+      // Layer hit 3D - volume trasparente per hit detection su tutta l'altezza
       m.addLayer({
         id: 'sinapsi-hit',
-        type: 'line',
-        source: 'sinapsi',
-        layout: {
-          'line-z-offset': [
-            'interpolate',
-            ['linear'],
-            ['line-progress'],
-            ...Array.from({ length: 16 }, (_, i) => {
-              const t = i / 15;
-              return [t, 4 * 60 * t * (1 - t)]; // stessa parabola
-            }).flat()
-          ],
-        },
+        type: 'fill-extrusion',
+        source: 'sinapsi-volumes',
         paint: {
-          'line-color': '#ff0000',
-          'line-width': 25, // molto più largo per hit detection
-          'line-opacity': 0, // invisibile
+          'fill-extrusion-color': '#ff0000',
+          'fill-extrusion-height': VOLUME_HEIGHT, // altezza fino al picco parabola + 5%
+          'fill-extrusion-base': 0, // parte da terra
+          'fill-extrusion-opacity': 0, // invisibile ma cliccabile!
         },
       });
     }
