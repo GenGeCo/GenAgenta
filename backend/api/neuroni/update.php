@@ -14,8 +14,8 @@ if (empty($id)) {
 
 $db = getDB();
 
-// Verifica esistenza
-$stmt = $db->prepare('SELECT visibilita FROM neuroni WHERE id = ?');
+// Verifica esistenza e ottieni dati per controllo accesso
+$stmt = $db->prepare('SELECT visibilita, creato_da, azienda_id FROM neuroni WHERE id = ?');
 $stmt->execute([$id]);
 $neurone = $stmt->fetch();
 
@@ -23,11 +23,21 @@ if (!$neurone) {
     errorResponse('Neurone non trovato', 404);
 }
 
-// Se neurone personale, richiede accesso personale
+$userAziendaId = $user['azienda_id'] ?? null;
+
+// Controllo accesso in base alla visibilità
 if ($neurone['visibilita'] === 'personale') {
+    // Dati personali: richiede PIN + essere il proprietario
     $hasPersonalAccess = ($user['personal_access'] ?? false) === true;
-    if (!$hasPersonalAccess) {
-        errorResponse('Accesso personale richiesto', 403);
+    $isOwner = $neurone['creato_da'] === $user['user_id'];
+
+    if (!$hasPersonalAccess || !$isOwner) {
+        errorResponse('Non puoi modificare neuroni personali di altri utenti', 403);
+    }
+} else {
+    // Dati aziendali: verifica appartenenza alla stessa azienda
+    if ($neurone['azienda_id'] && $neurone['azienda_id'] !== $userAziendaId) {
+        errorResponse('Non puoi modificare neuroni di altre aziende', 403);
     }
 }
 

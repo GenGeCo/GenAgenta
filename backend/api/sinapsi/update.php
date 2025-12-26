@@ -14,8 +14,8 @@ if (empty($id)) {
 
 $db = getDB();
 
-// Verifica esistenza
-$stmt = $db->prepare('SELECT livello FROM sinapsi WHERE id = ?');
+// Verifica esistenza e ottieni dati per controllo accesso
+$stmt = $db->prepare('SELECT livello, creato_da, azienda_id FROM sinapsi WHERE id = ?');
 $stmt->execute([$id]);
 $sinapsi = $stmt->fetch();
 
@@ -23,11 +23,23 @@ if (!$sinapsi) {
     errorResponse('Sinapsi non trovata', 404);
 }
 
-// Se personale, richiede accesso
+$aziendaId = $user['azienda_id'] ?? null;
+
+// Controllo accesso in base al livello
 if ($sinapsi['livello'] === 'personale') {
+    // Dati personali: richiede PIN + essere il proprietario
     $hasPersonalAccess = ($user['personal_access'] ?? false) === true;
     if (!$hasPersonalAccess) {
         errorResponse('Accesso personale richiesto', 403);
+    }
+
+    if ($sinapsi['creato_da'] !== $user['user_id']) {
+        errorResponse('Solo il creatore può modificare dati personali', 403);
+    }
+} else {
+    // Dati aziendali: verifica appartenenza alla stessa azienda
+    if ($sinapsi['azienda_id'] !== $aziendaId) {
+        errorResponse('Accesso non autorizzato', 403);
     }
 }
 
