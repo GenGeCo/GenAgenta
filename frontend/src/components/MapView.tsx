@@ -452,8 +452,6 @@ export default function MapView({
     neuroniRef.current = neuroni;
   }, [neuroni]);
 
-  // Conta quanti neuroni ci sono - usato come trigger per forzare update mappa
-  const neuroniCount = neuroni.length;
 
   const getSinapsiCount = useCallback((neuroneId: string) => {
     return sinapsi.filter(s => s.neurone_da === neuroneId || s.neurone_a === neuroneId).length;
@@ -814,25 +812,8 @@ export default function MapView({
       );
     }
 
-    // Rimuovi source e layer esistenti
-    try {
-      if (m.getLayer('neuroni-3d')) m.removeLayer('neuroni-3d');
-      if (m.getLayer('neuroni-2d')) m.removeLayer('neuroni-2d');
-      if (m.getLayer('neuroni-outline')) m.removeLayer('neuroni-outline');
-      if (m.getLayer('venduto-ring')) m.removeLayer('venduto-ring');
-      if (m.getSource('neuroni')) m.removeSource('neuroni');
-      if (m.getSource('venduto-rings')) m.removeSource('venduto-rings');
-      if (m.getLayer('sinapsi-lines')) m.removeLayer('sinapsi-lines');
-      if (m.getLayer('sinapsi-lines-shadow')) m.removeLayer('sinapsi-lines-shadow');
-      if (m.getLayer('sinapsi-hit')) m.removeLayer('sinapsi-hit');
-      if (m.getSource('sinapsi')) m.removeSource('sinapsi');
-      if (m.getSource('sinapsi-volumes')) m.removeSource('sinapsi-volumes');
-    } catch {
-      // Layer non esistenti, ignora
-    }
-
     // Aspetta che tipiNeurone sia caricato per determinare le forme corrette
-    if (neuroniConCoord.length === 0 || tipiNeurone.length === 0) return;
+    if (tipiNeurone.length === 0) return;
 
     // Funzione per ottenere il colore dalla prima categoria del neurone (case-insensitive)
     const getCategoriaColor = (neuroneCategorie: string[]): string => {
@@ -903,37 +884,44 @@ export default function MapView({
       features: neuroniFeatures,
     };
 
-    // Aggiungi source
-    m.addSource('neuroni', {
-      type: 'geojson',
-      data: geojsonData,
-    });
+    // Usa setData se la source esiste già, altrimenti crea source e layers
+    const existingSource = m.getSource('neuroni') as mapboxgl.GeoJSONSource | undefined;
+    if (existingSource) {
+      // Aggiorna solo i dati, non ricreare i layer
+      existingSource.setData(geojsonData);
+    } else {
+      // Prima volta: crea source e layers
+      m.addSource('neuroni', {
+        type: 'geojson',
+        data: geojsonData,
+      });
 
-    // Layer 3D extrusion con altezze dinamiche
-    m.addLayer({
-      id: 'neuroni-3d',
-      type: 'fill-extrusion',
-      source: 'neuroni',
-      paint: {
-        'fill-extrusion-color': ['get', 'color'],
-        'fill-extrusion-height': ['get', 'height'],
-        'fill-extrusion-base': 0,
-        'fill-extrusion-opacity': 0.9,
-        'fill-extrusion-vertical-gradient': true, // Gradiente verticale (più chiaro in alto)
-      },
-    });
+      // Layer 3D extrusion con altezze dinamiche
+      m.addLayer({
+        id: 'neuroni-3d',
+        type: 'fill-extrusion',
+        source: 'neuroni',
+        paint: {
+          'fill-extrusion-color': ['get', 'color'],
+          'fill-extrusion-height': ['get', 'height'],
+          'fill-extrusion-base': 0,
+          'fill-extrusion-opacity': 0.9,
+          'fill-extrusion-vertical-gradient': true, // Gradiente verticale (più chiaro in alto)
+        },
+      });
 
-    // Layer bordo 2D alla base per definire meglio le forme
-    m.addLayer({
-      id: 'neuroni-outline',
-      type: 'line',
-      source: 'neuroni',
-      paint: {
-        'line-color': '#1e293b', // Grigio scuro
-        'line-width': 2,
-        'line-opacity': 0.6,
-      },
-    });
+      // Layer bordo 2D alla base per definire meglio le forme
+      m.addLayer({
+        id: 'neuroni-outline',
+        type: 'line',
+        source: 'neuroni',
+        paint: {
+          'line-color': '#1e293b', // Grigio scuro
+          'line-width': 2,
+          'line-opacity': 0.6,
+        },
+      });
+    }
 
     // Crea anelli venduto (solo per neuroni con venduto > 0)
     const vendutoRingFeatures = neuroniConCoord
@@ -966,14 +954,18 @@ export default function MapView({
         };
       });
 
-    // Aggiungi layer anelli venduto se ci sono neuroni con vendite
-    if (vendutoRingFeatures.length > 0) {
+    // Aggiorna o crea layer anelli venduto
+    const vendutoGeoJson = {
+      type: 'FeatureCollection' as const,
+      features: vendutoRingFeatures,
+    };
+    const existingVendutoSource = m.getSource('venduto-rings') as mapboxgl.GeoJSONSource | undefined;
+    if (existingVendutoSource) {
+      existingVendutoSource.setData(vendutoGeoJson);
+    } else if (vendutoRingFeatures.length > 0) {
       m.addSource('venduto-rings', {
         type: 'geojson',
-        data: {
-          type: 'FeatureCollection',
-          features: vendutoRingFeatures,
-        },
+        data: vendutoGeoJson,
       });
 
       // Layer anello venduto (3D)
@@ -1099,88 +1091,111 @@ export default function MapView({
         }
       });
 
-      m.addSource('sinapsi', {
-        type: 'geojson',
-        lineMetrics: true, // necessario per line-z-offset
-        data: {
-          type: 'FeatureCollection',
-          features: sinapsiFeatures,
-        },
-      });
+      const sinapsiGeoJson = {
+        type: 'FeatureCollection' as const,
+        features: sinapsiFeatures,
+      };
+      const volumesGeoJson = {
+        type: 'FeatureCollection' as const,
+        features: volumeFeatures,
+      };
 
-      // Source per volumi hit detection 3D
-      m.addSource('sinapsi-volumes', {
-        type: 'geojson',
-        data: {
-          type: 'FeatureCollection',
-          features: volumeFeatures,
-        },
-      });
+      // Usa setData se le sources esistono già
+      const existingSinapsiSource = m.getSource('sinapsi') as mapboxgl.GeoJSONSource | undefined;
+      const existingVolumesSource = m.getSource('sinapsi-volumes') as mapboxgl.GeoJSONSource | undefined;
 
-      // Layer ombra/bordo (sotto) - dà profondità alla linea
-      m.addLayer({
-        id: 'sinapsi-lines-shadow',
-        type: 'line',
-        source: 'sinapsi',
-        layout: {
-          'line-z-offset': [
-            'interpolate',
-            ['linear'],
-            ['line-progress'],
-            ...Array.from({ length: 16 }, (_, i) => {
-              const t = i / 15;
-              return [t, 4 * 60 * t * (1 - t) - 3]; // leggermente sotto (-3m)
-            }).flat()
-          ],
-        },
-        paint: {
-          'line-color': '#000000',
-          'line-width': 8,
-          'line-opacity': 0.4,
-          'line-blur': 2,
-        },
-      });
+      if (existingSinapsiSource && existingVolumesSource) {
+        existingSinapsiSource.setData(sinapsiGeoJson);
+        existingVolumesSource.setData(volumesGeoJson);
+      } else {
+        // Prima volta: crea sources e layers
+        m.addSource('sinapsi', {
+          type: 'geojson',
+          lineMetrics: true, // necessario per line-z-offset
+          data: sinapsiGeoJson,
+        });
 
-      // Layer principale colorato
-      m.addLayer({
-        id: 'sinapsi-lines',
-        type: 'line',
-        source: 'sinapsi',
-        layout: {
-          'line-z-offset': [
-            'interpolate',
-            ['linear'],
-            ['line-progress'],
-            ...Array.from({ length: 16 }, (_, i) => {
-              const t = i / 15;
-              return [t, 4 * 60 * t * (1 - t)]; // parabola: 0 -> 60m -> 0
-            }).flat()
-          ],
-        },
-        paint: {
-          'line-color': [
-            'case',
-            ['==', ['get', 'certezza'], 'certo'], '#22c55e',
-            ['==', ['get', 'certezza'], 'probabile'], '#eab308',
-            '#94a3b8',
-          ],
-          'line-width': 5,
-          'line-opacity': 1,
-        },
-      });
+        // Source per volumi hit detection 3D
+        m.addSource('sinapsi-volumes', {
+          type: 'geojson',
+          data: volumesGeoJson,
+        });
 
-      // Layer hit 3D - volume trasparente per hit detection su tutta l'altezza
-      m.addLayer({
-        id: 'sinapsi-hit',
-        type: 'fill-extrusion',
-        source: 'sinapsi-volumes',
-        paint: {
-          'fill-extrusion-color': '#ff0000',
-          'fill-extrusion-height': VOLUME_HEIGHT, // altezza fino al picco parabola + 5%
-          'fill-extrusion-base': 0, // parte da terra
-          'fill-extrusion-opacity': 0, // invisibile ma cliccabile!
-        },
-      });
+        // Layer ombra/bordo (sotto) - dà profondità alla linea
+        m.addLayer({
+          id: 'sinapsi-lines-shadow',
+          type: 'line',
+          source: 'sinapsi',
+          layout: {
+            'line-z-offset': [
+              'interpolate',
+              ['linear'],
+              ['line-progress'],
+              ...Array.from({ length: 16 }, (_, i) => {
+                const t = i / 15;
+                return [t, 4 * 60 * t * (1 - t) - 3]; // leggermente sotto (-3m)
+              }).flat()
+            ],
+          },
+          paint: {
+            'line-color': '#000000',
+            'line-width': 8,
+            'line-opacity': 0.4,
+            'line-blur': 2,
+          },
+        });
+
+        // Layer principale colorato
+        m.addLayer({
+          id: 'sinapsi-lines',
+          type: 'line',
+          source: 'sinapsi',
+          layout: {
+            'line-z-offset': [
+              'interpolate',
+              ['linear'],
+              ['line-progress'],
+              ...Array.from({ length: 16 }, (_, i) => {
+                const t = i / 15;
+                return [t, 4 * 60 * t * (1 - t)]; // parabola: 0 -> 60m -> 0
+              }).flat()
+            ],
+          },
+          paint: {
+            'line-color': [
+              'case',
+              ['==', ['get', 'certezza'], 'certo'], '#22c55e',
+              ['==', ['get', 'certezza'], 'probabile'], '#eab308',
+              '#94a3b8',
+            ],
+            'line-width': 5,
+            'line-opacity': 1,
+          },
+        });
+
+        // Layer hit 3D - volume trasparente per hit detection su tutta l'altezza
+        m.addLayer({
+          id: 'sinapsi-hit',
+          type: 'fill-extrusion',
+          source: 'sinapsi-volumes',
+          paint: {
+            'fill-extrusion-color': '#ff0000',
+            'fill-extrusion-height': VOLUME_HEIGHT, // altezza fino al picco parabola + 5%
+            'fill-extrusion-base': 0, // parte da terra
+            'fill-extrusion-opacity': 0, // invisibile ma cliccabile!
+          },
+        });
+      }
+    } else {
+      // Nessuna sinapsi da mostrare - se le sources esistono, svuotale
+      const existingSinapsiSource = m.getSource('sinapsi') as mapboxgl.GeoJSONSource | undefined;
+      const existingVolumesSource = m.getSource('sinapsi-volumes') as mapboxgl.GeoJSONSource | undefined;
+      if (existingSinapsiSource) {
+        existingSinapsiSource.setData({ type: 'FeatureCollection', features: [] });
+      }
+      if (existingVolumesSource) {
+        existingVolumesSource.setData({ type: 'FeatureCollection', features: [] });
+      }
     }
 
     // Event handlers (solo una volta)
@@ -1691,7 +1706,7 @@ export default function MapView({
       handlersAdded.current = true;
     }
 
-  }, [neuroni, sinapsi, categorie, tipiNeurone, selectedId, filterSelectedId, mapReady, filtri, getSinapsiCount, styleLoaded, neuroniCount]);
+  }, [neuroni, sinapsi, categorie, tipiNeurone, selectedId, filterSelectedId, mapReady, filtri, getSinapsiCount, styleLoaded]);
 
   // Non fare più zoom automatico sulla selezione
   // Lo zoom si fa solo con doppio click
