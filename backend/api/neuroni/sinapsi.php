@@ -6,6 +6,8 @@
 
 $user = requireAuth();
 $hasPersonalAccess = ($user['personal_access'] ?? false) === true;
+$aziendaId = $user['azienda_id'] ?? null;
+$userId = $user['user_id'];
 
 $neuroneId = $_REQUEST['neurone_id'] ?? '';
 
@@ -24,9 +26,15 @@ $db = getDB();
 $where = ["(s.neurone_da = ? OR s.neurone_a = ?)"];
 $params = [$neuroneId, $neuroneId];
 
-// Filtro visibilità
+// Filtro visibilità e azienda
+// Aziendale: stessa azienda | Personale: stesso utente + PIN
 if (!$hasPersonalAccess) {
-    $where[] = "s.livello = 'aziendale'";
+    $where[] = "(s.livello = 'aziendale' AND s.azienda_id = ?)";
+    $params[] = $aziendaId;
+} else {
+    $where[] = "((s.livello = 'aziendale' AND s.azienda_id = ?) OR (s.livello = 'personale' AND s.creato_da = ?))";
+    $params[] = $aziendaId;
+    $params[] = $userId;
 }
 
 // Filtro temporale
@@ -63,12 +71,5 @@ $sql = "
 $stmt = $db->prepare($sql);
 $stmt->execute($params);
 $sinapsi = $stmt->fetchAll();
-
-// Anonimizza se necessario
-foreach ($sinapsi as &$s) {
-    if (!$hasPersonalAccess && $s['livello'] === 'personale') {
-        $s['note'] = null;
-    }
-}
 
 jsonResponse(['data' => $sinapsi]);

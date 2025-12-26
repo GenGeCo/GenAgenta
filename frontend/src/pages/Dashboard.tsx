@@ -7,7 +7,7 @@ import Sidebar from '../components/Sidebar';
 import MapView from '../components/MapView';
 import DetailPanel from '../components/DetailPanel';
 import TimeSlider from '../components/TimeSlider';
-import PinModal from '../components/PinModal';
+import PrivacyLock from '../components/PrivacyLock';
 import UserMenu from '../components/UserMenu';
 import InvitePopup from '../components/InvitePopup';
 import NeuroneFormModal from '../components/NeuroneFormModal';
@@ -35,7 +35,6 @@ export default function Dashboard() {
   const [categorie, setCategorie] = useState<Categoria[]>([]);
   const [tipiNeurone, setTipiNeurone] = useState<TipoNeuroneConfig[]>([]);
   const [selectedNeurone, setSelectedNeurone] = useState<Neurone | null>(null);
-  const [showPinModal, setShowPinModal] = useState(false);
   const [showNeuroneForm, setShowNeuroneForm] = useState(false);
   const [editingNeurone, setEditingNeurone] = useState<Neurone | null>(null); // Per modifica
   const [loading, setLoading] = useState(true);
@@ -242,11 +241,19 @@ export default function Dashboard() {
   const handleVerifyPin = async (pin: string) => {
     try {
       await verifyPin(pin);
-      setShowPinModal(false);
       // Ricarica dati con accesso personale
       window.location.reload();
     } catch {
       throw new Error('PIN non valido');
+    }
+  };
+
+  // Handler imposta PIN
+  const handleSetPin = async (pin: string) => {
+    await api.setPin(pin);
+    // Aggiorna stato utente
+    if (user) {
+      updateUser({ ...user, has_pin: true });
     }
   };
 
@@ -273,25 +280,6 @@ export default function Dashboard() {
           <h1 style={{ fontSize: '18px', fontWeight: 600 }}>GenAgenTa 7</h1>
 
           <div style={{ flex: 1 }} />
-
-          {/* Indicatore accesso personale */}
-          {personalAccess ? (
-            <button
-              className="btn btn-secondary"
-              onClick={exitPersonalMode}
-              style={{ fontSize: '12px' }}
-            >
-              Esci modalita personale
-            </button>
-          ) : user?.has_pin ? (
-            <button
-              className="btn btn-secondary"
-              onClick={() => setShowPinModal(true)}
-              style={{ fontSize: '12px' }}
-            >
-              Accedi area personale
-            </button>
-          ) : null}
 
           {user && <UserMenu user={user} onLogout={logout} onUserUpdate={updateUser} />}
         </header>
@@ -715,13 +703,14 @@ export default function Dashboard() {
         />
       </div>
 
-      {/* Modal PIN */}
-      {showPinModal && (
-        <PinModal
-          onVerify={handleVerifyPin}
-          onClose={() => setShowPinModal(false)}
-        />
-      )}
+      {/* Lucchetto Privacy */}
+      <PrivacyLock
+        hasPin={user?.has_pin || false}
+        isUnlocked={personalAccess}
+        onSetPin={handleSetPin}
+        onVerifyPin={handleVerifyPin}
+        onLock={exitPersonalMode}
+      />
 
       {/* Popup invito ricevuto */}
       {pendingInvite && (

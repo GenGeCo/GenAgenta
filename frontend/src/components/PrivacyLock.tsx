@@ -1,0 +1,407 @@
+// GenAgenTa - Privacy Lock Component
+// Lucchetto per accesso area personale
+
+import { useState, FormEvent, useRef, useEffect } from 'react';
+
+interface PrivacyLockProps {
+  hasPin: boolean;
+  isUnlocked: boolean;
+  onSetPin: (pin: string) => Promise<void>;
+  onVerifyPin: (pin: string) => Promise<void>;
+  onLock: () => void;
+}
+
+type ModalMode = 'none' | 'verify' | 'set' | 'change';
+
+export default function PrivacyLock({
+  hasPin,
+  isUnlocked,
+  onSetPin,
+  onVerifyPin,
+  onLock,
+}: PrivacyLockProps) {
+  const [modalMode, setModalMode] = useState<ModalMode>('none');
+  const [pin, setPin] = useState('');
+  const [confirmPin, setConfirmPin] = useState('');
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  // Focus automatico quando si apre modal
+  useEffect(() => {
+    if (modalMode !== 'none') {
+      setTimeout(() => inputRef.current?.focus(), 100);
+    }
+  }, [modalMode]);
+
+  // Chiudi con ESC
+  useEffect(() => {
+    const handleEsc = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') closeModal();
+    };
+    if (modalMode !== 'none') {
+      window.addEventListener('keydown', handleEsc);
+      return () => window.removeEventListener('keydown', handleEsc);
+    }
+  }, [modalMode]);
+
+  const closeModal = () => {
+    setModalMode('none');
+    setPin('');
+    setConfirmPin('');
+    setError('');
+  };
+
+  const handleLockClick = () => {
+    if (isUnlocked) {
+      // Chiudi area personale
+      onLock();
+    } else if (hasPin) {
+      // Chiedi PIN
+      setModalMode('verify');
+    } else {
+      // Imposta PIN
+      setModalMode('set');
+    }
+  };
+
+  const handleVerifySubmit = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!pin.trim()) return;
+
+    setError('');
+    setLoading(true);
+
+    try {
+      await onVerifyPin(pin);
+      closeModal();
+    } catch {
+      setError('PIN non valido');
+      setPin('');
+      inputRef.current?.focus();
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSetPinSubmit = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!pin.trim()) return;
+
+    // Validazioni
+    if (pin.length < 4) {
+      setError('PIN deve essere almeno 4 cifre');
+      return;
+    }
+    if (!/^[0-9]+$/.test(pin)) {
+      setError('PIN deve contenere solo numeri');
+      return;
+    }
+    if (pin !== confirmPin) {
+      setError('I PIN non coincidono');
+      return;
+    }
+
+    setError('');
+    setLoading(true);
+
+    try {
+      await onSetPin(pin);
+      closeModal();
+    } catch {
+      setError('Errore nel salvare il PIN');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <>
+      {/* Bottone Lucchetto */}
+      <button
+        onClick={handleLockClick}
+        title={isUnlocked ? 'Chiudi area personale' : hasPin ? 'Sblocca area personale' : 'Imposta PIN personale'}
+        style={{
+          position: 'fixed',
+          bottom: '24px',
+          left: '24px',
+          width: '56px',
+          height: '56px',
+          borderRadius: '50%',
+          border: 'none',
+          background: isUnlocked
+            ? 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)'
+            : 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)',
+          color: 'white',
+          fontSize: '24px',
+          cursor: 'pointer',
+          boxShadow: '0 4px 12px rgba(0, 0, 0, 0.3)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          transition: 'all 0.2s ease',
+          zIndex: 500,
+        }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.transform = 'scale(1.1)';
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.transform = 'scale(1)';
+        }}
+      >
+        {isUnlocked ? '🔓' : '🔒'}
+      </button>
+
+      {/* Indicatore stato sotto il lucchetto */}
+      {isUnlocked && (
+        <div
+          style={{
+            position: 'fixed',
+            bottom: '8px',
+            left: '24px',
+            width: '56px',
+            textAlign: 'center',
+            fontSize: '10px',
+            color: '#22c55e',
+            fontWeight: 600,
+          }}
+        >
+          PRIVATO
+        </div>
+      )}
+
+      {/* Modal */}
+      {modalMode !== 'none' && (
+        <div
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: 'rgba(0, 0, 0, 0.5)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1000,
+          }}
+          onClick={(e) => {
+            if (e.target === e.currentTarget) closeModal();
+          }}
+        >
+          <div
+            style={{
+              background: 'white',
+              padding: '32px',
+              borderRadius: '16px',
+              width: '100%',
+              maxWidth: '360px',
+              boxShadow: '0 20px 40px rgba(0, 0, 0, 0.3)',
+            }}
+          >
+            {/* Verifica PIN */}
+            {modalMode === 'verify' && (
+              <>
+                <div style={{ textAlign: 'center', marginBottom: '24px' }}>
+                  <div style={{ fontSize: '48px', marginBottom: '16px' }}>🔒</div>
+                  <h2 style={{ fontSize: '20px', fontWeight: 600, marginBottom: '8px' }}>
+                    Area Personale
+                  </h2>
+                  <p style={{ color: '#6b7280', fontSize: '14px' }}>
+                    Inserisci il PIN per vedere i tuoi dati privati
+                  </p>
+                </div>
+
+                <form onSubmit={handleVerifySubmit}>
+                  <input
+                    ref={inputRef}
+                    type="password"
+                    inputMode="numeric"
+                    value={pin}
+                    onChange={(e) => setPin(e.target.value.replace(/\D/g, ''))}
+                    placeholder="PIN"
+                    maxLength={10}
+                    style={{
+                      width: '100%',
+                      fontSize: '32px',
+                      textAlign: 'center',
+                      letterSpacing: '12px',
+                      padding: '16px',
+                      border: '2px solid #e5e7eb',
+                      borderRadius: '12px',
+                      marginBottom: '16px',
+                    }}
+                  />
+
+                  {error && (
+                    <div style={{
+                      padding: '12px',
+                      marginBottom: '16px',
+                      background: '#fef2f2',
+                      color: '#dc2626',
+                      borderRadius: '8px',
+                      fontSize: '14px',
+                      textAlign: 'center',
+                    }}>
+                      {error}
+                    </div>
+                  )}
+
+                  <div style={{ display: 'flex', gap: '12px' }}>
+                    <button
+                      type="button"
+                      onClick={closeModal}
+                      style={{
+                        flex: 1,
+                        padding: '14px',
+                        border: '1px solid #e5e7eb',
+                        borderRadius: '10px',
+                        background: 'white',
+                        fontSize: '15px',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      Annulla
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={!pin.trim() || loading}
+                      style={{
+                        flex: 1,
+                        padding: '14px',
+                        border: 'none',
+                        borderRadius: '10px',
+                        background: '#6366f1',
+                        color: 'white',
+                        fontSize: '15px',
+                        fontWeight: 600,
+                        cursor: 'pointer',
+                        opacity: !pin.trim() || loading ? 0.5 : 1,
+                      }}
+                    >
+                      {loading ? '...' : 'Sblocca'}
+                    </button>
+                  </div>
+                </form>
+              </>
+            )}
+
+            {/* Imposta PIN */}
+            {modalMode === 'set' && (
+              <>
+                <div style={{ textAlign: 'center', marginBottom: '24px' }}>
+                  <div style={{ fontSize: '48px', marginBottom: '16px' }}>🔐</div>
+                  <h2 style={{ fontSize: '20px', fontWeight: 600, marginBottom: '8px' }}>
+                    Crea il tuo PIN
+                  </h2>
+                  <p style={{ color: '#6b7280', fontSize: '14px' }}>
+                    Il PIN protegge i tuoi dati personali. Solo tu potrai vederli.
+                  </p>
+                </div>
+
+                <form onSubmit={handleSetPinSubmit}>
+                  <div style={{ marginBottom: '12px' }}>
+                    <label style={{ fontSize: '13px', color: '#6b7280', display: 'block', marginBottom: '4px' }}>
+                      Nuovo PIN (min 4 cifre)
+                    </label>
+                    <input
+                      ref={inputRef}
+                      type="password"
+                      inputMode="numeric"
+                      value={pin}
+                      onChange={(e) => setPin(e.target.value.replace(/\D/g, ''))}
+                      placeholder="••••"
+                      maxLength={10}
+                      style={{
+                        width: '100%',
+                        fontSize: '24px',
+                        textAlign: 'center',
+                        letterSpacing: '8px',
+                        padding: '12px',
+                        border: '2px solid #e5e7eb',
+                        borderRadius: '10px',
+                      }}
+                    />
+                  </div>
+
+                  <div style={{ marginBottom: '16px' }}>
+                    <label style={{ fontSize: '13px', color: '#6b7280', display: 'block', marginBottom: '4px' }}>
+                      Conferma PIN
+                    </label>
+                    <input
+                      type="password"
+                      inputMode="numeric"
+                      value={confirmPin}
+                      onChange={(e) => setConfirmPin(e.target.value.replace(/\D/g, ''))}
+                      placeholder="••••"
+                      maxLength={10}
+                      style={{
+                        width: '100%',
+                        fontSize: '24px',
+                        textAlign: 'center',
+                        letterSpacing: '8px',
+                        padding: '12px',
+                        border: '2px solid #e5e7eb',
+                        borderRadius: '10px',
+                      }}
+                    />
+                  </div>
+
+                  {error && (
+                    <div style={{
+                      padding: '12px',
+                      marginBottom: '16px',
+                      background: '#fef2f2',
+                      color: '#dc2626',
+                      borderRadius: '8px',
+                      fontSize: '14px',
+                      textAlign: 'center',
+                    }}>
+                      {error}
+                    </div>
+                  )}
+
+                  <div style={{ display: 'flex', gap: '12px' }}>
+                    <button
+                      type="button"
+                      onClick={closeModal}
+                      style={{
+                        flex: 1,
+                        padding: '14px',
+                        border: '1px solid #e5e7eb',
+                        borderRadius: '10px',
+                        background: 'white',
+                        fontSize: '15px',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      Annulla
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={!pin || !confirmPin || loading}
+                      style={{
+                        flex: 1,
+                        padding: '14px',
+                        border: 'none',
+                        borderRadius: '10px',
+                        background: '#22c55e',
+                        color: 'white',
+                        fontSize: '15px',
+                        fontWeight: 600,
+                        cursor: 'pointer',
+                        opacity: !pin || !confirmPin || loading ? 0.5 : 1,
+                      }}
+                    >
+                      {loading ? '...' : 'Salva PIN'}
+                    </button>
+                  </div>
+                </form>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+    </>
+  );
+}

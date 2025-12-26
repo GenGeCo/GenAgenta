@@ -73,7 +73,12 @@ class ApiClient {
     const { data } = await this.client.post('/auth/verify-pin', { pin });
     this.setToken(data.token);
     return data;
-}
+  }
+
+  async setPin(pin: string, currentPin?: string): Promise<{ has_pin: boolean }> {
+    const { data } = await this.client.post('/auth/set-pin', { pin, current_pin: currentPin });
+    return data;
+  }
 
   async register(params: {
     email: string;
