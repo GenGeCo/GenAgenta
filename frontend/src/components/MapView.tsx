@@ -785,15 +785,12 @@ export default function MapView({
 
   // Aggiorna layer quando cambiano i dati
   useEffect(() => {
-    console.log('DEBUG MapView useEffect: triggered, neuroni.length:', neuroni.length, 'mapReady:', mapReady);
-
     if (!map.current || !mapReady) return;
 
     const m = map.current;
 
     // Filtra neuroni con coordinate
     let neuroniConCoord = neuroni.filter((n) => n.lat && n.lng);
-    console.log('DEBUG MapView: neuroniConCoord.length:', neuroniConCoord.length);
 
     // Applica filtri se attivi
     if (filtri.tipiSelezionati.length > 0) {
@@ -858,7 +855,10 @@ export default function MapView({
       const baseSize = neurone.dimensione ? Number(neurone.dimensione) : defaultSize;
       const height = calculateHeight(neurone, getSinapsiCount(neurone.id));
 
-      const polygon = createPolygon(forma, neurone.lng!, neurone.lat!, baseSize);
+      // IMPORTANTE: converti lat/lng a numeri (potrebbero essere stringhe dal DB)
+      const lng = Number(neurone.lng);
+      const lat = Number(neurone.lat);
+      const polygon = createPolygon(forma, lng, lat, baseSize);
 
       // Usa il colore della prima categoria del neurone
       const neuroneCategorie = Array.isArray(neurone.categorie) ? neurone.categorie : [];
@@ -889,12 +889,9 @@ export default function MapView({
 
     // Usa setData se la source esiste già, altrimenti crea source e layers
     const existingSource = m.getSource('neuroni') as mapboxgl.GeoJSONSource | undefined;
-    console.log('DEBUG MapView: existingSource?', !!existingSource, 'features:', neuroniFeatures.length);
     if (existingSource) {
       // Aggiorna solo i dati, non ricreare i layer
-      console.log('DEBUG MapView: chiamando setData con', neuroniFeatures.length, 'features');
       existingSource.setData(geojsonData);
-      console.log('DEBUG MapView: setData completato');
     } else {
       // Prima volta: crea source e layers
       m.addSource('neuroni', {
@@ -940,11 +937,15 @@ export default function MapView({
         const height = calculateHeight(neurone, getSinapsiCount(neurone.id));
         const vendutoHeight = calculateVendutoHeight(neurone, height);
 
+        // IMPORTANTE: converti lat/lng a numeri
+        const lng = Number(neurone.lng);
+        const lat = Number(neurone.lat);
+
         // Ring leggermente più grande dell'edificio
         const ringWidth = 3; // metri di spessore dell'anello
         const ringPolygon = isQuadrato
-          ? createSquareRing(neurone.lng!, neurone.lat!, baseSize, baseSize + ringWidth * 2)
-          : createRingPolygon(neurone.lng!, neurone.lat!, baseSize / 2, (baseSize / 2) + ringWidth, 24);
+          ? createSquareRing(lng, lat, baseSize, baseSize + ringWidth * 2)
+          : createRingPolygon(lng, lat, baseSize / 2, (baseSize / 2) + ringWidth, 24);
 
         return {
           type: 'Feature' as const,
