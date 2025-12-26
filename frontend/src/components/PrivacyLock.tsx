@@ -117,25 +117,24 @@ export default function PrivacyLock({
 
   return (
     <>
-      {/* Bottone Lucchetto */}
+      {/* Bottone Lucchetto - posizionato in alto a destra, prima dell'avatar */}
       <button
         onClick={handleLockClick}
         title={isUnlocked ? 'Chiudi area personale' : hasPin ? 'Sblocca area personale' : 'Imposta PIN personale'}
         style={{
           position: 'fixed',
-          bottom: '24px',
-          left: '24px',
-          width: '56px',
-          height: '56px',
+          top: '12px',
+          right: '140px', // A sinistra dell'avatar utente
+          width: '40px',
+          height: '40px',
           borderRadius: '50%',
-          border: 'none',
+          border: isUnlocked ? '2px solid #22c55e' : '2px solid transparent',
           background: isUnlocked
-            ? 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)'
-            : 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)',
-          color: 'white',
-          fontSize: '24px',
+            ? 'rgba(34, 197, 94, 0.15)'
+            : 'rgba(99, 102, 241, 0.15)',
+          color: isUnlocked ? '#22c55e' : '#6366f1',
+          fontSize: '20px',
           cursor: 'pointer',
-          boxShadow: '0 4px 12px rgba(0, 0, 0, 0.3)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
@@ -144,31 +143,19 @@ export default function PrivacyLock({
         }}
         onMouseEnter={(e) => {
           e.currentTarget.style.transform = 'scale(1.1)';
+          e.currentTarget.style.background = isUnlocked
+            ? 'rgba(34, 197, 94, 0.25)'
+            : 'rgba(99, 102, 241, 0.25)';
         }}
         onMouseLeave={(e) => {
           e.currentTarget.style.transform = 'scale(1)';
+          e.currentTarget.style.background = isUnlocked
+            ? 'rgba(34, 197, 94, 0.15)'
+            : 'rgba(99, 102, 241, 0.15)';
         }}
       >
         {isUnlocked ? '🔓' : '🔒'}
       </button>
-
-      {/* Indicatore stato sotto il lucchetto */}
-      {isUnlocked && (
-        <div
-          style={{
-            position: 'fixed',
-            bottom: '8px',
-            left: '24px',
-            width: '56px',
-            textAlign: 'center',
-            fontSize: '10px',
-            color: '#22c55e',
-            fontWeight: 600,
-          }}
-        >
-          PRIVATO
-        </div>
-      )}
 
       {/* Modal */}
       {modalMode !== 'none' && (
