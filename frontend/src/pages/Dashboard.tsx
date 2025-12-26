@@ -7,7 +7,7 @@ import Sidebar from '../components/Sidebar';
 import MapView from '../components/MapView';
 import DetailPanel from '../components/DetailPanel';
 import TimeSlider from '../components/TimeSlider';
-import PrivacyLock from '../components/PrivacyLock';
+import { PinVerifyModal, PinSetModal } from '../components/PrivacyLock';
 import UserMenu from '../components/UserMenu';
 import InvitePopup from '../components/InvitePopup';
 import NeuroneFormModal from '../components/NeuroneFormModal';
@@ -39,6 +39,8 @@ export default function Dashboard() {
   const [editingNeurone, setEditingNeurone] = useState<Neurone | null>(null); // Per modifica
   const [loading, setLoading] = useState(true);
   const [pendingInvite, setPendingInvite] = useState<PendingInvite | null>(null);
+  const [showPinModal, setShowPinModal] = useState(false);
+  const [showSetPinModal, setShowSetPinModal] = useState(false);
 
   // Stato per selezione posizione su mappa (creazione neurone)
   const [mapPickingMode, setMapPickingMode] = useState(false);
@@ -280,6 +282,35 @@ export default function Dashboard() {
           <h1 style={{ fontSize: '18px', fontWeight: 600 }}>GenAgenTa 7</h1>
 
           <div style={{ flex: 1 }} />
+
+          {/* Bottone Lucchetto Privacy */}
+          <button
+            onClick={() => {
+              if (personalAccess) {
+                exitPersonalMode();
+              } else if (user?.has_pin) {
+                setShowPinModal(true);
+              } else {
+                setShowSetPinModal(true);
+              }
+            }}
+            title={personalAccess ? 'Chiudi area personale' : user?.has_pin ? 'Sblocca area personale' : 'Imposta PIN'}
+            style={{
+              background: personalAccess ? 'rgba(34, 197, 94, 0.2)' : 'transparent',
+              border: personalAccess ? '2px solid #22c55e' : '1px solid rgba(255,255,255,0.2)',
+              borderRadius: '8px',
+              padding: '8px 12px',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              color: personalAccess ? '#22c55e' : 'rgba(255,255,255,0.7)',
+              fontSize: '14px',
+              marginRight: '12px',
+            }}
+          >
+            {personalAccess ? '🔓' : '🔒'}
+          </button>
 
           {user && <UserMenu user={user} onLogout={logout} onUserUpdate={updateUser} />}
         </header>
@@ -703,14 +734,21 @@ export default function Dashboard() {
         />
       </div>
 
-      {/* Lucchetto Privacy */}
-      <PrivacyLock
-        hasPin={user?.has_pin || false}
-        isUnlocked={personalAccess}
-        onSetPin={handleSetPin}
-        onVerifyPin={handleVerifyPin}
-        onLock={exitPersonalMode}
-      />
+      {/* Modal PIN */}
+      {showPinModal && (
+        <PinVerifyModal
+          onVerify={handleVerifyPin}
+          onClose={() => setShowPinModal(false)}
+        />
+      )}
+
+      {/* Modal Imposta PIN */}
+      {showSetPinModal && (
+        <PinSetModal
+          onSetPin={handleSetPin}
+          onClose={() => setShowSetPinModal(false)}
+        />
+      )}
 
       {/* Popup invito ricevuto */}
       {pendingInvite && (
