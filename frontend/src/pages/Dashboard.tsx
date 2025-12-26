@@ -67,6 +67,9 @@ export default function Dashboard() {
   // Stato per pannello dettagli sinapsi
   const [selectedSinapsiId, setSelectedSinapsiId] = useState<string | null>(null);
 
+  // Counter per forzare update della mappa dopo creazione entità
+  const [mapUpdateKey, setMapUpdateKey] = useState(0);
+
   // ID del neurone "in focus" (cliccato sulla mappa, anche senza aprire dettagli)
   // Usato per il filtro "Solo del selezionato"
   const [focusedNeuroneId, setFocusedNeuroneId] = useState<string | null>(null);
@@ -323,6 +326,7 @@ export default function Dashboard() {
         <div className="content-area" style={connectionPickingMode ? { cursor: 'crosshair' } : undefined}>
           {/* Mappa */}
           <MapView
+            key={mapUpdateKey}
             neuroni={neuroni}
             sinapsi={sinapsi}
             categorie={categorie}
@@ -518,6 +522,7 @@ export default function Dashboard() {
                       const newNeurone = await api.getNeurone(result.id);
                       setNeuroni([newNeurone, ...neuroni]);
                       setSelectedNeurone(newNeurone);
+                      setMapUpdateKey(k => k + 1); // Forza update mappa
                       setQuickMapMode(false);
                       setQuickPopup(null);
                       setQuickPopupPosition(null);
