@@ -123,17 +123,17 @@ export default function PrivacyLock({
         title={isUnlocked ? 'Chiudi area personale' : hasPin ? 'Sblocca area personale' : 'Imposta PIN personale'}
         style={{
           position: 'fixed',
-          top: '12px',
-          right: '140px', // A sinistra dell'avatar utente
-          width: '40px',
-          height: '40px',
+          top: '16px',
+          right: '150px', // A sinistra dell'avatar utente
+          width: '36px',
+          height: '36px',
           borderRadius: '50%',
           border: isUnlocked ? '2px solid #22c55e' : '2px solid transparent',
           background: isUnlocked
-            ? 'rgba(34, 197, 94, 0.15)'
-            : 'rgba(99, 102, 241, 0.15)',
-          color: isUnlocked ? '#22c55e' : '#6366f1',
-          fontSize: '20px',
+            ? 'rgba(34, 197, 94, 0.2)'
+            : 'rgba(99, 102, 241, 0.2)',
+          color: isUnlocked ? '#22c55e' : '#a5b4fc',
+          fontSize: '18px',
           cursor: 'pointer',
           display: 'flex',
           alignItems: 'center',
