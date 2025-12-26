@@ -53,7 +53,11 @@ export default function Dashboard() {
   const [connectionSourceNeurone, setConnectionSourceNeurone] = useState<Neurone | null>(null); // Neurone origine per connessione
 
   // Stato per Quick Map Mode (nuovo su mappa)
-  const [quickMapMode, setQuickMapMode] = useState(false);
+  const [quickMapMode, setQuickMapModeRaw] = useState(false);
+  const setQuickMapMode = (value: boolean) => {
+    console.log('DEBUG setQuickMapMode:', value);
+    setQuickMapModeRaw(value);
+  };
   const [quickPopup, setQuickPopup] = useState<QuickPopupType>(null);
   const [quickPopupPosition, setQuickPopupPosition] = useState<{ lat: number; lng: number; x: number; y: number } | null>(null);
   const [quickSourceNeurone, setQuickSourceNeurone] = useState<Neurone | null>(null);
@@ -376,6 +380,7 @@ export default function Dashboard() {
             // Props per Quick Map Mode
             quickMapMode={quickMapMode}
             onQuickMapClick={(lat, lng, screenX, screenY) => {
+              console.log('DEBUG onQuickMapClick:', { lat, lng, screenX, screenY });
               setQuickPopupPosition({ lat, lng, x: screenX, y: screenY });
               setQuickPopup('create');
             }}
