@@ -1,29 +1,32 @@
 # Architettura Privacy GenAgenta
 
-## Concetto Base: Tre Layer di Sicurezza
+## Concetto Base: Due Layer di Dati Sovrapposti
 
-GenAgenta ha **tre livelli di autenticazione**:
+GenAgenta funziona come **due mappe sovrapposte**:
 
 ```
-Layer 1: Login (email + password)
-    ↓ accesso base all'app
-Layer 2: Azienda (azienda_id nel token)
-    ↓ vede solo dati della propria azienda
-Layer 3: PIN Personale
-    ↓ sblocca dati strettamente privati
+┌─────────────────────────────────────┐
+│  LAYER 2: Personale (con PIN)       │  ← Solo io vedo questo
+│  Amici, note private, valutazioni   │
+│  SOVRAPPOSTO al layer aziendale     │
+├─────────────────────────────────────┤
+│  LAYER 1: Aziendale (login)         │  ← Tutti i colleghi vedono
+│  Clienti, cantieri, vendite         │
+└─────────────────────────────────────┘
 ```
 
-## Due Modalità Operative
+## Come Funziona
 
-### Modalità Standard (dopo login)
-- Accesso a dati aziendali condivisi
-- Tutti i colleghi della stessa azienda vedono gli stessi dati
-- Entità, transazioni, connessioni di lavoro
+### Dopo Login (email + password)
+- Vedo la mappa con i dati AZIENDALI
+- Stessi dati visibili a tutti i colleghi del mio gruppo
+- Clienti, cantieri, vendite, connessioni di lavoro
 
-### Modalità Privata (dopo login + PIN)
-- Sblocca dati personali del singolo utente
-- NESSUN collega può vedere questi dati
-- Valutazioni soggettive, note private, relazioni sensibili
+### Dopo Login + PIN
+- Vedo la mappa con dati aziendali + dati PERSONALI sovrapposti
+- I dati personali li vedo SOLO IO sul mio dispositivo
+- Amici, contatti privati, valutazioni soggettive, note riservate
+- I colleghi continuano a vedere solo il layer aziendale
 
 ## Esempio Pratico
 
