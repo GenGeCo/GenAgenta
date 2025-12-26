@@ -452,6 +452,9 @@ export default function MapView({
     neuroniRef.current = neuroni;
   }, [neuroni]);
 
+  // Conta quanti neuroni ci sono - usato come trigger per forzare update mappa
+  const neuroniCount = neuroni.length;
+
   const getSinapsiCount = useCallback((neuroneId: string) => {
     return sinapsi.filter(s => s.neurone_da === neuroneId || s.neurone_a === neuroneId).length;
   }, [sinapsi]);
@@ -1688,7 +1691,7 @@ export default function MapView({
       handlersAdded.current = true;
     }
 
-  }, [neuroni, sinapsi, categorie, tipiNeurone, selectedId, filterSelectedId, mapReady, filtri, getSinapsiCount, styleLoaded]);
+  }, [neuroni, sinapsi, categorie, tipiNeurone, selectedId, filterSelectedId, mapReady, filtri, getSinapsiCount, styleLoaded, neuroniCount]);
 
   // Non fare più zoom automatico sulla selezione
   // Lo zoom si fa solo con doppio click
