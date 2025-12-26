@@ -35,7 +35,14 @@ if ($sinapsi['livello'] === 'personale') {
 $updates = [];
 $params = [];
 
-$allowedFields = ['tipo_connessione', 'famiglia_prodotto_id', 'data_inizio', 'data_fine', 'valore', 'certezza', 'fonte', 'data_verifica', 'livello', 'note'];
+$allowedFields = [
+    // Campi base
+    'tipo_connessione', 'famiglia_prodotto_id', 'data_inizio', 'data_fine',
+    'valore', 'certezza', 'fonte', 'data_verifica', 'livello', 'note',
+    // Campi soggettivi (valutazioni 1-5)
+    'influenza', 'qualita_relazione', 'importanza_strategica',
+    'affidabilita', 'potenziale', 'note_relazione'
+];
 
 foreach ($allowedFields as $field) {
     if (array_key_exists($field, $data)) {

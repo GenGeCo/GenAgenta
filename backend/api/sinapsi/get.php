@@ -67,4 +67,54 @@ if ($sinapsi['livello'] === 'aziendale') {
     }
 }
 
+// === DATI OGGETTIVI (calcolati dalle vendite) ===
+// Calcola volume e conteggio transazioni tra le due entità
+$datiOggettivi = [
+    'volume_totale' => 0,
+    'numero_transazioni' => 0,
+    'ultima_transazione' => null,
+    'prima_transazione' => null
+];
+
+try {
+    // Cerca transazioni tra i due neuroni (in entrambe le direzioni)
+    $sqlVendite = "
+        SELECT
+            COALESCE(SUM(importo), 0) as volume_totale,
+            COUNT(*) as numero_transazioni,
+            MAX(data_vendita) as ultima_transazione,
+            MIN(data_vendita) as prima_transazione
+        FROM vendite_prodotto
+        WHERE (neurone_id = ? AND controparte_id = ?)
+           OR (neurone_id = ? AND controparte_id = ?)
+    ";
+    $stmtVendite = $db->prepare($sqlVendite);
+    $stmtVendite->execute([
+        $sinapsi['neurone_da'], $sinapsi['neurone_a'],
+        $sinapsi['neurone_a'], $sinapsi['neurone_da']
+    ]);
+    $risultatoVendite = $stmtVendite->fetch();
+
+    if ($risultatoVendite) {
+        $datiOggettivi['volume_totale'] = (float)($risultatoVendite['volume_totale'] ?? 0);
+        // Dividi per 2 perché le transazioni bilaterali creano 2 record
+        $datiOggettivi['numero_transazioni'] = (int)(($risultatoVendite['numero_transazioni'] ?? 0) / 2);
+        $datiOggettivi['ultima_transazione'] = $risultatoVendite['ultima_transazione'];
+        $datiOggettivi['prima_transazione'] = $risultatoVendite['prima_transazione'];
+    }
+} catch (PDOException $e) {
+    // Ignora errori (tabella potrebbe non esistere)
+}
+
+// Aggiungi dati oggettivi alla risposta
+$sinapsi['dati_oggettivi'] = $datiOggettivi;
+
+// Cast campi soggettivi a int (se presenti)
+$campiSoggettivi = ['influenza', 'qualita_relazione', 'importanza_strategica', 'affidabilita', 'potenziale'];
+foreach ($campiSoggettivi as $campo) {
+    if (isset($sinapsi[$campo]) && $sinapsi[$campo] !== null) {
+        $sinapsi[$campo] = (int)$sinapsi[$campo];
+    }
+}
+
 jsonResponse($sinapsi);

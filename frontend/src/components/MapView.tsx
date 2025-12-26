@@ -1463,15 +1463,15 @@ export default function MapView({
         popup.current?.remove();
       });
 
-      // Click su connessione - mostra popup dettagliato
-      m.on('click', 'sinapsi-hit', (e) => {
+      // Click su connessione - mostra popup dettagliato con dati oggettivi/soggettivi
+      m.on('click', 'sinapsi-hit', async (e) => {
         if (pickingModeRef.current || connectionPickingModeRef.current || quickMapModeRef.current) return;
 
         if (e.features && e.features[0] && salesPopup.current) {
           const props = e.features[0].properties;
-          const tipo = props?.tipo || 'Connessione';
+          const sinapsiId = props?.id;
+          let tipoRaw = props?.tipo || 'Connessione';
           const certezza = props?.certezza || '';
-          const valore = props?.valore || 0;
           const neuroneDA = props?.neurone_da_nome || 'Sconosciuto';
           const neuroneA = props?.neurone_a_nome || 'Sconosciuto';
           const tipoDA = props?.neurone_da_tipo || '';
@@ -1480,58 +1480,172 @@ export default function MapView({
           // Chiudi popup hover
           popup.current?.remove();
 
-          // Label del tipo di connessione
-          const tipoLabel = tipo.charAt(0).toUpperCase() + tipo.slice(1);
+          // Parse tipo (può essere JSON array)
+          let tipoLabel = 'Connessione';
+          try {
+            if (typeof tipoRaw === 'string' && tipoRaw.startsWith('[')) {
+              const tipoArr = JSON.parse(tipoRaw);
+              if (Array.isArray(tipoArr) && tipoArr.length > 0) {
+                tipoLabel = tipoArr.map((t: string) => t.charAt(0).toUpperCase() + t.slice(1)).join(', ');
+              }
+            } else if (typeof tipoRaw === 'string') {
+              tipoLabel = tipoRaw.charAt(0).toUpperCase() + tipoRaw.slice(1);
+            }
+          } catch {
+            tipoLabel = String(tipoRaw);
+          }
+
           const certezzaColor = certezza === 'certo' ? '#22c55e' : certezza === 'probabile' ? '#eab308' : '#94a3b8';
           const certezzaLabel = certezza === 'certo' ? 'Certo' : certezza === 'probabile' ? 'Probabile' : 'Ipotetico';
 
           // Icona in base al tipo di connessione
           let tipoIcon = '🔗';
-          if (tipo.toLowerCase().includes('vendita') || tipo.toLowerCase().includes('acquisto')) {
+          const tipoLower = tipoLabel.toLowerCase();
+          if (tipoLower.includes('vendita') || tipoLower.includes('acquisto') || tipoLower.includes('commerciale')) {
             tipoIcon = '💰';
-          } else if (tipo.toLowerCase().includes('collabora')) {
+          } else if (tipoLower.includes('collabora')) {
             tipoIcon = '🤝';
-          } else if (tipo.toLowerCase().includes('influencer') || tipo.toLowerCase().includes('influenza')) {
+          } else if (tipoLower.includes('influencer') || tipoLower.includes('influenza') || tipoLower.includes('prescrittore')) {
             tipoIcon = '⭐';
-          } else if (tipo.toLowerCase().includes('partner')) {
+          } else if (tipoLower.includes('partner')) {
             tipoIcon = '🤝';
-          } else if (tipo.toLowerCase().includes('forni')) {
+          } else if (tipoLower.includes('forni')) {
             tipoIcon = '📦';
-          } else if (tipo.toLowerCase().includes('client')) {
+          } else if (tipoLower.includes('client')) {
             tipoIcon = '👤';
+          } else if (tipoLower.includes('tecnico')) {
+            tipoIcon = '🔧';
           }
 
-          const popupHtml = `
-            <div style="padding: 10px; min-width: 200px;">
+          // Mostra popup base con loading
+          const loadingHtml = `
+            <div style="padding: 10px; min-width: 220px;">
               <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
                 <span style="font-size: 20px;">${tipoIcon}</span>
                 <span style="font-weight: 600; font-size: 15px;">${tipoLabel}</span>
               </div>
-
               <div style="background: #f8fafc; border-radius: 6px; padding: 8px; margin-bottom: 8px;">
-                <div style="font-size: 12px; color: #64748b; margin-bottom: 4px;">Da:</div>
-                <div style="font-weight: 500; font-size: 13px;">${neuroneDA}</div>
-                ${tipoDA ? `<div style="font-size: 11px; color: #94a3b8;">${tipoDA}</div>` : ''}
-
-                <div style="text-align: center; color: #94a3b8; margin: 6px 0;">↓</div>
-
-                <div style="font-size: 12px; color: #64748b; margin-bottom: 4px;">A:</div>
-                <div style="font-weight: 500; font-size: 13px;">${neuroneA}</div>
-                ${tipoA ? `<div style="font-size: 11px; color: #94a3b8;">${tipoA}</div>` : ''}
+                <div style="font-size: 13px; font-weight: 500;">${neuroneDA}</div>
+                <div style="text-align: center; color: #94a3b8; margin: 4px 0;">↕</div>
+                <div style="font-size: 13px; font-weight: 500;">${neuroneA}</div>
               </div>
-
-              <div style="display: flex; justify-content: space-between; font-size: 11px;">
-                <span style="color: ${certezzaColor};">● ${certezzaLabel}</span>
-                ${valore > 0 ? `<span style="color: #64748b;">Valore: ${valore}</span>` : ''}
-              </div>
+              <div style="text-align: center; color: #94a3b8; font-size: 11px;">Caricamento dati...</div>
             </div>
           `;
 
           salesPopup.current.setOffset([0, -10]);
           salesPopup.current
             .setLngLat(e.lngLat)
-            .setHTML(popupHtml)
+            .setHTML(loadingHtml)
             .addTo(m);
+
+          // Carica dati completi dalla API
+          try {
+            const response = await api.getSinapsiById(sinapsiId);
+            const sinapsi = response;
+
+            // Dati oggettivi (calcolati dalle vendite)
+            const datiOgg = sinapsi.dati_oggettivi || { volume_totale: 0, numero_transazioni: 0, ultima_transazione: null };
+            const volumeTotale = datiOgg.volume_totale || 0;
+            const numTransazioni = datiOgg.numero_transazioni || 0;
+            const ultimaTrans = datiOgg.ultima_transazione;
+
+            // Dati soggettivi (valutazioni 1-5)
+            const influenza = sinapsi.influenza || 0;
+            const qualitaRel = sinapsi.qualita_relazione || 0;
+            const importanzaStr = sinapsi.importanza_strategica || 0;
+            const affidabilita = sinapsi.affidabilita || 0;
+            const potenziale = sinapsi.potenziale || 0;
+
+            // Helper per stelline
+            const renderStars = (val: number, label: string) => {
+              if (val === 0) return '';
+              const stars = '★'.repeat(val) + '☆'.repeat(5 - val);
+              return `<div style="display: flex; justify-content: space-between; font-size: 11px; margin: 2px 0;">
+                <span style="color: #64748b;">${label}</span>
+                <span style="color: #f59e0b;">${stars}</span>
+              </div>`;
+            };
+
+            // Sezione dati soggettivi
+            const hasSoggettivi = influenza || qualitaRel || importanzaStr || affidabilita || potenziale;
+            const soggettiviHtml = hasSoggettivi ? `
+              <div style="margin-top: 8px; padding-top: 8px; border-top: 1px dashed #e2e8f0;">
+                <div style="font-size: 10px; color: #94a3b8; margin-bottom: 4px; text-transform: uppercase;">Valutazione Soggettiva</div>
+                ${renderStars(influenza, 'Influenza')}
+                ${renderStars(qualitaRel, 'Qualità rel.')}
+                ${renderStars(importanzaStr, 'Strategicità')}
+                ${renderStars(affidabilita, 'Affidabilità')}
+                ${renderStars(potenziale, 'Potenziale')}
+              </div>
+            ` : '';
+
+            // Sezione dati oggettivi
+            const hasOggettivi = volumeTotale > 0 || numTransazioni > 0;
+            const oggettiviHtml = hasOggettivi ? `
+              <div style="margin-top: 8px; padding: 8px; background: #f0fdf4; border-radius: 6px;">
+                <div style="font-size: 10px; color: #22c55e; margin-bottom: 4px; text-transform: uppercase;">Dati Oggettivi</div>
+                <div style="display: flex; justify-content: space-between; font-size: 12px;">
+                  <span>Volume</span>
+                  <span style="font-weight: 600;">€${volumeTotale.toLocaleString('it-IT')}</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; font-size: 12px;">
+                  <span>Transazioni</span>
+                  <span style="font-weight: 600;">${numTransazioni}</span>
+                </div>
+                ${ultimaTrans ? `<div style="font-size: 10px; color: #64748b; margin-top: 4px;">Ultima: ${new Date(ultimaTrans).toLocaleDateString('it-IT')}</div>` : ''}
+              </div>
+            ` : '';
+
+            const noDataHtml = !hasOggettivi && !hasSoggettivi ? `
+              <div style="margin-top: 8px; padding: 8px; background: #f8fafc; border-radius: 6px; text-align: center;">
+                <div style="font-size: 11px; color: #94a3b8;">Nessun dato registrato</div>
+              </div>
+            ` : '';
+
+            const fullHtml = `
+              <div style="padding: 10px; min-width: 220px; max-width: 280px;">
+                <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                  <span style="font-size: 20px;">${tipoIcon}</span>
+                  <span style="font-weight: 600; font-size: 15px;">${tipoLabel}</span>
+                  <span style="margin-left: auto; font-size: 10px; color: ${certezzaColor};">● ${certezzaLabel}</span>
+                </div>
+
+                <div style="background: #f8fafc; border-radius: 6px; padding: 8px;">
+                  <div style="font-size: 13px; font-weight: 500;">${neuroneDA}</div>
+                  ${tipoDA ? `<div style="font-size: 10px; color: #94a3b8;">${tipoDA}</div>` : ''}
+                  <div style="text-align: center; color: #94a3b8; margin: 4px 0;">↕</div>
+                  <div style="font-size: 13px; font-weight: 500;">${neuroneA}</div>
+                  ${tipoA ? `<div style="font-size: 10px; color: #94a3b8;">${tipoA}</div>` : ''}
+                </div>
+
+                ${oggettiviHtml}
+                ${soggettiviHtml}
+                ${noDataHtml}
+              </div>
+            `;
+
+            salesPopup.current?.setHTML(fullHtml);
+
+          } catch (error) {
+            console.error('Errore caricamento dati sinapsi:', error);
+            // In caso di errore, mostra popup base
+            const errorHtml = `
+              <div style="padding: 10px; min-width: 220px;">
+                <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                  <span style="font-size: 20px;">${tipoIcon}</span>
+                  <span style="font-weight: 600; font-size: 15px;">${tipoLabel}</span>
+                </div>
+                <div style="background: #f8fafc; border-radius: 6px; padding: 8px;">
+                  <div style="font-size: 13px; font-weight: 500;">${neuroneDA}</div>
+                  <div style="text-align: center; color: #94a3b8; margin: 4px 0;">↕</div>
+                  <div style="font-size: 13px; font-weight: 500;">${neuroneA}</div>
+                </div>
+                <div style="font-size: 11px; color: ${certezzaColor}; margin-top: 8px;">● ${certezzaLabel}</div>
+              </div>
+            `;
+            salesPopup.current?.setHTML(errorHtml);
+          }
         }
       });
 

@@ -59,6 +59,13 @@ export interface Sinapsi {
   lat_a?: number;
   lng_a?: number;
   prodotto_nome?: string;  // Nome del prodotto (da JOIN)
+  // Campi soggettivi (valutazioni 1-5)
+  influenza?: number | null;
+  qualita_relazione?: number | null;
+  importanza_strategica?: number | null;
+  affidabilita?: number | null;
+  potenziale?: number | null;
+  note_relazione?: string | null;
 }
 
 export interface NotaPersonale {

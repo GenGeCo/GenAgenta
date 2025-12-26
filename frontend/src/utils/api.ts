@@ -147,6 +147,11 @@ class ApiClient {
     return data;
   }
 
+  async getSinapsiById(id: string): Promise<Sinapsi & { dati_oggettivi?: { volume_totale: number; numero_transazioni: number; ultima_transazione: string | null; prima_transazione: string | null } }> {
+    const { data } = await this.client.get(`/sinapsi/${id}`);
+    return data;
+  }
+
   async createSinapsi(sinapsi: Partial<Sinapsi>): Promise<{ id: string }> {
     const { data } = await this.client.post('/sinapsi', sinapsi);
     return data;
