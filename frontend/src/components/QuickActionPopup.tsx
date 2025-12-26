@@ -31,8 +31,10 @@ export function QuickCreateEntity({ position, onClose, onCreateEntity }: QuickCr
           api.getTipiNeurone(),
           api.getCategorie()
         ]);
-        setTipi(tipiRes.data);
-        setCategorie(catRes.data);
+        console.log('QuickCreate tipiRes:', tipiRes);
+        console.log('QuickCreate catRes:', catRes);
+        setTipi(tipiRes.data || []);
+        setCategorie(catRes.data || []);
       } catch (err) {
         console.error('Errore caricamento tipi:', err);
       } finally {
