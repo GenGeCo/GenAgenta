@@ -29,9 +29,6 @@ export function QuickCreateEntity({ position, onClose, onCreateEntity, tipiNeuro
   const categorie = categorieDisponibili;
   const loading = false; // Non serve caricare, i dati sono già pronti
 
-  console.log('QuickCreateEntity tipi:', tipi);
-  console.log('QuickCreateEntity categorie:', categorie);
-
   const categoriePerTipo = selectedTipo
     ? categorie.filter(c => c.tipo_id === selectedTipo.id)
     : [];

@@ -53,11 +53,7 @@ export default function Dashboard() {
   const [connectionSourceNeurone, setConnectionSourceNeurone] = useState<Neurone | null>(null); // Neurone origine per connessione
 
   // Stato per Quick Map Mode (nuovo su mappa)
-  const [quickMapMode, setQuickMapModeRaw] = useState(false);
-  const setQuickMapMode = (value: boolean) => {
-    console.log('DEBUG setQuickMapMode:', value);
-    setQuickMapModeRaw(value);
-  };
+  const [quickMapMode, setQuickMapMode] = useState(false);
   const [quickPopup, setQuickPopup] = useState<QuickPopupType>(null);
   const [quickPopupPosition, setQuickPopupPosition] = useState<{ lat: number; lng: number; x: number; y: number } | null>(null);
   const [quickSourceNeurone, setQuickSourceNeurone] = useState<Neurone | null>(null);
@@ -66,9 +62,6 @@ export default function Dashboard() {
 
   // Stato per pannello dettagli sinapsi
   const [selectedSinapsiId, setSelectedSinapsiId] = useState<string | null>(null);
-
-  // Counter per forzare update della mappa dopo creazione entità
-  const [mapUpdateKey, setMapUpdateKey] = useState(0);
 
   // ID del neurone "in focus" (cliccato sulla mappa, anche senza aprire dettagli)
   // Usato per il filtro "Solo del selezionato"
@@ -326,7 +319,6 @@ export default function Dashboard() {
         <div className="content-area" style={connectionPickingMode ? { cursor: 'crosshair' } : undefined}>
           {/* Mappa */}
           <MapView
-            key={mapUpdateKey}
             neuroni={neuroni}
             sinapsi={sinapsi}
             categorie={categorie}
@@ -384,7 +376,6 @@ export default function Dashboard() {
             // Props per Quick Map Mode
             quickMapMode={quickMapMode}
             onQuickMapClick={(lat, lng, screenX, screenY) => {
-              console.log('DEBUG onQuickMapClick:', { lat, lng, screenX, screenY });
               setQuickPopupPosition({ lat, lng, x: screenX, y: screenY });
               setQuickPopup('create');
             }}
@@ -520,9 +511,8 @@ export default function Dashboard() {
                         lng: data.lng,
                       });
                       const newNeurone = await api.getNeurone(result.id);
-                      setNeuroni([newNeurone, ...neuroni]);
+                      setNeuroni(prev => [newNeurone, ...prev]); // Usa callback per assicurare nuovo riferimento
                       setSelectedNeurone(newNeurone);
-                      setMapUpdateKey(k => k + 1); // Forza update mappa
                       setQuickMapMode(false);
                       setQuickPopup(null);
                       setQuickPopupPosition(null);
