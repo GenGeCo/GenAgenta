@@ -499,6 +499,8 @@ export default function Dashboard() {
               {quickPopup === 'create' && (
                 <QuickCreateEntity
                   position={{ lat: quickPopupPosition.lat, lng: quickPopupPosition.lng }}
+                  tipiNeurone={tipiNeurone}
+                  categorieDisponibili={categorie}
                   onClose={() => {
                     setQuickPopup(null);
                     setQuickPopupPosition(null);

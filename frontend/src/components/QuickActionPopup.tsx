@@ -13,36 +13,24 @@ interface QuickCreateEntityProps {
     lat: number;
     lng: number;
   }) => void;
+  // Tipi e categorie già caricate dal Dashboard (usa API v2)
+  tipiNeurone?: TipoNeuroneConfig[];
+  categorieDisponibili?: Categoria[];
 }
 
-export function QuickCreateEntity({ position, onClose, onCreateEntity }: QuickCreateEntityProps) {
+export function QuickCreateEntity({ position, onClose, onCreateEntity, tipiNeurone = [], categorieDisponibili = [] }: QuickCreateEntityProps) {
   const [step, setStep] = useState<'tipo' | 'categoria' | 'nome'>('tipo');
-  const [tipi, setTipi] = useState<TipoNeuroneConfig[]>([]);
-  const [categorie, setCategorie] = useState<Categoria[]>([]);
   const [selectedTipo, setSelectedTipo] = useState<TipoNeuroneConfig | null>(null);
   const [selectedCategorie, setSelectedCategorie] = useState<string[]>([]);
   const [nome, setNome] = useState('');
-  const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    const loadData = async () => {
-      try {
-        const [tipiRes, catRes] = await Promise.all([
-          api.getTipiNeurone(),
-          api.getCategorie()
-        ]);
-        console.log('QuickCreate tipiRes:', tipiRes);
-        console.log('QuickCreate catRes:', catRes);
-        setTipi(tipiRes.data || []);
-        setCategorie(catRes.data || []);
-      } catch (err) {
-        console.error('Errore caricamento tipi:', err);
-      } finally {
-        setLoading(false);
-      }
-    };
-    loadData();
-  }, []);
+  // Usa i tipi e categorie passati dal Dashboard
+  const tipi = tipiNeurone;
+  const categorie = categorieDisponibili;
+  const loading = false; // Non serve caricare, i dati sono già pronti
+
+  console.log('QuickCreateEntity tipi:', tipi);
+  console.log('QuickCreateEntity categorie:', categorie);
 
   const categoriePerTipo = selectedTipo
     ? categorie.filter(c => c.tipo_id === selectedTipo.id)
