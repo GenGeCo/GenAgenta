@@ -662,6 +662,7 @@ export default function Dashboard() {
                           neurone_a: quickTargetNeurone.id,
                           tipo_connessione: ['commerciale'],
                           certezza: 'certo',
+                          data_inizio: new Date().toISOString().split('T')[0], // Oggi
                         });
                         sinapsiId = newSinapsi.id;
                         console.log('DEBUG: Creata nuova sinapsi:', sinapsiId);
