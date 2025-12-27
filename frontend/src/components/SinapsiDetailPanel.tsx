@@ -1,7 +1,7 @@
 // GenAgenTa - Pannello Dettagli Connessione (Sinapsi)
 
 import { useState, useEffect } from 'react';
-import type { Sinapsi } from '../types';
+import type { Sinapsi, Certezza } from '../types';
 import { api } from '../utils/api';
 
 interface DatiOggettivi {
@@ -60,12 +60,27 @@ function StarRating({
   );
 }
 
+// Tipi di connessione disponibili
+const TIPI_CONNESSIONE = [
+  { value: 'commerciale', label: 'Commerciale', icon: '💰' },
+  { value: 'fornisce', label: 'Fornisce', icon: '📦' },
+  { value: 'influencer', label: 'Influencer', icon: '⭐' },
+  { value: 'prescrittore', label: 'Prescrittore', icon: '⭐' },
+  { value: 'tecnico', label: 'Tecnico', icon: '🔧' },
+  { value: 'partner', label: 'Partner', icon: '🤝' },
+  { value: 'collabora', label: 'Collabora', icon: '🤝' },
+];
+
 export default function SinapsiDetailPanel({ sinapsiId, onClose }: SinapsiDetailPanelProps) {
   const [sinapsi, setSinapsi] = useState<Sinapsi | null>(null);
   const [datiOggettivi, setDatiOggettivi] = useState<DatiOggettivi | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+
+  // Valori editabili per tipo e certezza
+  const [tipoConnessione, setTipoConnessione] = useState<string[]>([]);
+  const [certezza, setCertezza] = useState<Certezza>('ipotesi');
 
   // Valori soggettivi editabili
   const [influenza, setInfluenza] = useState(0);
@@ -83,6 +98,11 @@ export default function SinapsiDetailPanel({ sinapsiId, onClose }: SinapsiDetail
         const data = await api.getSinapsiById(sinapsiId);
         setSinapsi(data);
         setDatiOggettivi(data.dati_oggettivi || null);
+
+        // Imposta tipo e certezza
+        const tipi = Array.isArray(data.tipo_connessione) ? data.tipo_connessione : [];
+        setTipoConnessione(tipi);
+        setCertezza(data.certezza || 'ipotesi');
 
         // Imposta valori soggettivi
         setInfluenza(data.influenza || 0);
@@ -107,14 +127,19 @@ export default function SinapsiDetailPanel({ sinapsiId, onClose }: SinapsiDetail
     setError('');
     try {
       await api.updateSinapsi(sinapsiId, {
-        influenza: influenza || null,
-        qualita_relazione: qualitaRelazione || null,
-        importanza_strategica: importanzaStrategica || null,
-        affidabilita: affidabilita || null,
-        potenziale: potenziale || null,
-        note_relazione: noteRelazione || null,
+        tipo_connessione: tipoConnessione.length > 0 ? tipoConnessione : undefined,
+        certezza: certezza,
+        influenza: influenza || undefined,
+        qualita_relazione: qualitaRelazione || undefined,
+        importanza_strategica: importanzaStrategica || undefined,
+        affidabilita: affidabilita || undefined,
+        potenziale: potenziale || undefined,
+        note_relazione: noteRelazione || undefined,
       });
-      // Feedback visivo
+      // Aggiorna lo stato locale della sinapsi per riflettere i cambiamenti
+      if (sinapsi) {
+        setSinapsi({ ...sinapsi, tipo_connessione: tipoConnessione.length > 0 ? tipoConnessione : sinapsi.tipo_connessione, certezza });
+      }
       setError(''); // Clear any error
     } catch (err) {
       console.error('Errore salvataggio:', err);
@@ -124,34 +149,37 @@ export default function SinapsiDetailPanel({ sinapsiId, onClose }: SinapsiDetail
     }
   };
 
-  // Parse tipo connessione
+  // Parse tipo connessione (usa stato locale per essere reattivo)
   const getTipoLabel = () => {
-    if (!sinapsi) return 'Connessione';
-    const tipo = sinapsi.tipo_connessione;
-    if (Array.isArray(tipo) && tipo.length > 0) {
-      return tipo.map(t => t.charAt(0).toUpperCase() + t.slice(1)).join(', ');
+    if (tipoConnessione.length > 0) {
+      return tipoConnessione.map(t => t.charAt(0).toUpperCase() + t.slice(1)).join(', ');
     }
     return 'Connessione';
   };
 
   // Icona tipo
   const getTipoIcon = () => {
-    const label = getTipoLabel().toLowerCase();
-    if (label.includes('commerciale')) return '💰';
-    if (label.includes('influencer') || label.includes('prescrittore')) return '⭐';
-    if (label.includes('tecnico')) return '🔧';
-    if (label.includes('forni')) return '📦';
-    if (label.includes('partner') || label.includes('collabor')) return '🤝';
-    return '🔗';
+    if (tipoConnessione.length === 0) return '🔗';
+    const firstTipo = tipoConnessione[0].toLowerCase();
+    const found = TIPI_CONNESSIONE.find(t => t.value === firstTipo);
+    return found?.icon || '🔗';
   };
 
-  // Colore certezza
+  // Colore certezza (usa stato locale per essere reattivo)
   const getCertezzaStyle = () => {
-    if (!sinapsi) return { color: '#94a3b8', label: '' };
-    switch (sinapsi.certezza) {
+    switch (certezza) {
       case 'certo': return { color: '#22c55e', label: 'Certo' };
       case 'probabile': return { color: '#eab308', label: 'Probabile' };
       default: return { color: '#94a3b8', label: 'Ipotetico' };
+    }
+  };
+
+  // Toggle tipo connessione
+  const toggleTipo = (value: string) => {
+    if (tipoConnessione.includes(value)) {
+      setTipoConnessione(tipoConnessione.filter(t => t !== value));
+    } else {
+      setTipoConnessione([...tipoConnessione, value]);
     }
   };
 
@@ -176,30 +204,38 @@ export default function SinapsiDetailPanel({ sinapsiId, onClose }: SinapsiDetail
     );
   }
 
-  const certezza = getCertezzaStyle();
+  const certezzaStyle = getCertezzaStyle();
+
+  // Converte hex color a rgba per il gradiente
+  const hexToRgba = (hex: string, alpha: number) => {
+    const r = parseInt(hex.slice(1, 3), 16);
+    const g = parseInt(hex.slice(3, 5), 16);
+    const b = parseInt(hex.slice(5, 7), 16);
+    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+  };
 
   return (
     <div className="detail-panel">
-      {/* Header */}
+      {/* Header - colore basato su certezza */}
       <div style={{
         padding: '16px',
         borderBottom: '1px solid var(--border-color)',
-        background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.1) 0%, rgba(99, 102, 241, 0.02) 100%)',
-        borderLeft: '4px solid #6366f1',
+        background: `linear-gradient(135deg, ${hexToRgba(certezzaStyle.color, 0.15)} 0%, ${hexToRgba(certezzaStyle.color, 0.02)} 100%)`,
+        borderLeft: `4px solid ${certezzaStyle.color}`,
       }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
               <span style={{ fontSize: '24px' }}>{getTipoIcon()}</span>
-              <h2 style={{ fontSize: '18px', fontWeight: 600, margin: 0, color: '#6366f1' }}>
+              <h2 style={{ fontSize: '18px', fontWeight: 600, margin: 0, color: certezzaStyle.color }}>
                 {getTipoLabel()}
               </h2>
-              <span style={{ fontSize: '12px', color: certezza.color }}>● {certezza.label}</span>
+              <span style={{ fontSize: '12px', color: certezzaStyle.color }}>● {certezzaStyle.label}</span>
             </div>
           </div>
           <button
             onClick={onClose}
-            style={{ background: 'none', border: 'none', fontSize: '24px', cursor: 'pointer', color: '#6366f1' }}
+            style={{ background: 'none', border: 'none', fontSize: '24px', cursor: 'pointer', color: certezzaStyle.color }}
           >
             &times;
           </button>
@@ -220,6 +256,82 @@ export default function SinapsiDetailPanel({ sinapsiId, onClose }: SinapsiDetail
           <div style={{ textAlign: 'center', color: 'var(--text-secondary)', margin: '8px 0', fontSize: '16px' }}>↕</div>
           <div style={{ fontWeight: 500, fontSize: '14px' }}>{sinapsi.nome_a || 'Entità 2'}</div>
           {sinapsi.tipo_a && <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>{sinapsi.tipo_a}</div>}
+        </div>
+
+        {/* Tipo Connessione */}
+        <div style={{
+          background: 'var(--bg-secondary)',
+          borderRadius: '8px',
+          padding: '12px',
+          marginBottom: '16px',
+        }}>
+          <div style={{ fontSize: '11px', color: 'var(--text-secondary)', fontWeight: 600, marginBottom: '8px', textTransform: 'uppercase' }}>
+            Tipo Connessione
+          </div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+            {TIPI_CONNESSIONE.map(tipo => (
+              <button
+                key={tipo.value}
+                onClick={() => toggleTipo(tipo.value)}
+                style={{
+                  padding: '6px 10px',
+                  borderRadius: '16px',
+                  border: tipoConnessione.includes(tipo.value) ? '2px solid var(--primary)' : '1px solid var(--border-color)',
+                  background: tipoConnessione.includes(tipo.value) ? 'rgba(99, 102, 241, 0.1)' : 'transparent',
+                  cursor: 'pointer',
+                  fontSize: '12px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                }}
+              >
+                <span>{tipo.icon}</span>
+                <span>{tipo.label}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Certezza */}
+        <div style={{
+          background: 'var(--bg-secondary)',
+          borderRadius: '8px',
+          padding: '12px',
+          marginBottom: '16px',
+        }}>
+          <div style={{ fontSize: '11px', color: 'var(--text-secondary)', fontWeight: 600, marginBottom: '8px', textTransform: 'uppercase' }}>
+            Certezza
+          </div>
+          <div style={{ display: 'flex', gap: '8px' }}>
+            {([
+              { value: 'ipotesi' as Certezza, label: 'Ipotetico', color: '#94a3b8' },
+              { value: 'probabile' as Certezza, label: 'Probabile', color: '#eab308' },
+              { value: 'certo' as Certezza, label: 'Certo', color: '#22c55e' },
+            ]).map(opt => (
+              <button
+                key={opt.value}
+                onClick={() => setCertezza(opt.value)}
+                style={{
+                  flex: 1,
+                  padding: '8px 12px',
+                  borderRadius: '8px',
+                  border: certezza === opt.value ? `2px solid ${opt.color}` : '1px solid var(--border-color)',
+                  background: certezza === opt.value ? `${opt.color}15` : 'transparent',
+                  cursor: 'pointer',
+                  fontSize: '12px',
+                  fontWeight: certezza === opt.value ? 600 : 400,
+                  color: certezza === opt.value ? opt.color : 'var(--text-primary)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '4px',
+                }}
+              >
+                <span style={{ color: opt.color }}>●</span>
+                {opt.label}
+              </button>
+            ))}
+          </div>
         </div>
 
         {/* Dati Oggettivi */}

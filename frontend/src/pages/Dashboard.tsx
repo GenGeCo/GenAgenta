@@ -218,6 +218,8 @@ export default function Dashboard() {
     try {
       const fullNeurone = await api.getNeurone(neurone.id);
       setSelectedNeurone(fullNeurone);
+      // Chiudi pannello sinapsi se aperto (evita sovrapposizione)
+      setSelectedSinapsiId(null);
     } catch (error) {
       console.error('Errore caricamento dettaglio:', error);
     }
