@@ -642,13 +642,39 @@ export default function Dashboard() {
                       const venditorId = isVendita ? quickSourceNeurone.id : quickTargetNeurone.id;
                       const acquistatoreId = isVendita ? quickTargetNeurone.id : quickSourceNeurone.id;
 
-                      // Crea la vendita bilaterale (con controparte)
+                      // Cerca una sinapsi esistente tra i due neuroni
+                      const sinapsiRes = await api.getNeuroneSinapsi(quickSourceNeurone.id);
+                      let sinapsiId: string | undefined;
+
+                      // Cerca sinapsi che connette source e target (in entrambe le direzioni)
+                      const existingSinapsi = sinapsiRes.data.find(s =>
+                        (s.neurone_da === quickSourceNeurone.id && s.neurone_a === quickTargetNeurone.id) ||
+                        (s.neurone_da === quickTargetNeurone.id && s.neurone_a === quickSourceNeurone.id)
+                      );
+
+                      if (existingSinapsi) {
+                        sinapsiId = existingSinapsi.id;
+                        console.log('DEBUG: Usando sinapsi esistente:', sinapsiId);
+                      } else {
+                        // Crea nuova sinapsi commerciale tra i due
+                        const newSinapsi = await api.createSinapsi({
+                          neurone_da: quickSourceNeurone.id,
+                          neurone_a: quickTargetNeurone.id,
+                          tipo_connessione: ['commerciale'],
+                          certezza: 'certo',
+                        });
+                        sinapsiId = newSinapsi.id;
+                        console.log('DEBUG: Creata nuova sinapsi:', sinapsiId);
+                      }
+
+                      // Crea la vendita bilaterale (con controparte e sinapsi)
                       await api.createVendita({
                         neurone_id: venditorId,
                         famiglia_id: data.famigliaId,
                         importo: data.importo,
                         data_vendita: data.data,
                         controparte_id: acquistatoreId,
+                        sinapsi_id: sinapsiId,
                         tipo_transazione: 'vendita', // Sempre vendita dal punto di vista del venditore
                       });
 

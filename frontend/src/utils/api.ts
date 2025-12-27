@@ -435,6 +435,7 @@ class ApiClient {
     importo: number;
     data_vendita: string;
     controparte_id?: string;
+    sinapsi_id?: string;
     tipo_transazione?: 'vendita' | 'acquisto';
   }): Promise<{ id: string; message: string }> {
     const client = this.getV2Client();
