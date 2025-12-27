@@ -397,17 +397,34 @@ switch ($method) {
             errorResponse('ID richiesto', 400);
         }
 
-        // Verifica che la vendita esista
-        $stmt = $db->prepare('SELECT id FROM vendite_prodotto WHERE id = ?');
+        // Verifica che la vendita esista e recupera controparte_vendita_id
+        $stmt = $db->prepare('SELECT id, controparte_vendita_id FROM vendite_prodotto WHERE id = ?');
         $stmt->execute([$id]);
-        if (!$stmt->fetch()) {
+        $vendita = $stmt->fetch();
+        if (!$vendita) {
             errorResponse('Vendita non trovata', 404);
         }
 
+        // Elimina record principale
         $stmt = $db->prepare('DELETE FROM vendite_prodotto WHERE id = ?');
         $stmt->execute([$id]);
 
-        jsonResponse(['message' => 'Vendita eliminata']);
+        // Elimina anche il record bilaterale se esiste
+        $deletedBilaterale = false;
+        if (!empty($vendita['controparte_vendita_id'])) {
+            $stmt2 = $db->prepare('DELETE FROM vendite_prodotto WHERE id = ?');
+            $stmt2->execute([$vendita['controparte_vendita_id']]);
+            $deletedBilaterale = true;
+        }
+
+        // Elimina anche record che puntano a questo come controparte_vendita_id
+        $stmt3 = $db->prepare('DELETE FROM vendite_prodotto WHERE controparte_vendita_id = ?');
+        $stmt3->execute([$id]);
+
+        jsonResponse([
+            'message' => 'Vendita eliminata',
+            'bilaterale_deleted' => $deletedBilaterale
+        ]);
         break;
 
     default:

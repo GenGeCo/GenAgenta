@@ -1103,6 +1103,13 @@ function NuovaVenditaForm({
     }
   }, [neurone.is_acquirente, neurone.is_venditore]);
 
+  // Auto-seleziona controparte se ce n'è una sola (UX migliorata)
+  useEffect(() => {
+    if (controparti.length === 1 && !controparteId) {
+      setControparteId(controparti[0].id);
+    }
+  }, [controparti, controparteId]);
+
   const handleSubmit = () => {
     if (!famigliaId || !importo) return;
 
