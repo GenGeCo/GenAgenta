@@ -37,6 +37,17 @@ interface MapViewProps {
 // Colore di default se la categoria non viene trovata
 const DEFAULT_COLOR = '#64748b';
 
+// Colori per ogni tipo di connessione (7 tipi)
+const TIPO_CONNESSIONE_COLORS: Record<string, string> = {
+  commerciale: '#3b82f6',   // blu
+  fornisce: '#f97316',      // arancione
+  influencer: '#eab308',    // giallo/oro
+  prescrittore: '#a855f7',  // viola
+  tecnico: '#6b7280',       // grigio
+  partner: '#22c55e',       // verde
+  collabora: '#14b8a6',     // teal
+};
+
 // Stili mappa disponibili (gratuiti)
 const MAP_STYLES = [
   { id: 'light-v11', nome: 'Chiaro', icon: '☀️' },
@@ -66,11 +77,13 @@ function createCirclePolygon(lng: number, lat: number, radiusMeters: number, sid
 }
 
 // Genera una parabola 3D tra due punti (coordinate + array elevazioni)
+// baseHeight permette di alzare tutta la parabola (per parabole sovrapposte)
 function createParabola3D(
   lng1: number, lat1: number,
   lng2: number, lat2: number,
   numPoints: number = 15,
-  maxHeight: number = 50 // altezza massima in metri al centro
+  maxHeight: number = 50, // altezza massima in metri al centro
+  baseHeight: number = 0  // altezza base da cui parte la parabola (per stacking)
 ): { coordinates: number[][]; elevation: number[] } {
   const coordinates: number[][] = [];
   const elevation: number[] = [];
@@ -83,9 +96,9 @@ function createParabola3D(
     const lat = lat1 + (lat2 - lat1) * t;
     coordinates.push([lng, lat]);
 
-    // Parabola per l'altitudine: 4 * h * t * (1-t)
-    // Massimo al centro (t=0.5), zero agli estremi
-    const alt = 4 * maxHeight * t * (1 - t);
+    // Parabola per l'altitudine: baseHeight + 4 * h * t * (1-t)
+    // Massimo al centro (t=0.5), baseHeight agli estremi
+    const alt = baseHeight + 4 * maxHeight * t * (1 - t);
     elevation.push(alt);
   }
 
@@ -1032,9 +1045,9 @@ export default function MapView({
       // Crea una mappa per lookup veloce dei neuroni per ID
       const neuroniMap = new Map(neuroni.map(n => [n.id, n]));
 
-      // Altezza massima della parabola + 5% margine
-      const PARABOLA_HEIGHT = 50;
-      const VOLUME_HEIGHT = PARABOLA_HEIGHT * 1.05; // 52.5m
+      // Altezza parabole e spaziatura per stacking
+      const PARABOLA_HEIGHT = 40;  // altezza di ogni parabola
+      const STACK_SPACING = 20;    // spaziatura verticale tra parabole sovrapposte
 
       const sinapsiFeatures: GeoJSON.Feature[] = [];
       const volumeFeatures: GeoJSON.Feature[] = [];
@@ -1051,45 +1064,69 @@ export default function MapView({
         const lngA = neuroneA?.lng ?? Number(s.lng_a);
         const latA = neuroneA?.lat ?? Number(s.lat_a);
 
-        // Crea parabola 3D che si alza verso l'alto
-        const parabola = createParabola3D(
-          lngDa, latDa,
-          lngA, latA,
-          15,  // 15 punti per curva fluida
-          PARABOLA_HEIGHT   // altezza massima 50 metri al centro
-        );
+        // tipo_connessione è già un array string[]
+        let tipiConnessione: string[] = Array.isArray(s.tipo_connessione) && s.tipo_connessione.length > 0
+          ? s.tipo_connessione
+          : ['commerciale']; // Fallback se vuoto
 
-        // Properties comuni
-        const props = {
+        // Properties comuni per hit detection (include tutti i tipi)
+        const commonProps = {
           id: s.id,
           tipo: s.tipo_connessione,
           valore: Number(s.valore) || 1,
           certezza: s.certezza,
-          elevation: parabola.elevation, // array di altezze per line-z-offset
-          // Nomi entità per popup connessione
           neurone_da_nome: neuroneDa?.nome || 'Sconosciuto',
           neurone_a_nome: neuroneA?.nome || 'Sconosciuto',
           neurone_da_tipo: neuroneDa?.tipo || '',
           neurone_a_tipo: neuroneA?.tipo || '',
         };
 
-        // Feature linea per visualizzazione parabola
-        sinapsiFeatures.push({
-          type: 'Feature' as const,
-          properties: props,
-          geometry: {
-            type: 'LineString' as const,
-            coordinates: parabola.coordinates,
-          },
+        // Crea una parabola per ogni tipo di connessione (sovrapposte verticalmente)
+        tipiConnessione.forEach((tipo, index) => {
+          // Calcola altezza base per questa parabola (stacking verticale)
+          const baseHeight = index * (PARABOLA_HEIGHT + STACK_SPACING);
+
+          // Crea parabola 3D a questa altezza
+          const parabola = createParabola3D(
+            lngDa, latDa,
+            lngA, latA,
+            15,             // 15 punti per curva fluida
+            PARABOLA_HEIGHT, // altezza dell'arco
+            baseHeight      // altezza base (per stacking)
+          );
+
+          // Colore basato sul tipo di connessione
+          const tipoLower = tipo.toLowerCase();
+          const tipoColor = TIPO_CONNESSIONE_COLORS[tipoLower] || '#94a3b8';
+
+          // Properties per questa specifica parabola
+          const props = {
+            ...commonProps,
+            tipoSingolo: tipo,          // il tipo specifico di questa parabola
+            tipoColor: tipoColor,       // colore per questo tipo
+            baseHeight: baseHeight,     // altezza base per line-z-offset
+            elevation: parabola.elevation,
+          };
+
+          // Feature linea per visualizzazione parabola
+          sinapsiFeatures.push({
+            type: 'Feature' as const,
+            properties: props,
+            geometry: {
+              type: 'LineString' as const,
+              coordinates: parabola.coordinates,
+            },
+          });
         });
 
-        // Feature volume per hit detection 3D
-        // Larghezza 20m (larghezza visiva + 50%), margine 35m agli estremi
+        // Feature volume per hit detection 3D (una sola per tutte le parabole della sinapsi)
+        // Altezza che copre tutte le parabole sovrapposte
+        const maxVolumeHeight = tipiConnessione.length * (PARABOLA_HEIGHT + STACK_SPACING);
         const ribbonCoords = createRibbonPolygon(lngDa, latDa, lngA, latA, 20, 35);
         if (ribbonCoords.length > 0) {
           volumeFeatures.push({
             type: 'Feature' as const,
-            properties: props,
+            properties: { ...commonProps, maxHeight: maxVolumeHeight },
             geometry: {
               type: 'Polygon' as const,
               coordinates: [ribbonCoords],
@@ -1129,54 +1166,59 @@ export default function MapView({
         });
 
         // Layer ombra/bordo (sotto) - dà profondità alla linea
+        // Usa baseHeight per alzare ogni parabola al suo livello
         m.addLayer({
           id: 'sinapsi-lines-shadow',
           type: 'line',
           source: 'sinapsi',
           layout: {
             'line-z-offset': [
-              'interpolate',
-              ['linear'],
-              ['line-progress'],
-              ...Array.from({ length: 16 }, (_, i) => {
-                const t = i / 15;
-                return [t, 4 * 60 * t * (1 - t) - 3]; // leggermente sotto (-3m)
-              }).flat()
+              '+',
+              ['coalesce', ['get', 'baseHeight'], 0],
+              [
+                'interpolate',
+                ['linear'],
+                ['line-progress'],
+                ...Array.from({ length: 16 }, (_, i) => {
+                  const t = i / 15;
+                  return [t, 4 * 40 * t * (1 - t) - 3]; // parabola (40m) - 3m per ombra
+                }).flat()
+              ]
             ],
           },
           paint: {
             'line-color': '#000000',
-            'line-width': 8,
-            'line-opacity': 0.4,
+            'line-width': 6,
+            'line-opacity': 0.3,
             'line-blur': 2,
           },
         });
 
-        // Layer principale colorato
+        // Layer principale colorato - colore basato sul tipo di connessione
         m.addLayer({
           id: 'sinapsi-lines',
           type: 'line',
           source: 'sinapsi',
           layout: {
             'line-z-offset': [
-              'interpolate',
-              ['linear'],
-              ['line-progress'],
-              ...Array.from({ length: 16 }, (_, i) => {
-                const t = i / 15;
-                return [t, 4 * 60 * t * (1 - t)]; // parabola: 0 -> 60m -> 0
-              }).flat()
+              '+',
+              ['coalesce', ['get', 'baseHeight'], 0],
+              [
+                'interpolate',
+                ['linear'],
+                ['line-progress'],
+                ...Array.from({ length: 16 }, (_, i) => {
+                  const t = i / 15;
+                  return [t, 4 * 40 * t * (1 - t)]; // parabola (40m)
+                }).flat()
+              ]
             ],
           },
           paint: {
-            'line-color': [
-              'case',
-              ['==', ['get', 'certezza'], 'certo'], '#22c55e',
-              ['==', ['get', 'certezza'], 'probabile'], '#eab308',
-              '#94a3b8',
-            ],
-            'line-width': 5,
-            'line-opacity': 1,
+            // Colore dal tipo di connessione (tipoColor)
+            'line-color': ['coalesce', ['get', 'tipoColor'], '#94a3b8'],
+            'line-width': 4,
+            'line-opacity': 0.9,
           },
         });
 
@@ -1187,8 +1229,8 @@ export default function MapView({
           source: 'sinapsi-volumes',
           paint: {
             'fill-extrusion-color': '#ff0000',
-            'fill-extrusion-height': VOLUME_HEIGHT, // altezza fino al picco parabola + 5%
-            'fill-extrusion-base': 0, // parte da terra
+            'fill-extrusion-height': ['coalesce', ['get', 'maxHeight'], 60], // altezza dinamica
+            'fill-extrusion-base': 0,
             'fill-extrusion-opacity': 0, // invisibile ma cliccabile!
           },
         });
