@@ -78,22 +78,40 @@ function createCirclePolygon(lng: number, lat: number, radiusMeters: number, sid
 
 // Genera una parabola 3D tra due punti (coordinate + array elevazioni)
 // baseHeight permette di alzare tutta la parabola (per parabole sovrapposte)
+// lateralOffset permette di spostare lateralmente la parabola (per parabole affiancate)
 function createParabola3D(
   lng1: number, lat1: number,
   lng2: number, lat2: number,
   numPoints: number = 15,
   maxHeight: number = 50, // altezza massima in metri al centro
-  baseHeight: number = 0  // altezza base da cui parte la parabola (per stacking)
+  baseHeight: number = 0,  // altezza base da cui parte la parabola (per stacking verticale)
+  lateralOffset: number = 0 // offset laterale in metri (per parabole affiancate)
 ): { coordinates: number[][]; elevation: number[] } {
   const coordinates: number[][] = [];
   const elevation: number[] = [];
+  const earthRadius = 6371000;
+
+  // Calcola vettore perpendicolare per offset laterale
+  const dLng = lng2 - lng1;
+  const dLat = lat2 - lat1;
+  const perpLat = -dLng;
+  const perpLng = dLat;
+  const perpLength = Math.sqrt(perpLat * perpLat + perpLng * perpLng);
+
+  // Offset in gradi
+  let offsetLat = 0;
+  let offsetLng = 0;
+  if (perpLength > 0 && lateralOffset !== 0) {
+    offsetLat = (perpLat / perpLength) * (lateralOffset / earthRadius) * (180 / Math.PI);
+    offsetLng = (perpLng / perpLength) * (lateralOffset / (earthRadius * Math.cos(((lat1 + lat2) / 2) * Math.PI / 180))) * (180 / Math.PI);
+  }
 
   for (let i = 0; i <= numPoints; i++) {
     const t = i / numPoints;
 
-    // Interpolazione lineare per lng/lat (linea dritta sul piano)
-    const lng = lng1 + (lng2 - lng1) * t;
-    const lat = lat1 + (lat2 - lat1) * t;
+    // Interpolazione lineare per lng/lat (linea dritta sul piano) + offset laterale
+    const lng = lng1 + (lng2 - lng1) * t + offsetLng;
+    const lat = lat1 + (lat2 - lat1) * t + offsetLat;
     coordinates.push([lng, lat]);
 
     // Parabola per l'altitudine: baseHeight + 4 * h * t * (1-t)
@@ -1045,9 +1063,22 @@ export default function MapView({
       // Crea una mappa per lookup veloce dei neuroni per ID
       const neuroniMap = new Map(neuroni.map(n => [n.id, n]));
 
-      // Altezza parabole e spaziatura per stacking
+      // Altezza parabole e spaziatura
       const PARABOLA_HEIGHT = 40;  // altezza di ogni parabola
-      const STACK_SPACING = 20;    // spaziatura verticale tra parabole sovrapposte
+      const STACK_SPACING = 20;    // spaziatura verticale tra livelli
+      const LATERAL_SPACING = 8;   // spaziatura laterale tra parabole affiancate (metri)
+
+      // Colori auto-generati per famiglie prodotto senza colore
+      const FAMIGLIA_COLORS = [
+        '#ef4444', // rosso
+        '#f97316', // arancione
+        '#eab308', // giallo
+        '#22c55e', // verde
+        '#14b8a6', // teal
+        '#3b82f6', // blu
+        '#8b5cf6', // viola
+        '#ec4899', // rosa
+      ];
 
       const sinapsiFeatures: GeoJSON.Feature[] = [];
       const volumeFeatures: GeoJSON.Feature[] = [];
@@ -1064,10 +1095,13 @@ export default function MapView({
         const lngA = neuroneA?.lng ?? Number(s.lng_a);
         const latA = neuroneA?.lat ?? Number(s.lat_a);
 
-        // tipo_connessione è già un array string[]
-        let tipiConnessione: string[] = Array.isArray(s.tipo_connessione) && s.tipo_connessione.length > 0
-          ? s.tipo_connessione
-          : ['commerciale']; // Fallback se vuoto
+        // Famiglie prodotto delle transazioni (per parabole affiancate al livello base)
+        const famiglieTransazioni = s.famiglie_transazioni || [];
+
+        // Tipi di connessione NON commerciali (per parabole sovrapposte sopra)
+        const tipiConnessione: string[] = Array.isArray(s.tipo_connessione) && s.tipo_connessione.length > 0
+          ? s.tipo_connessione.filter(t => t.toLowerCase() !== 'commerciale')
+          : [];
 
         // Properties comuni per hit detection (include tutti i tipi)
         const commonProps = {
@@ -1081,34 +1115,114 @@ export default function MapView({
           neurone_a_tipo: neuroneA?.tipo || '',
         };
 
-        // Crea una parabola per ogni tipo di connessione (sovrapposte verticalmente)
+        // === LIVELLO BASE: Parabole AFFIANCATE per famiglie prodotto ===
+        // Se non ci sono famiglie transazioni ma c'è tipo commerciale, mostra una parabola generica
+        const hasFamiglieTransazioni = famiglieTransazioni.length > 0;
+        const hasCommerciale = (s.tipo_connessione || []).some(t => t.toLowerCase() === 'commerciale');
+
+        if (hasFamiglieTransazioni) {
+          // Calcola offset laterale per centrare le parabole affiancate
+          const numFamiglie = famiglieTransazioni.length;
+          const totalWidth = (numFamiglie - 1) * LATERAL_SPACING;
+          const startOffset = -totalWidth / 2;
+
+          famiglieTransazioni.forEach((fam, famIndex) => {
+            // Offset laterale per questa famiglia
+            const lateralOffset = startOffset + famIndex * LATERAL_SPACING;
+
+            // Colore: usa quello della famiglia o genera automaticamente
+            const famigliaColor = fam.famiglia_colore || FAMIGLIA_COLORS[famIndex % FAMIGLIA_COLORS.length];
+
+            // Crea parabola 3D al livello base con offset laterale
+            const parabola = createParabola3D(
+              lngDa, latDa,
+              lngA, latA,
+              15,             // 15 punti per curva fluida
+              PARABOLA_HEIGHT, // altezza dell'arco
+              0,              // livello base (altezza 0)
+              lateralOffset   // offset laterale per affiancare
+            );
+
+            // Properties per questa parabola famiglia
+            const props = {
+              ...commonProps,
+              tipoSingolo: 'transazione',
+              famigliaNome: fam.famiglia_nome,
+              famigliaId: fam.famiglia_id,
+              tipoColor: famigliaColor,
+              baseHeight: 0,
+              elevation: parabola.elevation,
+              volume: fam.volume,
+            };
+
+            sinapsiFeatures.push({
+              type: 'Feature' as const,
+              properties: props,
+              geometry: {
+                type: 'LineString' as const,
+                coordinates: parabola.coordinates,
+              },
+            });
+          });
+        } else if (hasCommerciale || tipiConnessione.length === 0) {
+          // Nessuna transazione: mostra parabola generica al livello base
+          // (anche se non è esplicitamente commerciale, serve per visualizzare la connessione)
+          const parabola = createParabola3D(
+            lngDa, latDa,
+            lngA, latA,
+            15,
+            PARABOLA_HEIGHT,
+            0,
+            0
+          );
+
+          const props = {
+            ...commonProps,
+            tipoSingolo: hasCommerciale ? 'commerciale' : 'connessione',
+            tipoColor: hasCommerciale
+              ? (TIPO_CONNESSIONE_COLORS['commerciale'] || '#3b82f6')
+              : '#94a3b8', // grigio per connessioni generiche
+            baseHeight: 0,
+            elevation: parabola.elevation,
+          };
+
+          sinapsiFeatures.push({
+            type: 'Feature' as const,
+            properties: props,
+            geometry: {
+              type: 'LineString' as const,
+              coordinates: parabola.coordinates,
+            },
+          });
+        }
+
+        // === LIVELLI SUPERIORI: Parabole SOVRAPPOSTE per tipi di connessione (non commerciali) ===
         tipiConnessione.forEach((tipo, index) => {
-          // Calcola altezza base per questa parabola (stacking verticale)
-          const baseHeight = index * (PARABOLA_HEIGHT + STACK_SPACING);
+          // Calcola altezza base: livello 1+ (sopra le transazioni)
+          const baseHeight = (index + 1) * (PARABOLA_HEIGHT + STACK_SPACING);
 
           // Crea parabola 3D a questa altezza
           const parabola = createParabola3D(
             lngDa, latDa,
             lngA, latA,
-            15,             // 15 punti per curva fluida
-            PARABOLA_HEIGHT, // altezza dell'arco
-            baseHeight      // altezza base (per stacking)
+            15,
+            PARABOLA_HEIGHT,
+            baseHeight,
+            0  // nessun offset laterale per i tipi connessione
           );
 
           // Colore basato sul tipo di connessione
           const tipoLower = tipo.toLowerCase();
           const tipoColor = TIPO_CONNESSIONE_COLORS[tipoLower] || '#94a3b8';
 
-          // Properties per questa specifica parabola
           const props = {
             ...commonProps,
-            tipoSingolo: tipo,          // il tipo specifico di questa parabola
-            tipoColor: tipoColor,       // colore per questo tipo
-            baseHeight: baseHeight,     // altezza base per line-z-offset
+            tipoSingolo: tipo,
+            tipoColor: tipoColor,
+            baseHeight: baseHeight,
             elevation: parabola.elevation,
           };
 
-          // Feature linea per visualizzazione parabola
           sinapsiFeatures.push({
             type: 'Feature' as const,
             properties: props,
@@ -1119,9 +1233,10 @@ export default function MapView({
           });
         });
 
-        // Feature volume per hit detection 3D (una sola per tutte le parabole della sinapsi)
-        // Altezza che copre tutte le parabole sovrapposte
-        const maxVolumeHeight = tipiConnessione.length * (PARABOLA_HEIGHT + STACK_SPACING);
+        // Feature volume per hit detection 3D
+        // Altezza che copre tutti i livelli (famiglie + tipi connessione)
+        const numLivelli = 1 + tipiConnessione.length; // livello base + tipi sopra
+        const maxVolumeHeight = numLivelli * (PARABOLA_HEIGHT + STACK_SPACING);
         const ribbonCoords = createRibbonPolygon(lngDa, latDa, lngA, latA, 20, 35);
         if (ribbonCoords.length > 0) {
           volumeFeatures.push({

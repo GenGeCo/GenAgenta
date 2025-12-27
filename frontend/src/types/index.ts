@@ -66,6 +66,13 @@ export interface Sinapsi {
   affidabilita?: number | null;
   potenziale?: number | null;
   note_relazione?: string | null;
+  // Famiglie prodotto delle transazioni (per parabole affiancate sulla mappa)
+  famiglie_transazioni?: {
+    famiglia_id: string;
+    famiglia_nome: string;
+    famiglia_colore: string | null;
+    volume: number;
+  }[];
 }
 
 export interface NotaPersonale {
