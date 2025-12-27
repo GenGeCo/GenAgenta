@@ -123,26 +123,37 @@ try {
             $coppie[] = $s['neurone_a'];
         }
 
+        // Verifica se la colonna colore esiste in famiglie_prodotto
+        $hasColore = false;
+        try {
+            $db->query("SELECT colore FROM famiglie_prodotto LIMIT 1");
+            $hasColore = true;
+        } catch (PDOException $e) {}
+
         // Query per trovare famiglie prodotto delle transazioni tra i neuroni
         // Filtra solo vendite (non acquisti) per evitare duplicati
+        $selectColore = $hasColore ? 'f.colore as famiglia_colore,' : 'NULL as famiglia_colore,';
+        $groupByColore = $hasColore ? ', f.colore' : '';
+
         $sqlFamiglie = "
-            SELECT DISTINCT
+            SELECT
                 v.neurone_id,
                 v.controparte_id,
                 v.famiglia_id,
                 f.nome as famiglia_nome,
-                f.colore as famiglia_colore,
+                $selectColore
                 SUM(v.importo) as volume_famiglia
             FROM vendite_prodotto v
             JOIN famiglie_prodotto f ON v.famiglia_id = f.id
             WHERE v.controparte_id IS NOT NULL
               AND (v.tipo_transazione = 'vendita' OR v.tipo_transazione IS NULL)
-            GROUP BY v.neurone_id, v.controparte_id, v.famiglia_id, f.nome, f.colore
+            GROUP BY v.neurone_id, v.controparte_id, v.famiglia_id, f.nome $groupByColore
         ";
 
         try {
             $stmtFamiglie = $db->query($sqlFamiglie);
             $risultatiFamiglie = $stmtFamiglie->fetchAll();
+            error_log("DEBUG famiglie: trovate " . count($risultatiFamiglie) . " righe");
 
             // Organizza per coppia di neuroni (bidirezionale)
             foreach ($risultatiFamiglie as $r) {
