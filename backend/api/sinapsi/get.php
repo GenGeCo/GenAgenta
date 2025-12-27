@@ -78,6 +78,8 @@ $datiOggettivi = [
 
 try {
     // Cerca transazioni tra i due neuroni (in entrambe le direzioni)
+    // Filtra solo tipo_transazione = 'vendita' per evitare di contare 2 volte
+    // le transazioni bilaterali (ogni transazione crea un record 'vendita' e uno 'acquisto')
     $sqlVendite = "
         SELECT
             COALESCE(SUM(importo), 0) as volume_totale,
@@ -85,8 +87,9 @@ try {
             MAX(data_vendita) as ultima_transazione,
             MIN(data_vendita) as prima_transazione
         FROM vendite_prodotto
-        WHERE (neurone_id = ? AND controparte_id = ?)
-           OR (neurone_id = ? AND controparte_id = ?)
+        WHERE ((neurone_id = ? AND controparte_id = ?)
+           OR (neurone_id = ? AND controparte_id = ?))
+          AND (tipo_transazione = 'vendita' OR tipo_transazione IS NULL)
     ";
     $stmtVendite = $db->prepare($sqlVendite);
     $stmtVendite->execute([
@@ -97,8 +100,7 @@ try {
 
     if ($risultatoVendite) {
         $datiOggettivi['volume_totale'] = (float)($risultatoVendite['volume_totale'] ?? 0);
-        // Dividi per 2 perché le transazioni bilaterali creano 2 record
-        $datiOggettivi['numero_transazioni'] = (int)(($risultatoVendite['numero_transazioni'] ?? 0) / 2);
+        $datiOggettivi['numero_transazioni'] = (int)($risultatoVendite['numero_transazioni'] ?? 0);
         $datiOggettivi['ultima_transazione'] = $risultatoVendite['ultima_transazione'];
         $datiOggettivi['prima_transazione'] = $risultatoVendite['prima_transazione'];
     }
