@@ -722,6 +722,7 @@ export default function Dashboard() {
             <SinapsiDetailPanel
               sinapsiId={selectedSinapsiId}
               onClose={() => setSelectedSinapsiId(null)}
+              onSaved={reloadSinapsi}
             />
           )}
         </div>

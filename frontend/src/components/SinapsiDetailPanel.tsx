@@ -14,6 +14,7 @@ interface DatiOggettivi {
 interface SinapsiDetailPanelProps {
   sinapsiId: string;
   onClose: () => void;
+  onSaved?: () => void; // Callback per aggiornare la mappa dopo il salvataggio
 }
 
 // Componente stelline cliccabili
@@ -71,7 +72,7 @@ const TIPI_CONNESSIONE = [
   { value: 'collabora', label: 'Collabora', icon: '🤝' },
 ];
 
-export default function SinapsiDetailPanel({ sinapsiId, onClose }: SinapsiDetailPanelProps) {
+export default function SinapsiDetailPanel({ sinapsiId, onClose, onSaved }: SinapsiDetailPanelProps) {
   const [sinapsi, setSinapsi] = useState<Sinapsi | null>(null);
   const [datiOggettivi, setDatiOggettivi] = useState<DatiOggettivi | null>(null);
   const [loading, setLoading] = useState(true);
@@ -136,15 +137,15 @@ export default function SinapsiDetailPanel({ sinapsiId, onClose }: SinapsiDetail
         potenziale: potenziale || undefined,
         note_relazione: noteRelazione || undefined,
       });
-      // Aggiorna lo stato locale della sinapsi per riflettere i cambiamenti
-      if (sinapsi) {
-        setSinapsi({ ...sinapsi, tipo_connessione: tipoConnessione.length > 0 ? tipoConnessione : sinapsi.tipo_connessione, certezza });
+      // Chiama callback per aggiornare la mappa
+      if (onSaved) {
+        onSaved();
       }
-      setError(''); // Clear any error
+      // Chiudi il pannello dopo il salvataggio
+      onClose();
     } catch (err) {
       console.error('Errore salvataggio:', err);
       setError('Errore salvataggio');
-    } finally {
       setSaving(false);
     }
   };
@@ -477,7 +478,7 @@ export default function SinapsiDetailPanel({ sinapsiId, onClose }: SinapsiDetail
             fontWeight: 600,
           }}
         >
-          {saving ? 'Salvataggio...' : 'Salva Valutazione'}
+          {saving ? 'Salvataggio...' : 'Salva'}
         </button>
       </div>
     </div>
