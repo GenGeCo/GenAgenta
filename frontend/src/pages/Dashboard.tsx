@@ -636,19 +636,28 @@ export default function Dashboard() {
                   onConfirm={async (data) => {
                     try {
                       // Determina chi è il venditore e chi l'acquirente
-                      const venditorId = quickAction === 'vendi' ? quickSourceNeurone.id : quickTargetNeurone.id;
+                      // Se vendo: source=venditore, target=acquirente
+                      // Se compro: source=acquirente, target=venditore
+                      const isVendita = quickAction === 'vendi';
+                      const venditorId = isVendita ? quickSourceNeurone.id : quickTargetNeurone.id;
+                      const acquistatoreId = isVendita ? quickTargetNeurone.id : quickSourceNeurone.id;
 
-                      // Crea la vendita
+                      // Crea la vendita bilaterale (con controparte)
                       await api.createVendita({
                         neurone_id: venditorId,
                         famiglia_id: data.famigliaId,
                         importo: data.importo,
                         data_vendita: data.data,
+                        controparte_id: acquistatoreId,
+                        tipo_transazione: 'vendita', // Sempre vendita dal punto di vista del venditore
                       });
 
                       // Ricarica neuroni per aggiornare venduto_totale
                       const neuroniRes = await api.getNeuroni({ limit: 500 });
                       setNeuroni(neuroniRes.data);
+
+                      // Ricarica sinapsi per aggiornare i dati oggettivi sulla connessione
+                      await reloadSinapsi();
 
                       // Reset
                       setQuickMapMode(false);
