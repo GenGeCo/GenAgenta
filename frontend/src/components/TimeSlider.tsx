@@ -294,22 +294,14 @@ export default function TimeSlider({ dataInizio, dataFine, onChange }: TimeSlide
             <input
               type="range"
               min={minDay}
-              max={maxDay}
+              max={localFine - 1}
               step={1}
-              value={localInizio}
+              value={Math.min(localInizio, localFine - 1)}
               onChange={(e) => {
                 setIsDragging(true);
-                const val = Number(e.target.value);
-                // Se si avvicina troppo a fine, trascina anche fine
-                if (val >= localFine) {
-                  const newFine = Math.min(val + 1, maxDay);
-                  setLocalInizio(newFine - 1);
-                  setLocalFine(newFine);
-                  applyChange(newFine - 1, newFine);
-                } else {
-                  setLocalInizio(val);
-                  applyChange(val, localFine);
-                }
+                const val = Math.min(Number(e.target.value), localFine - 1);
+                setLocalInizio(val);
+                applyChange(val, localFine);
               }}
               onMouseUp={handleRelease}
               onTouchEnd={handleRelease}
@@ -336,23 +328,15 @@ export default function TimeSlider({ dataInizio, dataFine, onChange }: TimeSlide
             }}>A:</span>
             <input
               type="range"
-              min={minDay}
+              min={localInizio + 1}
               max={maxDay}
               step={1}
-              value={localFine}
+              value={Math.max(localFine, localInizio + 1)}
               onChange={(e) => {
                 setIsDragging(true);
-                const val = Number(e.target.value);
-                // Se si avvicina troppo a inizio, trascina anche inizio
-                if (val <= localInizio) {
-                  const newInizio = Math.max(val - 1, minDay);
-                  setLocalInizio(newInizio);
-                  setLocalFine(newInizio + 1);
-                  applyChange(newInizio, newInizio + 1);
-                } else {
-                  setLocalFine(val);
-                  applyChange(localInizio, val);
-                }
+                const val = Math.max(Number(e.target.value), localInizio + 1);
+                setLocalFine(val);
+                applyChange(localInizio, val);
               }}
               onMouseUp={handleRelease}
               onTouchEnd={handleRelease}
