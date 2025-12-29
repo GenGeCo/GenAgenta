@@ -51,8 +51,8 @@ if ($ordine === null) {
 $id = generateUUID();
 
 $stmt = $db->prepare('
-    INSERT INTO famiglie_prodotto (id, nome, parent_id, descrizione, ordine, visibilita, azienda_id, creato_da)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO famiglie_prodotto (id, nome, parent_id, descrizione, ordine, visibilita, azienda_id, creato_da, colore)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
 ');
 
 $stmt->execute([
@@ -63,7 +63,8 @@ $stmt->execute([
     $ordine,
     $visibilita,
     $user['azienda_id'],
-    $user['user_id']
+    $user['user_id'],
+    $data['colore'] ?? null
 ]);
 
 jsonResponse(['id' => $id, 'message' => 'Famiglia prodotto creata'], 201);

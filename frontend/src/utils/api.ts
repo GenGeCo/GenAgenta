@@ -406,6 +406,7 @@ class ApiClient {
     descrizione?: string;
     visibilita?: Visibilita;
     ordine?: number;
+    colore?: string;
   }): Promise<{ id: string; message: string }> {
     const { data } = await this.client.post('/famiglie-prodotto', famiglia);
     return data;
@@ -416,6 +417,7 @@ class ApiClient {
     parent_id?: string | null;
     descrizione?: string;
     ordine?: number;
+    colore?: string;
   }): Promise<{ success: boolean }> {
     const { data } = await this.client.put(`/famiglie-prodotto/${id}`, famiglia);
     return data;

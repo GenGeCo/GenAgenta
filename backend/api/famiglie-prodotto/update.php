@@ -69,7 +69,7 @@ if (array_key_exists('parent_id', $data) && $data['parent_id']) {
 $updates = [];
 $params = [];
 
-$allowedFields = ['nome', 'parent_id', 'descrizione', 'ordine'];
+$allowedFields = ['nome', 'parent_id', 'descrizione', 'ordine', 'colore'];
 
 foreach ($allowedFields as $field) {
     if (array_key_exists($field, $data)) {

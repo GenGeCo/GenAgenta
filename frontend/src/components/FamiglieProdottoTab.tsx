@@ -16,11 +16,13 @@ export default function FamiglieProdottoTab() {
   const [newParentId, setNewParentId] = useState<string | null>(null);
   const [newDescrizione, setNewDescrizione] = useState('');
   const [newVisibilita, setNewVisibilita] = useState<Visibilita>('aziendale');
+  const [newColore, setNewColore] = useState<string>('#3b82f6');
 
   // Editing
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editNome, setEditNome] = useState('');
   const [editDescrizione, setEditDescrizione] = useState('');
+  const [editColore, setEditColore] = useState<string>('');
 
   // Espansione albero
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
@@ -64,12 +66,14 @@ export default function FamiglieProdottoTab() {
         parent_id: newParentId,
         descrizione: newDescrizione.trim() || undefined,
         visibilita: newVisibilita,
+        colore: newColore,
       });
       setMessage({ type: 'success', text: 'Famiglia creata!' });
       setNewNome('');
       setNewParentId(null);
       setNewDescrizione('');
       setNewVisibilita('aziendale');
+      setNewColore('#3b82f6');
       setShowNewForm(false);
       loadFamiglie();
     } catch (error: unknown) {
@@ -87,6 +91,7 @@ export default function FamiglieProdottoTab() {
       await api.updateFamigliaProdotto(id, {
         nome: editNome.trim(),
         descrizione: editDescrizione.trim() || undefined,
+        colore: editColore || undefined,
       });
       setEditingId(null);
       loadFamiglie();
@@ -132,6 +137,7 @@ export default function FamiglieProdottoTab() {
     setEditingId(famiglia.id);
     setEditNome(famiglia.nome);
     setEditDescrizione(famiglia.descrizione || '');
+    setEditColore(famiglia.colore || '#3b82f6');
   };
 
   const startAddChild = (parentId: string) => {
@@ -188,6 +194,20 @@ export default function FamiglieProdottoTab() {
             // Editing mode
             <>
               <input
+                type="color"
+                value={editColore}
+                onChange={(e) => setEditColore(e.target.value)}
+                style={{
+                  width: '32px',
+                  height: '32px',
+                  padding: '0',
+                  border: '2px solid var(--border-color)',
+                  borderRadius: '6px',
+                  cursor: 'pointer',
+                }}
+                title="Colore parabola sulla mappa"
+              />
+              <input
                 type="text"
                 className="form-input"
                 value={editNome}
@@ -214,6 +234,18 @@ export default function FamiglieProdottoTab() {
           ) : (
             // View mode
             <>
+              {/* Cerchietto colore */}
+              <div
+                style={{
+                  width: '16px',
+                  height: '16px',
+                  borderRadius: '50%',
+                  backgroundColor: item.colore || '#94a3b8',
+                  border: '2px solid rgba(255,255,255,0.3)',
+                  flexShrink: 0,
+                }}
+                title={`Colore: ${item.colore || 'default'}`}
+              />
               <div style={{ flex: 1 }}>
                 <span style={{ fontWeight: level === 0 ? 600 : 400 }}>{item.nome}</span>
                 {item.descrizione && (
@@ -352,6 +384,22 @@ export default function FamiglieProdottoTab() {
                 placeholder="es: Tutte le pitture per interni ed esterni"
               />
             </div>
+            <div style={{ minWidth: '80px' }}>
+              <label style={{ display: 'block', fontSize: '12px', marginBottom: '4px', color: 'var(--text-secondary)' }}>Colore mappa</label>
+              <input
+                type="color"
+                value={newColore}
+                onChange={(e) => setNewColore(e.target.value)}
+                style={{
+                  width: '100%',
+                  height: '38px',
+                  padding: '2px',
+                  border: '1px solid var(--border-color)',
+                  borderRadius: '6px',
+                  cursor: 'pointer',
+                }}
+              />
+            </div>
             <div style={{ minWidth: '120px' }}>
               <label style={{ display: 'block', fontSize: '12px', marginBottom: '4px', color: 'var(--text-secondary)' }}>Visibilità</label>
               <select
@@ -374,7 +422,7 @@ export default function FamiglieProdottoTab() {
             </button>
             <button
               className="btn btn-secondary"
-              onClick={() => { setShowNewForm(false); setNewNome(''); setNewParentId(null); setNewDescrizione(''); setNewVisibilita('aziendale'); }}
+              onClick={() => { setShowNewForm(false); setNewNome(''); setNewParentId(null); setNewDescrizione(''); setNewVisibilita('aziendale'); setNewColore('#3b82f6'); }}
             >
               Annulla
             </button>
