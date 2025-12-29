@@ -1,6 +1,6 @@
 // GenAgenTa - Time Slider Component
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 
 interface TimeSliderProps {
   dataInizio: string;
@@ -66,7 +66,6 @@ export default function TimeSlider({ dataInizio, dataFine, onChange }: TimeSlide
   const [localInizio, setLocalInizio] = useState(inizioValue);
   const [localFine, setLocalFine] = useState(fineValue);
   const [isDragging, setIsDragging] = useState(false);
-  const changeTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Aggiorna quando cambiano le props o il range
   useEffect(() => {
@@ -106,25 +105,9 @@ export default function TimeSlider({ dataInizio, dataFine, onChange }: TimeSlide
     });
   };
 
-  // Handler per applicare il cambio (debounced per evitare troppe chiamate API)
-  const applyChange = (inizio: number, fine: number) => {
-    if (changeTimeout.current) {
-      clearTimeout(changeTimeout.current);
-    }
-    changeTimeout.current = setTimeout(() => {
-      const dataIn = formatDateYMD(new Date(dayToTimestamp(inizio)));
-      const dataFn = formatDateYMD(new Date(dayToTimestamp(fine)));
-      onChange(dataIn, dataFn);
-    }, 200); // Debounce 200ms - buon compromesso tra reattività e stabilità
-  };
-
-  // Handler per rilascio slider
+  // Handler per rilascio slider - carica dati SOLO al rilascio
   const handleRelease = () => {
     setIsDragging(false);
-    if (changeTimeout.current) {
-      clearTimeout(changeTimeout.current);
-    }
-    // Calcola le date dai valori locali (in caso di trascinamento reciproco)
     const dataIn = formatDateYMD(new Date(dayToTimestamp(localInizio)));
     const dataFn = formatDateYMD(new Date(dayToTimestamp(localFine)));
     onChange(dataIn, dataFn);
@@ -302,7 +285,6 @@ export default function TimeSlider({ dataInizio, dataFine, onChange }: TimeSlide
                 let val = Number(e.target.value);
                 if (val >= localFine) val = localFine - 1;
                 setLocalInizio(val);
-                applyChange(val, localFine);
               }}
               onMouseUp={handleRelease}
               onTouchEnd={handleRelease}
@@ -338,7 +320,6 @@ export default function TimeSlider({ dataInizio, dataFine, onChange }: TimeSlide
                 let val = Number(e.target.value);
                 if (val <= localInizio) val = localInizio + 1;
                 setLocalFine(val);
-                applyChange(localInizio, val);
               }}
               onMouseUp={handleRelease}
               onTouchEnd={handleRelease}
