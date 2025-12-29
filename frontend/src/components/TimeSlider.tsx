@@ -294,12 +294,13 @@ export default function TimeSlider({ dataInizio, dataFine, onChange }: TimeSlide
             <input
               type="range"
               min={minDay}
-              max={localFine - 1}
+              max={maxDay}
               step={1}
-              value={Math.min(localInizio, localFine - 1)}
+              value={localInizio}
               onChange={(e) => {
                 setIsDragging(true);
-                const val = Math.min(Number(e.target.value), localFine - 1);
+                let val = Number(e.target.value);
+                if (val >= localFine) val = localFine - 1;
                 setLocalInizio(val);
                 applyChange(val, localFine);
               }}
@@ -328,13 +329,14 @@ export default function TimeSlider({ dataInizio, dataFine, onChange }: TimeSlide
             }}>A:</span>
             <input
               type="range"
-              min={localInizio + 1}
+              min={minDay}
               max={maxDay}
               step={1}
-              value={Math.max(localFine, localInizio + 1)}
+              value={localFine}
               onChange={(e) => {
                 setIsDragging(true);
-                const val = Math.max(Number(e.target.value), localInizio + 1);
+                let val = Number(e.target.value);
+                if (val <= localInizio) val = localInizio + 1;
                 setLocalFine(val);
                 applyChange(localInizio, val);
               }}
