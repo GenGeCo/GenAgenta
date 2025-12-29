@@ -19,9 +19,17 @@ const RANGE_PRESETS = [
   { label: '10 anni', years: 10 },
 ];
 
+// Formatta data in YYYY-MM-DD senza conversione UTC
+const formatDateYMD = (date: Date): string => {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+};
+
 export default function TimeSlider({ dataInizio, dataFine, onChange }: TimeSliderProps) {
   const oggi = new Date();
-  oggi.setHours(0, 0, 0, 0);
+  oggi.setHours(12, 0, 0, 0); // Usa mezzogiorno per evitare problemi di timezone
 
   // State per range personalizzabile degli slider
   const [rangeYears, setRangeYears] = useState(3); // Default 3 anni
@@ -104,31 +112,22 @@ export default function TimeSlider({ dataInizio, dataFine, onChange }: TimeSlide
       clearTimeout(changeTimeout.current);
     }
     changeTimeout.current = setTimeout(() => {
-      const dataIn = new Date(dayToTimestamp(inizio)).toISOString().split('T')[0];
-      const dataFn = new Date(dayToTimestamp(fine)).toISOString().split('T')[0];
+      const dataIn = formatDateYMD(new Date(dayToTimestamp(inizio)));
+      const dataFn = formatDateYMD(new Date(dayToTimestamp(fine)));
       onChange(dataIn, dataFn);
     }, 200); // Debounce 200ms - buon compromesso tra reattività e stabilità
   };
 
-  // Handler per rilascio slider - usa le date originali quando possibile per evitare sfasamenti
-  const handleReleaseInizio = () => {
+  // Handler per rilascio slider
+  const handleRelease = () => {
     setIsDragging(false);
     if (changeTimeout.current) {
       clearTimeout(changeTimeout.current);
     }
-    const dataIn = new Date(dayToTimestamp(localInizio)).toISOString().split('T')[0];
-    // Usa dataFine originale se non è stata modificata, per evitare arrotondamenti
-    onChange(dataIn, dataFine);
-  };
-
-  const handleReleaseFine = () => {
-    setIsDragging(false);
-    if (changeTimeout.current) {
-      clearTimeout(changeTimeout.current);
-    }
-    // Usa dataInizio originale se non è stata modificata
-    const dataFn = new Date(dayToTimestamp(localFine)).toISOString().split('T')[0];
-    onChange(dataInizio, dataFn);
+    // Calcola le date dai valori locali (in caso di trascinamento reciproco)
+    const dataIn = formatDateYMD(new Date(dayToTimestamp(localInizio)));
+    const dataFn = formatDateYMD(new Date(dayToTimestamp(localFine)));
+    onChange(dataIn, dataFn);
   };
 
   // Presets - relativi alla data fine selezionata
@@ -145,8 +144,8 @@ export default function TimeSlider({ dataInizio, dataFine, onChange }: TimeSlide
     const inizio = timestampToDay(inizioTs);
     setLocalInizio(inizio);
     onChange(
-      inizioDateClamped.toISOString().split('T')[0],
-      fineDate.toISOString().split('T')[0]
+      formatDateYMD(inizioDateClamped),
+      formatDateYMD(fineDate)
     );
   };
 
@@ -236,8 +235,8 @@ export default function TimeSlider({ dataInizio, dataFine, onChange }: TimeSlide
               border: 'none',
             }}
             onClick={() => {
-              const oggiStr = oggi.toISOString().split('T')[0];
-              const unAnnoFaStr = new Date(oggi.getTime() - 365 * ONE_DAY).toISOString().split('T')[0];
+              const oggiStr = formatDateYMD(oggi);
+              const unAnnoFaStr = formatDateYMD(new Date(oggi.getTime() - 365 * ONE_DAY));
               onChange(unAnnoFaStr, oggiStr);
             }}
             title="Imposta periodo: ultimo anno fino a oggi"
@@ -312,9 +311,9 @@ export default function TimeSlider({ dataInizio, dataFine, onChange }: TimeSlide
                   applyChange(val, localFine);
                 }
               }}
-              onMouseUp={handleReleaseInizio}
-              onTouchEnd={handleReleaseInizio}
-              onBlur={handleReleaseInizio}
+              onMouseUp={handleRelease}
+              onTouchEnd={handleRelease}
+              onBlur={handleRelease}
               style={sliderStyle}
             />
             <span style={{
@@ -355,9 +354,9 @@ export default function TimeSlider({ dataInizio, dataFine, onChange }: TimeSlide
                   applyChange(localInizio, val);
                 }
               }}
-              onMouseUp={handleReleaseFine}
-              onTouchEnd={handleReleaseFine}
-              onBlur={handleReleaseFine}
+              onMouseUp={handleRelease}
+              onTouchEnd={handleRelease}
+              onBlur={handleRelease}
               style={sliderStyle}
             />
             <span style={{
