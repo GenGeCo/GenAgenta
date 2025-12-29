@@ -30,11 +30,13 @@ export default function TimeSlider({ dataInizio, dataFine, onChange }: TimeSlide
   const [customFine, setCustomFine] = useState(dataFine);
 
   // Calcola min/max timestamp basati sul range selezionato
+  // Futuro permesso per previsioni/accordi (1 anno avanti)
   const anniFA = new Date(oggi.getTime() - rangeYears * 365 * ONE_DAY);
   const unAnnoAvanti = new Date(oggi.getTime() + 365 * ONE_DAY);
 
   const minTimestamp = anniFA.getTime();
   const maxTimestamp = unAnnoAvanti.getTime();
+  const oggiDay = Math.round((oggi.getTime() - minTimestamp) / ONE_DAY); // Giorno "oggi" per riferimento
 
   // Converti date in valori slider (in giorni dal minimo per precisione)
   const timestampToDay = (ts: number) => Math.round((ts - minTimestamp) / ONE_DAY);
@@ -43,11 +45,14 @@ export default function TimeSlider({ dataInizio, dataFine, onChange }: TimeSlide
   const minDay = 0;
   const maxDay = timestampToDay(maxTimestamp);
 
+  // Clamp values to valid range
+  const clamp = (val: number, min: number, max: number) => Math.max(min, Math.min(max, val));
+
   const inizioValue = dataInizio
-    ? timestampToDay(new Date(dataInizio).getTime())
+    ? clamp(timestampToDay(new Date(dataInizio).getTime()), minDay, maxDay)
     : minDay;
   const fineValue = dataFine
-    ? timestampToDay(new Date(dataFine).getTime())
+    ? clamp(timestampToDay(new Date(dataFine).getTime()), minDay, maxDay)
     : maxDay;
 
   const [localInizio, setLocalInizio] = useState(inizioValue);
@@ -55,13 +60,19 @@ export default function TimeSlider({ dataInizio, dataFine, onChange }: TimeSlide
   const [isDragging, setIsDragging] = useState(false);
   const changeTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Aggiorna quando cambiano le props
+  // Aggiorna quando cambiano le props o il range
   useEffect(() => {
     if (!isDragging) {
-      setLocalInizio(dataInizio ? timestampToDay(new Date(dataInizio).getTime()) : minDay);
-      setLocalFine(dataFine ? timestampToDay(new Date(dataFine).getTime()) : maxDay);
+      const newInizio = dataInizio
+        ? clamp(timestampToDay(new Date(dataInizio).getTime()), minDay, maxDay)
+        : minDay;
+      const newFine = dataFine
+        ? clamp(timestampToDay(new Date(dataFine).getTime()), minDay, maxDay)
+        : maxDay;
+      setLocalInizio(newInizio);
+      setLocalFine(newFine);
     }
-  }, [dataInizio, dataFine, isDragging]);
+  }, [dataInizio, dataFine, isDragging, rangeYears, minTimestamp, maxTimestamp]);
 
   // Aggiorna custom inputs quando cambiano i valori
   useEffect(() => {
@@ -240,7 +251,23 @@ export default function TimeSlider({ dataInizio, dataFine, onChange }: TimeSlide
           {formatShortDate(minDay)}
         </span>
 
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '12px' }}>
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '12px', position: 'relative' }}>
+          {/* Indicatore "OGGI" */}
+          <div style={{
+            position: 'absolute',
+            left: `calc(${(oggiDay / maxDay) * 100}% + 30px)`,
+            top: '-2px',
+            transform: 'translateX(-50%)',
+            fontSize: '9px',
+            fontWeight: 600,
+            color: '#22c55e',
+            background: 'var(--bg-secondary)',
+            padding: '0 4px',
+            zIndex: 1,
+          }}>
+            OGGI
+          </div>
+
           {/* Slider inizio */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             <span style={{
@@ -418,12 +445,18 @@ export default function TimeSlider({ dataInizio, dataFine, onChange }: TimeSlide
         </div>
       )}
 
-      {/* Stile per slider thumb */}
+      {/* Stile per slider thumb con gradiente passato/futuro */}
       <style>{`
         .time-slider input[type="range"] {
           -webkit-appearance: none;
           appearance: none;
-          background: #e2e8f0;
+          /* Gradiente: blu (passato) -> verde (oggi) -> arancione (futuro) */
+          background: linear-gradient(to right,
+            #3b82f6 0%,
+            #3b82f6 ${(oggiDay / maxDay) * 100}%,
+            #22c55e ${(oggiDay / maxDay) * 100}%,
+            #f97316 100%
+          );
           height: 6px;
           border-radius: 3px;
           outline: none;
