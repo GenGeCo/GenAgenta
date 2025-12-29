@@ -66,6 +66,8 @@ export default function TimeSlider({ dataInizio, dataFine, onChange }: TimeSlide
   const [localInizio, setLocalInizio] = useState(inizioValue);
   const [localFine, setLocalFine] = useState(fineValue);
   const [isDragging, setIsDragging] = useState(false);
+  const [editingInizio, setEditingInizio] = useState(false);
+  const [editingFine, setEditingFine] = useState(false);
 
   // Aggiorna quando cambiano le props o il range
   useEffect(() => {
@@ -111,6 +113,37 @@ export default function TimeSlider({ dataInizio, dataFine, onChange }: TimeSlide
     const dataIn = formatDateYMD(new Date(dayToTimestamp(localInizio)));
     const dataFn = formatDateYMD(new Date(dayToTimestamp(localFine)));
     onChange(dataIn, dataFn);
+  };
+
+  // Sposta inizio di n giorni
+  const moveInizio = (days: number) => {
+    const newVal = clamp(localInizio + days, minDay, localFine - 1);
+    setLocalInizio(newVal);
+    onChange(formatDateYMD(new Date(dayToTimestamp(newVal))), formatDateYMD(new Date(dayToTimestamp(localFine))));
+  };
+
+  // Sposta fine di n giorni
+  const moveFine = (days: number) => {
+    const newVal = clamp(localFine + days, localInizio + 1, maxDay);
+    setLocalFine(newVal);
+    onChange(formatDateYMD(new Date(dayToTimestamp(localInizio))), formatDateYMD(new Date(dayToTimestamp(newVal))));
+  };
+
+  // Imposta data da input
+  const setInizioFromDate = (dateStr: string) => {
+    const ts = new Date(dateStr).getTime();
+    const day = clamp(timestampToDay(ts), minDay, localFine - 1);
+    setLocalInizio(day);
+    setEditingInizio(false);
+    onChange(formatDateYMD(new Date(dayToTimestamp(day))), formatDateYMD(new Date(dayToTimestamp(localFine))));
+  };
+
+  const setFineFromDate = (dateStr: string) => {
+    const ts = new Date(dateStr).getTime();
+    const day = clamp(timestampToDay(ts), localInizio + 1, maxDay);
+    setLocalFine(day);
+    setEditingFine(false);
+    onChange(formatDateYMD(new Date(dayToTimestamp(localInizio))), formatDateYMD(new Date(dayToTimestamp(day))));
   };
 
   // Presets - relativi alla data fine selezionata
@@ -267,13 +300,9 @@ export default function TimeSlider({ dataInizio, dataFine, onChange }: TimeSlide
 
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '12px' }}>
           {/* Slider inizio */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <span style={{
-              fontSize: '12px',
-              fontWeight: 500,
-              width: '30px',
-              color: '#3b82f6',
-            }}>Da:</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <span style={{ fontSize: '12px', fontWeight: 500, width: '25px', color: '#3b82f6' }}>Da:</span>
+            <button onClick={() => moveInizio(-1)} style={{ padding: '2px 6px', fontSize: '14px', background: 'var(--bg-primary)', border: '1px solid var(--border)', borderRadius: '4px', cursor: 'pointer', color: 'var(--text-primary)' }} title="-1 giorno">◀</button>
             <input
               type="range"
               min={minDay}
@@ -291,24 +320,31 @@ export default function TimeSlider({ dataInizio, dataFine, onChange }: TimeSlide
               onBlur={handleRelease}
               style={sliderStyle}
             />
-            <span style={{
-              fontSize: '11px',
-              color: 'var(--text-secondary)',
-              minWidth: '75px',
-              textAlign: 'right',
-            }}>
-              {formatDate(localInizio)}
-            </span>
+            <button onClick={() => moveInizio(1)} style={{ padding: '2px 6px', fontSize: '14px', background: 'var(--bg-primary)', border: '1px solid var(--border)', borderRadius: '4px', cursor: 'pointer', color: 'var(--text-primary)' }} title="+1 giorno">▶</button>
+            {editingInizio ? (
+              <input
+                type="date"
+                defaultValue={formatDateYMD(new Date(dayToTimestamp(localInizio)))}
+                onChange={(e) => e.target.value && setInizioFromDate(e.target.value)}
+                onBlur={() => setEditingInizio(false)}
+                autoFocus
+                style={{ fontSize: '11px', padding: '2px 4px', width: '110px' }}
+              />
+            ) : (
+              <span
+                onClick={() => setEditingInizio(true)}
+                style={{ fontSize: '11px', color: 'var(--text-secondary)', minWidth: '80px', textAlign: 'right', cursor: 'pointer', textDecoration: 'underline dotted' }}
+                title="Clicca per modificare"
+              >
+                {formatDate(localInizio)}
+              </span>
+            )}
           </div>
 
           {/* Slider fine */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <span style={{
-              fontSize: '12px',
-              fontWeight: 500,
-              width: '30px',
-              color: '#22c55e',
-            }}>A:</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <span style={{ fontSize: '12px', fontWeight: 500, width: '25px', color: '#22c55e' }}>A:</span>
+            <button onClick={() => moveFine(-1)} style={{ padding: '2px 6px', fontSize: '14px', background: 'var(--bg-primary)', border: '1px solid var(--border)', borderRadius: '4px', cursor: 'pointer', color: 'var(--text-primary)' }} title="-1 giorno">◀</button>
             <input
               type="range"
               min={minDay}
@@ -326,15 +362,25 @@ export default function TimeSlider({ dataInizio, dataFine, onChange }: TimeSlide
               onBlur={handleRelease}
               style={sliderStyle}
             />
-            <span style={{
-              fontSize: '11px',
-              color: localFine > oggiDay ? '#f97316' : 'var(--text-secondary)',
-              fontWeight: localFine > oggiDay ? 600 : 400,
-              minWidth: '75px',
-              textAlign: 'right',
-            }}>
-              {formatDate(localFine)}{localFine > oggiDay ? ' (futuro)' : ''}
-            </span>
+            <button onClick={() => moveFine(1)} style={{ padding: '2px 6px', fontSize: '14px', background: 'var(--bg-primary)', border: '1px solid var(--border)', borderRadius: '4px', cursor: 'pointer', color: 'var(--text-primary)' }} title="+1 giorno">▶</button>
+            {editingFine ? (
+              <input
+                type="date"
+                defaultValue={formatDateYMD(new Date(dayToTimestamp(localFine)))}
+                onChange={(e) => e.target.value && setFineFromDate(e.target.value)}
+                onBlur={() => setEditingFine(false)}
+                autoFocus
+                style={{ fontSize: '11px', padding: '2px 4px', width: '110px' }}
+              />
+            ) : (
+              <span
+                onClick={() => setEditingFine(true)}
+                style={{ fontSize: '11px', color: localFine > oggiDay ? '#f97316' : 'var(--text-secondary)', fontWeight: localFine > oggiDay ? 600 : 400, minWidth: '80px', textAlign: 'right', cursor: 'pointer', textDecoration: 'underline dotted' }}
+                title="Clicca per modificare"
+              >
+                {formatDate(localFine)}{localFine > oggiDay ? ' (futuro)' : ''}
+              </span>
+            )}
           </div>
         </div>
 
