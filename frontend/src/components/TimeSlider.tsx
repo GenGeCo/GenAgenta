@@ -212,6 +212,28 @@ export default function TimeSlider({ dataInizio, dataFine, onChange }: TimeSlide
 
         {/* Presets */}
         <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+          {/* Pulsante OGGI - porta data fine a oggi */}
+          <button
+            className="btn"
+            style={{
+              padding: '4px 10px',
+              fontSize: '12px',
+              fontWeight: 600,
+              borderRadius: '4px',
+              minWidth: '40px',
+              background: '#22c55e',
+              color: 'white',
+              border: 'none',
+            }}
+            onClick={() => {
+              const oggiStr = oggi.toISOString().split('T')[0];
+              const unAnnoFaStr = new Date(oggi.getTime() - 365 * ONE_DAY).toISOString().split('T')[0];
+              onChange(unAnnoFaStr, oggiStr);
+            }}
+            title="Imposta periodo: ultimo anno fino a oggi"
+          >
+            Oggi
+          </button>
           {[
             { label: '1M', months: 1 },
             { label: '3M', months: 3 },
@@ -251,23 +273,7 @@ export default function TimeSlider({ dataInizio, dataFine, onChange }: TimeSlide
           {formatShortDate(minDay)}
         </span>
 
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '12px', position: 'relative' }}>
-          {/* Indicatore "OGGI" */}
-          <div style={{
-            position: 'absolute',
-            left: `calc(${(oggiDay / maxDay) * 100}% + 30px)`,
-            top: '-2px',
-            transform: 'translateX(-50%)',
-            fontSize: '9px',
-            fontWeight: 600,
-            color: '#22c55e',
-            background: 'var(--bg-secondary)',
-            padding: '0 4px',
-            zIndex: 1,
-          }}>
-            OGGI
-          </div>
-
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '12px' }}>
           {/* Slider inizio */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             <span style={{
@@ -346,11 +352,12 @@ export default function TimeSlider({ dataInizio, dataFine, onChange }: TimeSlide
             />
             <span style={{
               fontSize: '11px',
-              color: 'var(--text-secondary)',
+              color: localFine > oggiDay ? '#f97316' : 'var(--text-secondary)',
+              fontWeight: localFine > oggiDay ? 600 : 400,
               minWidth: '75px',
               textAlign: 'right',
             }}>
-              {formatDate(localFine)}
+              {formatDate(localFine)}{localFine > oggiDay ? ' (futuro)' : ''}
             </span>
           </div>
         </div>
@@ -445,18 +452,12 @@ export default function TimeSlider({ dataInizio, dataFine, onChange }: TimeSlide
         </div>
       )}
 
-      {/* Stile per slider thumb con gradiente passato/futuro */}
+      {/* Stile per slider thumb */}
       <style>{`
         .time-slider input[type="range"] {
           -webkit-appearance: none;
           appearance: none;
-          /* Gradiente: blu (passato) -> verde (oggi) -> arancione (futuro) */
-          background: linear-gradient(to right,
-            #3b82f6 0%,
-            #3b82f6 ${(oggiDay / maxDay) * 100}%,
-            #22c55e ${(oggiDay / maxDay) * 100}%,
-            #f97316 100%
-          );
+          background: #e2e8f0;
           height: 6px;
           border-radius: 3px;
           outline: none;
