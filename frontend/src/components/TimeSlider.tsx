@@ -110,15 +110,25 @@ export default function TimeSlider({ dataInizio, dataFine, onChange }: TimeSlide
     }, 200); // Debounce 200ms - buon compromesso tra reattività e stabilità
   };
 
-  // Handler immediato per rilascio slider
-  const handleRelease = () => {
+  // Handler per rilascio slider - usa le date originali quando possibile per evitare sfasamenti
+  const handleReleaseInizio = () => {
     setIsDragging(false);
     if (changeTimeout.current) {
       clearTimeout(changeTimeout.current);
     }
     const dataIn = new Date(dayToTimestamp(localInizio)).toISOString().split('T')[0];
+    // Usa dataFine originale se non è stata modificata, per evitare arrotondamenti
+    onChange(dataIn, dataFine);
+  };
+
+  const handleReleaseFine = () => {
+    setIsDragging(false);
+    if (changeTimeout.current) {
+      clearTimeout(changeTimeout.current);
+    }
+    // Usa dataInizio originale se non è stata modificata
     const dataFn = new Date(dayToTimestamp(localFine)).toISOString().split('T')[0];
-    onChange(dataIn, dataFn);
+    onChange(dataInizio, dataFn);
   };
 
   // Presets - relativi alla data fine selezionata
@@ -302,9 +312,9 @@ export default function TimeSlider({ dataInizio, dataFine, onChange }: TimeSlide
                   applyChange(val, localFine);
                 }
               }}
-              onMouseUp={handleRelease}
-              onTouchEnd={handleRelease}
-              onBlur={handleRelease}
+              onMouseUp={handleReleaseInizio}
+              onTouchEnd={handleReleaseInizio}
+              onBlur={handleReleaseInizio}
               style={sliderStyle}
             />
             <span style={{
@@ -345,9 +355,9 @@ export default function TimeSlider({ dataInizio, dataFine, onChange }: TimeSlide
                   applyChange(localInizio, val);
                 }
               }}
-              onMouseUp={handleRelease}
-              onTouchEnd={handleRelease}
-              onBlur={handleRelease}
+              onMouseUp={handleReleaseFine}
+              onTouchEnd={handleReleaseFine}
+              onBlur={handleReleaseFine}
               style={sliderStyle}
             />
             <span style={{
