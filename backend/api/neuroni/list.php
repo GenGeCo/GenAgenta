@@ -14,6 +14,10 @@ $search = $_GET['search'] ?? null;
 $limit = min((int)($_GET['limit'] ?? 100), 500);
 $offset = (int)($_GET['offset'] ?? 0);
 
+// Filtri temporali
+$dataInizio = $_GET['data_inizio'] ?? null;
+$dataFine = $_GET['data_fine'] ?? null;
+
 // Filtri geografici
 $lat = $_GET['lat'] ?? null;
 $lng = $_GET['lng'] ?? null;
@@ -72,6 +76,13 @@ if ($lat && $lng && $raggio) {
     $params[] = $lng;
     $params[] = $lat;
     $params[] = $raggio;
+}
+
+// Filtro temporale - mostra solo neuroni creati prima della data fine
+// (macchina del tempo: se vai nel passato, i neuroni creati dopo spariscono)
+if ($dataFine) {
+    $where[] = "DATE(n.data_creazione) <= ?";
+    $params[] = $dataFine;
 }
 
 $whereClause = $where ? 'WHERE ' . implode(' AND ', $where) : '';

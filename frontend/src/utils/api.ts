@@ -104,6 +104,8 @@ class ApiClient {
     lat?: number;
     lng?: number;
     raggio?: number;
+    data_inizio?: string;
+    data_fine?: string;
     limit?: number;
     offset?: number;
   }): Promise<{ data: Neurone[]; pagination: { total: number; limit: number; offset: number } }> {

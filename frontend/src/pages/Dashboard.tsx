@@ -181,6 +181,8 @@ export default function Dashboard() {
           api.getNeuroni({
             tipo: filtri.tipoNeurone || undefined,
             categoria: filtri.categoria || undefined,
+            data_inizio: filtri.dataInizio || undefined,
+            data_fine: filtri.dataFine || undefined,
             limit: 500,
           }),
           api.getSinapsi({
@@ -602,8 +604,12 @@ export default function Dashboard() {
                         certezza: 'ipotesi',
                         livello: 'aziendale',
                       });
-                      // Ricarica sinapsi
-                      const sinapsiRes = await api.getSinapsi({ limit: 1000 });
+                      // Ricarica sinapsi con filtri data attivi
+                      const sinapsiRes = await api.getSinapsi({
+                        data_inizio: filtri.dataInizio || undefined,
+                        data_fine: filtri.dataFine || undefined,
+                        limit: 1000
+                      });
                       setSinapsi(sinapsiRes.data);
                       // Reset
                       setQuickMapMode(false);

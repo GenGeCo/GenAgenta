@@ -135,6 +135,15 @@ try {
         $selectColore = $hasColore ? 'f.colore as famiglia_colore,' : 'NULL as famiglia_colore,';
         $groupByColore = $hasColore ? ', f.colore' : '';
 
+        // Costruisci filtro date per transazioni
+        $whereDateVendite = "";
+        if ($dataInizio) {
+            $whereDateVendite .= " AND v.data_vendita >= " . $db->quote($dataInizio);
+        }
+        if ($dataFine) {
+            $whereDateVendite .= " AND v.data_vendita <= " . $db->quote($dataFine);
+        }
+
         $sqlFamiglie = "
             SELECT
                 v.neurone_id,
@@ -147,6 +156,7 @@ try {
             JOIN famiglie_prodotto f ON v.famiglia_id = f.id
             WHERE v.controparte_id IS NOT NULL
               AND (v.tipo_transazione = 'vendita' OR v.tipo_transazione IS NULL)
+              $whereDateVendite
             GROUP BY v.neurone_id, v.controparte_id, v.famiglia_id, f.nome $groupByColore
         ";
 
