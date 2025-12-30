@@ -7,7 +7,7 @@ import type { AuthState } from '../types';
 export function useAuth() {
   const [state, setState] = useState<AuthState>({
     user: null,
-    token: localStorage.getItem('token'),
+    token: sessionStorage.getItem('token'),
     personalAccess: false,
     isLoading: true,
   });
@@ -15,7 +15,7 @@ export function useAuth() {
   // Verifica token all'avvio
   useEffect(() => {
     const checkAuth = async () => {
-      const token = localStorage.getItem('token');
+      const token = sessionStorage.getItem('token');
       if (!token) {
         setState((s) => ({ ...s, isLoading: false }));
         return;
@@ -30,7 +30,7 @@ export function useAuth() {
           isLoading: false,
         });
       } catch {
-        localStorage.removeItem('token');
+        sessionStorage.removeItem('token');
         setState({
           user: null,
           token: null,
