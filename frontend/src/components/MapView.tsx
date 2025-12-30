@@ -859,6 +859,9 @@ export default function MapView({
     // Aspetta che tipiNeurone sia caricato per determinare le forme corrette
     if (tipiNeurone.length === 0) return;
 
+    console.log('DEBUG MapView: inizia creazione features, neuroniConCoord:', neuroniConCoord.length);
+
+    try {
     // Funzione per ottenere il colore dalla prima categoria del neurone (case-insensitive)
     const getCategoriaColor = (neuroneCategorie: string[]): string => {
       if (!neuroneCategorie || neuroneCategorie.length === 0) return DEFAULT_COLOR;
@@ -1882,6 +1885,10 @@ export default function MapView({
       });
 
       handlersAdded.current = true;
+    }
+
+    } catch (error) {
+      console.error('DEBUG MapView ERRORE nella creazione layer:', error);
     }
 
   }, [neuroni, sinapsi, categorie, tipiNeurone, selectedId, filterSelectedId, mapReady, filtri, getSinapsiCount, styleLoaded]);
