@@ -820,6 +820,12 @@ export default function MapView({
 
     const m = map.current;
 
+    // Aspetta che lo stile sia completamente caricato
+    if (!m.isStyleLoaded()) {
+      console.log('DEBUG MapView: stile non ancora caricato, aspetto...');
+      return;
+    }
+
     // Filtra neuroni con coordinate
     let neuroniConCoord = neuroni.filter((n) => n.lat && n.lng);
 
@@ -927,6 +933,7 @@ export default function MapView({
 
     // Usa setData se la source esiste già, altrimenti crea source e layers
     const existingSource = m.getSource('neuroni') as mapboxgl.GeoJSONSource | undefined;
+    console.log('DEBUG MapView source neuroni:', existingSource ? 'esiste, aggiorno dati' : 'non esiste, creo layer');
     if (existingSource) {
       // Aggiorna solo i dati, non ricreare i layer
       existingSource.setData(geojsonData);
