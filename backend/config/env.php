@@ -11,11 +11,11 @@ function loadEnv(): void {
     global $envLoaded;
     if ($envLoaded) return;
 
-    // Cerca .env in varie posizioni
+    // Cerca .env in varie posizioni (priorità: root del progetto)
     $possiblePaths = [
-        __DIR__ . '/.env',                    // backend/config/.env
+        dirname(__DIR__, 2) . '/.env',        // root/.env (PRIORITARIO)
         dirname(__DIR__) . '/.env',           // backend/.env
-        dirname(__DIR__, 2) . '/.env',        // root/.env
+        __DIR__ . '/.env',                    // backend/config/.env
     ];
 
     $envPath = null;
