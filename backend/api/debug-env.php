@@ -5,44 +5,49 @@
 header('Content-Type: application/json');
 header('Access-Control-Allow-Origin: *');
 
+$results = [];
+
 try {
-    // Test 1: Carica env.php
-    require_once __DIR__ . '/../config/env.php';
+    // Test 1: Carica config (che include env.php)
+    $results['step1_config'] = 'loading...';
+    require_once __DIR__ . '/../config/config.php';
+    $results['step1_config'] = 'OK';
 
-    // Test 2: Verifica se .env esiste
-    $envPaths = [
-        __DIR__ . '/../config/.env',
-        __DIR__ . '/../.env',
-        __DIR__ . '/../../.env',
-    ];
+    // Test 2: Carica database
+    $results['step2_database'] = 'loading...';
+    require_once __DIR__ . '/../config/database.php';
+    $results['step2_database'] = 'OK';
 
-    $foundPath = null;
-    foreach ($envPaths as $path) {
-        if (file_exists($path)) {
-            $foundPath = $path;
-            break;
-        }
-    }
+    // Test 3: Carica helpers
+    $results['step3_helpers'] = 'loading...';
+    require_once __DIR__ . '/../includes/helpers.php';
+    $results['step3_helpers'] = 'OK';
 
-    // Test 3: Prova a leggere le variabili
-    $jwtSecret = env('JWT_SECRET', 'DEFAULT_NOT_FOUND');
-    $geminiKey = env('GEMINI_API_KEY', 'DEFAULT_NOT_FOUND');
+    // Test 4: Connessione DB
+    $results['step4_db_connect'] = 'connecting...';
+    $db = getDB();
+    $results['step4_db_connect'] = 'OK';
 
-    echo json_encode([
-        'success' => true,
-        'env_file_found' => $foundPath,
-        'jwt_secret_set' => ($jwtSecret !== 'DEFAULT_NOT_FOUND'),
-        'jwt_secret_value' => substr($jwtSecret, 0, 10) . '...',
-        'gemini_key_set' => ($geminiKey !== 'DEFAULT_NOT_FOUND'),
-        'gemini_key_preview' => substr($geminiKey, 0, 10) . '...',
-        'php_version' => PHP_VERSION
-    ], JSON_PRETTY_PRINT);
+    // Test 5: JWT Secret
+    $results['step5_jwt_secret'] = defined('JWT_SECRET') ? substr(JWT_SECRET, 0, 10) . '...' : 'NOT DEFINED';
+
+    // Test 6: Genera un JWT di test
+    $results['step6_jwt_generate'] = 'generating...';
+    $testToken = generateJWT(['test' => 'data', 'user_id' => 'test123']);
+    $results['step6_jwt_generate'] = 'OK - token length: ' . strlen($testToken);
+
+    // Test 7: Verifica il JWT
+    $results['step7_jwt_verify'] = 'verifying...';
+    $decoded = verifyJWT($testToken);
+    $results['step7_jwt_verify'] = $decoded ? 'OK' : 'FAILED';
+
+    $results['success'] = true;
 
 } catch (Throwable $e) {
-    echo json_encode([
-        'success' => false,
-        'error' => $e->getMessage(),
-        'file' => $e->getFile(),
-        'line' => $e->getLine()
-    ], JSON_PRETTY_PRINT);
+    $results['success'] = false;
+    $results['error'] = $e->getMessage();
+    $results['error_file'] = $e->getFile();
+    $results['error_line'] = $e->getLine();
 }
+
+echo json_encode($results, JSON_PRETTY_PRINT);
