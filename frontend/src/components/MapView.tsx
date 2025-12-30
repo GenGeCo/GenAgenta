@@ -822,13 +822,13 @@ export default function MapView({
 
     // Aspetta che lo stile sia completamente caricato
     if (!m.isStyleLoaded()) {
-      console.log('DEBUG MapView: stile non ancora caricato, registro listener...');
-      // Registra listener per quando lo stile sarà pronto
-      m.once('style.load', () => {
-        console.log('DEBUG MapView: stile ora caricato, forzo re-render');
+      console.log('DEBUG MapView: stile non ancora caricato, riprovo tra 100ms...');
+      // Riprova dopo un breve delay
+      const timer = setTimeout(() => {
+        console.log('DEBUG MapView: riprovo dopo delay, isStyleLoaded:', m.isStyleLoaded());
         setStyleLoaded(prev => prev + 1);
-      });
-      return;
+      }, 100);
+      return () => clearTimeout(timer);
     }
 
     // Filtra neuroni con coordinate
