@@ -37,7 +37,7 @@ class ApiClient {
           // Sessione invalidata da login su altro dispositivo
           if (data?.code === 'SESSION_REPLACED') {
             this.token = null;
-            localStorage.removeItem('token');
+            sessionStorage.removeItem('token');
             // Mostra messaggio e poi redirect
             alert(data.message || 'Sei stato disconnesso perché è stato effettuato un accesso da un altro dispositivo');
             window.location.href = '/genagenta/login';
@@ -46,15 +46,15 @@ class ApiClient {
 
           // Token scaduto normale
           this.token = null;
-          localStorage.removeItem('token');
+          sessionStorage.removeItem('token');
           window.location.href = '/genagenta/login';
         }
         return Promise.reject(error);
       }
     );
 
-    // Recupera token da localStorage
-    const savedToken = localStorage.getItem('token');
+    // Recupera token da sessionStorage (isolato per tab)
+    const savedToken = sessionStorage.getItem('token');
     if (savedToken) {
       this.token = savedToken;
     }
@@ -63,9 +63,9 @@ class ApiClient {
   setToken(token: string | null) {
     this.token = token;
     if (token) {
-      localStorage.setItem('token', token);
+      sessionStorage.setItem('token', token);
     } else {
-      localStorage.removeItem('token');
+      sessionStorage.removeItem('token');
     }
   }
 
