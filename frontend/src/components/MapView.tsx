@@ -823,6 +823,13 @@ export default function MapView({
     // Filtra neuroni con coordinate
     let neuroniConCoord = neuroni.filter((n) => n.lat && n.lng);
 
+    console.log('DEBUG MapView neuroni:', {
+      totali: neuroni.length,
+      conCoordinate: neuroniConCoord.length,
+      tipiNeuroneCaricati: tipiNeurone.length,
+      primi: neuroni.slice(0, 2).map(n => ({ id: n.id, nome: n.nome, lat: n.lat, lng: n.lng }))
+    });
+
     // Applica filtri se attivi
     if (filtri.tipiSelezionati.length > 0) {
       neuroniConCoord = neuroniConCoord.filter(n => filtri.tipiSelezionati.includes(n.tipo));

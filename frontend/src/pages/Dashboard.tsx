@@ -196,11 +196,13 @@ export default function Dashboard() {
 
         console.log('DEBUG loadData:', {
           filtri: { dataInizio: filtri.dataInizio, dataFine: filtri.dataFine },
+          neuroniCaricati: neuroniRes.data.length,
           sinapsiCaricate: sinapsiRes.data.length,
-          primiDue: sinapsiRes.data.slice(0, 2).map((s: { id: string; data_inizio: string; data_fine: string | null }) => ({
-            id: s.id,
-            data_inizio: s.data_inizio,
-            data_fine: s.data_fine
+          primiNeuroni: neuroniRes.data.slice(0, 2).map((n: { id: string; nome: string; lat: number | null; lng: number | null }) => ({
+            id: n.id,
+            nome: n.nome,
+            lat: n.lat,
+            lng: n.lng
           }))
         });
         setNeuroni(neuroniRes.data);
