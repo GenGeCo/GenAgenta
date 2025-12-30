@@ -113,8 +113,16 @@ export function AiChat({ isOpen, onClose }: AiChatProps) {
           borderRadius: '12px 12px 0 0',
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <span style={{ fontSize: '20px' }}>🤖</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <div
+            style={{
+              width: '12px',
+              height: '12px',
+              borderRadius: '50%',
+              background: 'linear-gradient(135deg, #3b82f6, #8b5cf6)',
+              boxShadow: '0 0 12px rgba(59, 130, 246, 0.6), 0 0 24px rgba(139, 92, 246, 0.3)',
+            }}
+          />
           <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
             AI Assistant
           </span>

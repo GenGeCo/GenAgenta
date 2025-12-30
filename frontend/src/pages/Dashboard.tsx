@@ -325,20 +325,34 @@ export default function Dashboard() {
             onClick={() => setShowAiChat(!showAiChat)}
             title="Assistente AI"
             style={{
-              background: showAiChat ? 'rgba(59, 130, 246, 0.2)' : 'transparent',
-              border: showAiChat ? '2px solid #3b82f6' : '1px solid rgba(255,255,255,0.2)',
-              borderRadius: '8px',
-              padding: '8px 12px',
+              background: showAiChat ? 'rgba(59, 130, 246, 0.15)' : 'transparent',
+              border: 'none',
+              borderRadius: '50%',
+              width: '36px',
+              height: '36px',
               cursor: 'pointer',
               display: 'flex',
               alignItems: 'center',
-              gap: '6px',
-              color: showAiChat ? '#3b82f6' : 'rgba(255,255,255,0.7)',
-              fontSize: '14px',
+              justifyContent: 'center',
               marginRight: '12px',
+              transition: 'all 0.3s ease',
             }}
           >
-            🤖
+            <div
+              style={{
+                width: showAiChat ? '14px' : '10px',
+                height: showAiChat ? '14px' : '10px',
+                borderRadius: '50%',
+                background: showAiChat
+                  ? 'linear-gradient(135deg, #3b82f6, #8b5cf6)'
+                  : 'linear-gradient(135deg, #60a5fa, #a78bfa)',
+                boxShadow: showAiChat
+                  ? '0 0 16px rgba(59, 130, 246, 0.7), 0 0 32px rgba(139, 92, 246, 0.4)'
+                  : '0 0 8px rgba(96, 165, 250, 0.5)',
+                transition: 'all 0.3s ease',
+                animation: showAiChat ? 'none' : 'pulse 2s ease-in-out infinite',
+              }}
+            />
           </button>
 
           {user && <UserMenu user={user} onLogout={logout} onUserUpdate={updateUser} />}
