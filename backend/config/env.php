@@ -11,10 +11,22 @@ function loadEnv(): void {
     global $envLoaded;
     if ($envLoaded) return;
 
-    // Cerca .env nella root del progetto (2 livelli sopra backend/config)
-    $envPath = dirname(__DIR__, 2) . '/.env';
+    // Cerca .env in varie posizioni
+    $possiblePaths = [
+        __DIR__ . '/.env',                    // backend/config/.env
+        dirname(__DIR__) . '/.env',           // backend/.env
+        dirname(__DIR__, 2) . '/.env',        // root/.env
+    ];
 
-    if (file_exists($envPath)) {
+    $envPath = null;
+    foreach ($possiblePaths as $path) {
+        if (file_exists($path)) {
+            $envPath = $path;
+            break;
+        }
+    }
+
+    if ($envPath && file_exists($envPath)) {
         $lines = file($envPath, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
 
         foreach ($lines as $line) {
