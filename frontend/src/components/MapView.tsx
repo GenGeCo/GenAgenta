@@ -822,7 +822,12 @@ export default function MapView({
 
     // Aspetta che lo stile sia completamente caricato
     if (!m.isStyleLoaded()) {
-      console.log('DEBUG MapView: stile non ancora caricato, aspetto...');
+      console.log('DEBUG MapView: stile non ancora caricato, registro listener...');
+      // Registra listener per quando lo stile sarà pronto
+      m.once('style.load', () => {
+        console.log('DEBUG MapView: stile ora caricato, forzo re-render');
+        setStyleLoaded(prev => prev + 1);
+      });
       return;
     }
 
