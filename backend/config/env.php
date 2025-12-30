@@ -27,25 +27,34 @@ function loadEnv(): void {
     }
 
     if ($envPath && file_exists($envPath)) {
-        $lines = file($envPath, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
-
-        foreach ($lines as $line) {
-            // Salta commenti
-            if (str_starts_with(trim($line), '#')) continue;
-
-            // Parsa KEY=VALUE
-            if (strpos($line, '=') !== false) {
-                [$key, $value] = explode('=', $line, 2);
-                $key = trim($key);
-                $value = trim($value);
-
-                // Rimuovi virgolette se presenti
-                $value = trim($value, '"\'');
-
-                // Imposta sia in $_ENV che in putenv
-                $_ENV[$key] = $value;
-                putenv("$key=$value");
+        try {
+            $lines = file($envPath, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+            if ($lines === false) {
+                $envLoaded = true;
+                return;
             }
+
+            foreach ($lines as $line) {
+                // Salta righe vuote o commenti
+                $line = trim($line);
+                if (empty($line) || $line[0] === '#') continue;
+
+                // Parsa KEY=VALUE
+                if (strpos($line, '=') !== false) {
+                    [$key, $value] = explode('=', $line, 2);
+                    $key = trim($key);
+                    $value = trim($value);
+
+                    // Rimuovi virgolette se presenti
+                    $value = trim($value, '"\'');
+
+                    // Imposta sia in $_ENV che in putenv
+                    $_ENV[$key] = $value;
+                    putenv("$key=$value");
+                }
+            }
+        } catch (Exception $e) {
+            error_log("Errore lettura .env: " . $e->getMessage());
         }
     }
 
