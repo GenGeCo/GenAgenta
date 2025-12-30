@@ -31,11 +31,16 @@ if ($teamRow) {
     $teamId = $teamRow['team_id'];
 }
 
-// Genera session_token univoco e salvalo nel DB
+// Genera session_token univoco e salvalo nel DB (se la colonna esiste)
 // Questo invalida automaticamente le sessioni precedenti
 $sessionToken = bin2hex(random_bytes(32));
-$stmt = $db->prepare('UPDATE utenti SET session_token = ? WHERE id = ?');
-$stmt->execute([$sessionToken, $user['id']]);
+try {
+    $stmt = $db->prepare('UPDATE utenti SET session_token = ? WHERE id = ?');
+    $stmt->execute([$sessionToken, $user['id']]);
+} catch (PDOException $e) {
+    // Colonna session_token non esiste ancora - continua senza
+    $sessionToken = null;
+}
 
 // Genera token JWT (include azienda_id, team_id e session_token)
 $token = generateJWT([

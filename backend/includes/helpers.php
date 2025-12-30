@@ -129,18 +129,22 @@ function requireAuth(): array {
     // Verifica che il session_token corrisponda a quello nel DB
     // Se non corrisponde, significa che un altro dispositivo ha fatto login
     if (isset($user['session_token']) && isset($user['user_id'])) {
-        $db = getDB();
-        $stmt = $db->prepare('SELECT session_token FROM utenti WHERE id = ?');
-        $stmt->execute([$user['user_id']]);
-        $row = $stmt->fetch();
+        try {
+            $db = getDB();
+            $stmt = $db->prepare('SELECT session_token FROM utenti WHERE id = ?');
+            $stmt->execute([$user['user_id']]);
+            $row = $stmt->fetch();
 
-        if ($row && $row['session_token'] !== $user['session_token']) {
-            // Sessione invalidata da un nuovo login
-            jsonResponse([
-                'error' => 'Sessione scaduta',
-                'code' => 'SESSION_REPLACED',
-                'message' => 'Sei stato disconnesso perché è stato effettuato un accesso da un altro dispositivo'
-            ], 401);
+            if ($row && isset($row['session_token']) && $row['session_token'] !== $user['session_token']) {
+                // Sessione invalidata da un nuovo login
+                jsonResponse([
+                    'error' => 'Sessione scaduta',
+                    'code' => 'SESSION_REPLACED',
+                    'message' => 'Sei stato disconnesso perché è stato effettuato un accesso da un altro dispositivo'
+                ], 401);
+            }
+        } catch (PDOException $e) {
+            // Colonna session_token non esiste ancora - skip verifica
         }
     }
 
