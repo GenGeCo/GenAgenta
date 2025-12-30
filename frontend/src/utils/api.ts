@@ -30,9 +30,21 @@ class ApiClient {
     // Interceptor per gestire errori
     this.client.interceptors.response.use(
       (response) => response,
-      (error: AxiosError<{ error: string }>) => {
+      (error: AxiosError<{ error: string; code?: string; message?: string }>) => {
         if (error.response?.status === 401) {
-          // Token scaduto
+          const data = error.response.data;
+
+          // Sessione invalidata da login su altro dispositivo
+          if (data?.code === 'SESSION_REPLACED') {
+            this.token = null;
+            localStorage.removeItem('token');
+            // Mostra messaggio e poi redirect
+            alert(data.message || 'Sei stato disconnesso perché è stato effettuato un accesso da un altro dispositivo');
+            window.location.href = '/genagenta/login';
+            return Promise.reject(error);
+          }
+
+          // Token scaduto normale
           this.token = null;
           localStorage.removeItem('token');
           window.location.href = '/genagenta/login';

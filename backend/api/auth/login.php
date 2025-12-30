@@ -31,7 +31,13 @@ if ($teamRow) {
     $teamId = $teamRow['team_id'];
 }
 
-// Genera token JWT (include azienda_id e team_id per filtro dati)
+// Genera session_token univoco e salvalo nel DB
+// Questo invalida automaticamente le sessioni precedenti
+$sessionToken = bin2hex(random_bytes(32));
+$stmt = $db->prepare('UPDATE utenti SET session_token = ? WHERE id = ?');
+$stmt->execute([$sessionToken, $user['id']]);
+
+// Genera token JWT (include azienda_id, team_id e session_token)
 $token = generateJWT([
     'user_id' => $user['id'],
     'azienda_id' => $user['azienda_id'],
@@ -39,7 +45,8 @@ $token = generateJWT([
     'email' => $user['email'],
     'nome' => $user['nome'],
     'ruolo' => $user['ruolo'],
-    'ruolo_azienda' => $user['ruolo_azienda']
+    'ruolo_azienda' => $user['ruolo_azienda'],
+    'session_token' => $sessionToken
 ]);
 
 jsonResponse([
