@@ -81,6 +81,12 @@ $routes = [
     // Famiglie Prodotto
     'GET:famiglie-prodotto' => 'famiglie-prodotto/list.php',
     'POST:famiglie-prodotto' => 'famiglie-prodotto/create.php',
+
+    // AI Assistant
+    'POST:ai/chat' => 'ai/chat.php',
+
+    // Geocoding
+    'GET:geocode/search' => 'geocode/search.php',
 ];
 
 // Match route con parametri

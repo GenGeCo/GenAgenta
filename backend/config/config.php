@@ -28,6 +28,9 @@ define('CORS_ORIGINS', ENVIRONMENT === 'production'
 // Timezone
 date_default_timezone_set('Europe/Rome');
 
+// Claude API per AI Assistant
+define('CLAUDE_API_KEY', env('CLAUDE_API_KEY', ''));
+
 // Error reporting
 if (ENVIRONMENT === 'development') {
     error_reporting(E_ALL);

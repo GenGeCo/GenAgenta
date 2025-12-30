@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import mapboxgl from 'mapbox-gl';
 import type { Neurone, Sinapsi, FiltriMappa, Categoria, TipoNeuroneConfig, VenditaProdotto } from '../types';
 import { api } from '../utils/api';
+import { AddressSearch } from './AddressSearch';
 
 // Token Mapbox
 mapboxgl.accessToken = import.meta.env.VITE_MAPBOX_TOKEN || 'pk.eyJ1IjoiZ2VuYWdlbnRhIiwiYSI6ImNtamR6a3UwazBjNHEzZnF4aWxhYzlqMmUifQ.0RcP-1pxFW7rHYvVoJQG5g';
@@ -1904,6 +1905,34 @@ export default function MapView({
   return (
     <div style={{ position: 'relative', width: '100%', height: '100%' }}>
       <div ref={mapContainer} style={{ width: '100%', height: '100%' }} />
+
+      {/* Barra di ricerca indirizzi - alto centro */}
+      <div
+        style={{
+          position: 'absolute',
+          top: '10px',
+          left: '50%',
+          transform: 'translateX(-50%)',
+          width: '320px',
+          maxWidth: 'calc(100% - 20px)',
+          zIndex: 10,
+        }}
+      >
+        <AddressSearch
+          placeholder="Cerca indirizzo sulla mappa..."
+          onSelect={(result) => {
+            // Vola alla posizione trovata
+            if (map.current && result.lat && result.lng) {
+              map.current.flyTo({
+                center: [result.lng, result.lat],
+                zoom: 17,
+                pitch: 60,
+                duration: 2000,
+              });
+            }
+          }}
+        />
+      </div>
 
       {/* Legenda: contenuto che appare SOPRA il bottone */}
       {categorie.length > 0 && showLegend && (

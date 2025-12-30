@@ -532,6 +532,36 @@ class ApiClient {
   }): Promise<void> {
     await this.getV2Client().post('/preferenze', preferenze);
   }
+
+  // AI Chat
+  async aiChat(
+    message: string,
+    history: { role: string; content: string }[] = []
+  ): Promise<{ response: string; iterations: number }> {
+    const { data } = await this.client.post('/ai/chat', { message, history });
+    return data;
+  }
+
+  // Geocoding - ricerca indirizzi
+  async geocodeSearch(
+    query: string,
+    limit: number = 5
+  ): Promise<{
+    success: boolean;
+    query: string;
+    results: Array<{
+      formatted: string;
+      lat: number;
+      lng: number;
+      type: string;
+      relevance?: number;
+    }>;
+  }> {
+    const { data } = await this.client.get('/geocode/search', {
+      params: { q: query, limit },
+    });
+    return data;
+  }
 }
 
 export const api = new ApiClient();

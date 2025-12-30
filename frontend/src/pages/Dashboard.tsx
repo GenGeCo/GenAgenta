@@ -13,6 +13,7 @@ import InvitePopup from '../components/InvitePopup';
 import NeuroneFormModal from '../components/NeuroneFormModal';
 import SinapsiDetailPanel from '../components/SinapsiDetailPanel';
 import { QuickCreateEntity, QuickEntityActions, QuickSelectTarget, QuickConnectionType, QuickTransactionForm } from '../components/QuickActionPopup';
+import { AiChat } from '../components/AiChat';
 import type { Neurone, Sinapsi, FiltriMappa, Categoria, TipoNeuroneConfig } from '../types';
 
 // Tipi per quick actions
@@ -41,6 +42,7 @@ export default function Dashboard() {
   const [pendingInvite, setPendingInvite] = useState<PendingInvite | null>(null);
   const [showPinModal, setShowPinModal] = useState(false);
   const [showSetPinModal, setShowSetPinModal] = useState(false);
+  const [showAiChat, setShowAiChat] = useState(false);
 
   // Stato per selezione posizione su mappa (creazione neurone)
   const [mapPickingMode, setMapPickingMode] = useState(false);
@@ -316,6 +318,27 @@ export default function Dashboard() {
             }}
           >
             {personalAccess ? '🔓' : '🔒'}
+          </button>
+
+          {/* Bottone AI Chat */}
+          <button
+            onClick={() => setShowAiChat(!showAiChat)}
+            title="Assistente AI"
+            style={{
+              background: showAiChat ? 'rgba(59, 130, 246, 0.2)' : 'transparent',
+              border: showAiChat ? '2px solid #3b82f6' : '1px solid rgba(255,255,255,0.2)',
+              borderRadius: '8px',
+              padding: '8px 12px',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              color: showAiChat ? '#3b82f6' : 'rgba(255,255,255,0.7)',
+              fontSize: '14px',
+              marginRight: '12px',
+            }}
+          >
+            🤖
           </button>
 
           {user && <UserMenu user={user} onLogout={logout} onUserUpdate={updateUser} />}
@@ -858,6 +881,9 @@ export default function Dashboard() {
           onPositionFound={(lat, lng) => setFlyToPosition({ lat, lng })}
         />
       )}
+
+      {/* AI Chat */}
+      <AiChat isOpen={showAiChat} onClose={() => setShowAiChat(false)} />
     </div>
   );
 }
