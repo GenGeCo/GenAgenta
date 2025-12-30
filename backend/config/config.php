@@ -28,8 +28,11 @@ define('CORS_ORIGINS', ENVIRONMENT === 'production'
 // Timezone
 date_default_timezone_set('Europe/Rome');
 
-// Claude API per AI Assistant
-define('CLAUDE_API_KEY', env('CLAUDE_API_KEY', ''));
+// Gemini API per AI Assistant (gratuita da Google AI Studio)
+define('GEMINI_API_KEY', env('GEMINI_API_KEY', ''));
+
+// Claude API (legacy, non più usata)
+// define('CLAUDE_API_KEY', env('CLAUDE_API_KEY', ''));
 
 // Error reporting
 if (ENVIRONMENT === 'development') {

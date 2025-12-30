@@ -1,9 +1,9 @@
 <?php
 /**
  * POST /ai/chat
- * Endpoint principale per chat con AI
+ * Endpoint principale per chat con AI (Gemini)
  *
- * L'AI ha accesso a tools per interrogare il sistema
+ * L'AI ha accesso a tools per interrogare e modificare il sistema
  */
 
 require_once __DIR__ . '/../../config/config.php';
@@ -14,11 +14,11 @@ require_once __DIR__ . '/tools.php';
 // Auth richiesta
 $user = requireAuth();
 
-// Config AI (da spostare in config.php)
-$CLAUDE_API_KEY = getenv('CLAUDE_API_KEY') ?: (defined('CLAUDE_API_KEY') ? CLAUDE_API_KEY : null);
+// Config AI - Gemini
+$GEMINI_API_KEY = getenv('GEMINI_API_KEY') ?: (defined('GEMINI_API_KEY') ? GEMINI_API_KEY : null);
 
-if (!$CLAUDE_API_KEY) {
-    errorResponse('API Key Claude non configurata', 500);
+if (!$GEMINI_API_KEY) {
+    errorResponse('API Key Gemini non configurata. Vai su https://aistudio.google.com/apikey per ottenere una chiave gratuita.', 500);
 }
 
 $data = getJsonBody();
@@ -29,12 +29,12 @@ if (empty($userMessage)) {
     errorResponse('Messaggio richiesto', 400);
 }
 
-// Definizione tools disponibili per l'AI
-$tools = [
+// Definizione tools per Gemini (formato functionDeclarations)
+$functionDeclarations = [
     [
         'name' => 'query_database',
         'description' => 'Esegue una query SQL SELECT sul database. Usa questo per recuperare dati strutturati. Il database contiene: neuroni (entità), sinapsi (connessioni), vendite_prodotto, famiglie_prodotto, utenti, tipi, tipologie.',
-        'input_schema' => [
+        'parameters' => [
             'type' => 'object',
             'properties' => [
                 'sql' => [
@@ -48,16 +48,16 @@ $tools = [
     [
         'name' => 'get_database_schema',
         'description' => 'Ottiene lo schema del database (tabelle e colonne). Usa questo prima di scrivere query per conoscere la struttura.',
-        'input_schema' => [
+        'parameters' => [
             'type' => 'object',
-            'properties' => [],
+            'properties' => new stdClass(), // Empty object for no params
             'required' => []
         ]
     ],
     [
         'name' => 'search_entities',
         'description' => 'Cerca entità (neuroni) per nome, tipo o categoria.',
-        'input_schema' => [
+        'parameters' => [
             'type' => 'object',
             'properties' => [
                 'query' => [
@@ -79,7 +79,7 @@ $tools = [
     [
         'name' => 'get_entity_details',
         'description' => 'Ottiene tutti i dettagli di una specifica entità incluse le sue connessioni e transazioni.',
-        'input_schema' => [
+        'parameters' => [
             'type' => 'object',
             'properties' => [
                 'entity_id' => [
@@ -93,7 +93,7 @@ $tools = [
     [
         'name' => 'get_sales_stats',
         'description' => 'Ottiene statistiche vendite aggregate per periodo, entità o famiglia prodotto.',
-        'input_schema' => [
+        'parameters' => [
             'type' => 'object',
             'properties' => [
                 'entity_id' => [
@@ -119,7 +119,7 @@ $tools = [
     [
         'name' => 'get_connections',
         'description' => 'Ottiene le connessioni (sinapsi) di un\'entità o tra due entità.',
-        'input_schema' => [
+        'parameters' => [
             'type' => 'object',
             'properties' => [
                 'entity_id' => [
@@ -139,7 +139,7 @@ $tools = [
     [
         'name' => 'geocode_address',
         'description' => 'Cerca un indirizzo e restituisce le coordinate GPS (latitudine, longitudine). Usa questo prima di creare entità con indirizzo per ottenere le coordinate.',
-        'input_schema' => [
+        'parameters' => [
             'type' => 'object',
             'properties' => [
                 'address' => [
@@ -157,7 +157,7 @@ $tools = [
     [
         'name' => 'create_entity',
         'description' => 'Crea una nuova entità (neurone) nel sistema: persona, impresa, luogo o cantiere.',
-        'input_schema' => [
+        'parameters' => [
             'type' => 'object',
             'properties' => [
                 'nome' => [
@@ -208,7 +208,7 @@ $tools = [
     [
         'name' => 'update_entity',
         'description' => 'Aggiorna una entità esistente.',
-        'input_schema' => [
+        'parameters' => [
             'type' => 'object',
             'properties' => [
                 'entity_id' => [
@@ -255,7 +255,7 @@ $tools = [
     [
         'name' => 'create_connection',
         'description' => 'Crea una connessione (sinapsi) tra due entità.',
-        'input_schema' => [
+        'parameters' => [
             'type' => 'object',
             'properties' => [
                 'entity_from' => [
@@ -285,7 +285,7 @@ $tools = [
     [
         'name' => 'create_sale',
         'description' => 'Registra una vendita/transazione per un\'entità.',
-        'input_schema' => [
+        'parameters' => [
             'type' => 'object',
             'properties' => [
                 'entity_id' => [
@@ -323,7 +323,7 @@ $tools = [
     [
         'name' => 'create_note',
         'description' => 'Aggiunge una nota a un\'entità.',
-        'input_schema' => [
+        'parameters' => [
             'type' => 'object',
             'properties' => [
                 'entity_id' => [
@@ -348,8 +348,8 @@ $tools = [
     ]
 ];
 
-// System prompt con contesto
-$systemPrompt = <<<PROMPT
+// System instruction per Gemini
+$systemInstruction = <<<PROMPT
 Sei l'assistente AI di GenAgenta, un CRM per la gestione delle relazioni commerciali.
 
 CONTESTO UTENTE:
@@ -366,12 +366,12 @@ STRUTTURA DATI:
 REGOLE:
 1. Rispondi SEMPRE in italiano
 2. Sii conciso ma completo
-3. Se non hai abbastanza dati, usa i tools per recuperarli
+3. Se non hai abbastanza dati, usa le funzioni per recuperarli
 4. Per query SQL, filtra SEMPRE per azienda_id = '{$user['azienda_id']}' per sicurezza
 5. Non inventare dati - se non li trovi, dillo
 6. Formatta numeri e valute in modo leggibile (€ 1.234,56)
 
-TOOLS DI LETTURA:
+FUNZIONI DI LETTURA:
 - query_database: per query SQL personalizzate (solo SELECT)
 - get_database_schema: per conoscere struttura tabelle
 - search_entities: per cercare entità per nome
@@ -379,7 +379,7 @@ TOOLS DI LETTURA:
 - get_sales_stats: per statistiche vendite
 - get_connections: per vedere connessioni tra entità
 
-TOOLS DI SCRITTURA:
+FUNZIONI DI SCRITTURA:
 - geocode_address: per cercare un indirizzo e ottenere coordinate GPS
 - create_entity: per creare nuove entità (persone, aziende, luoghi, cantieri)
 - update_entity: per aggiornare entità esistenti
@@ -392,34 +392,42 @@ WORKFLOW TIPICO PER CREARE ENTITÀ CON INDIRIZZO:
 2. Usa create_entity passando lat, lng e indirizzo ottenuti
 PROMPT;
 
-// Prepara messaggi per Claude
-$messages = [];
+// Prepara contenuti per Gemini
+$contents = [];
 
 // Aggiungi storia conversazione (ultimi 10 messaggi)
 $history = array_slice($conversationHistory, -10);
 foreach ($history as $msg) {
-    $messages[] = [
-        'role' => $msg['role'],
-        'content' => $msg['content']
+    $role = $msg['role'] === 'assistant' ? 'model' : 'user';
+    $contents[] = [
+        'role' => $role,
+        'parts' => [['text' => $msg['content']]]
     ];
 }
 
 // Aggiungi messaggio utente corrente
-$messages[] = [
+$contents[] = [
     'role' => 'user',
-    'content' => $userMessage
+    'parts' => [['text' => $userMessage]]
 ];
 
-// Chiamata Claude API
-function callClaude($apiKey, $system, $messages, $tools, $maxTokens = 4096) {
-    $url = 'https://api.anthropic.com/v1/messages';
+// Funzione chiamata Gemini API
+function callGemini($apiKey, $systemInstruction, $contents, $functionDeclarations) {
+    $model = 'gemini-2.5-flash-preview-05-20';
+    $url = "https://generativelanguage.googleapis.com/v1beta/models/{$model}:generateContent?key={$apiKey}";
 
     $payload = [
-        'model' => 'claude-sonnet-4-20250514',
-        'max_tokens' => $maxTokens,
-        'system' => $system,
-        'messages' => $messages,
-        'tools' => $tools
+        'contents' => $contents,
+        'systemInstruction' => [
+            'parts' => [['text' => $systemInstruction]]
+        ],
+        'tools' => [
+            ['functionDeclarations' => $functionDeclarations]
+        ],
+        'generationConfig' => [
+            'temperature' => 0.7,
+            'maxOutputTokens' => 4096
+        ]
     ];
 
     $ch = curl_init($url);
@@ -428,86 +436,107 @@ function callClaude($apiKey, $system, $messages, $tools, $maxTokens = 4096) {
         CURLOPT_POSTFIELDS => json_encode($payload),
         CURLOPT_RETURNTRANSFER => true,
         CURLOPT_HTTPHEADER => [
-            'Content-Type: application/json',
-            'x-api-key: ' . $apiKey,
-            'anthropic-version: 2023-06-01'
-        ]
+            'Content-Type: application/json'
+        ],
+        CURLOPT_TIMEOUT => 60
     ]);
 
     $response = curl_exec($ch);
     $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    $curlError = curl_error($ch);
     curl_close($ch);
 
+    if ($curlError) {
+        error_log("Gemini cURL error: $curlError");
+        return ['error' => 'Errore di connessione', 'details' => $curlError];
+    }
+
     if ($httpCode !== 200) {
-        error_log("Claude API error: $httpCode - $response");
-        return ['error' => 'Errore comunicazione AI', 'details' => $response];
+        error_log("Gemini API error: $httpCode - $response");
+        return ['error' => 'Errore comunicazione AI', 'details' => $response, 'code' => $httpCode];
     }
 
     return json_decode($response, true);
 }
 
-// Loop per gestire tool calls
-$maxIterations = 5; // Massimo 5 tool calls per richiesta
+// Loop per gestire function calls
+$maxIterations = 5;
 $iteration = 0;
 $finalResponse = null;
 
 while ($iteration < $maxIterations) {
     $iteration++;
 
-    $response = callClaude($CLAUDE_API_KEY, $systemPrompt, $messages, $tools);
+    $response = callGemini($GEMINI_API_KEY, $systemInstruction, $contents, $functionDeclarations);
 
     if (isset($response['error'])) {
-        errorResponse($response['error'], 500);
+        error_log("Gemini error response: " . json_encode($response));
+        errorResponse($response['error'] . ' - ' . ($response['details'] ?? ''), 500);
     }
 
-    $stopReason = $response['stop_reason'] ?? 'end_turn';
-    $content = $response['content'] ?? [];
+    // Controlla se c'è un errore nella risposta
+    if (isset($response['error'])) {
+        errorResponse($response['error']['message'] ?? 'Errore Gemini', 500);
+    }
 
-    // Se stop_reason è 'end_turn', abbiamo la risposta finale
-    if ($stopReason === 'end_turn') {
-        // Estrai testo dalla risposta
-        foreach ($content as $block) {
-            if ($block['type'] === 'text') {
-                $finalResponse = $block['text'];
-                break;
-            }
+    // Estrai candidate
+    $candidates = $response['candidates'] ?? [];
+    if (empty($candidates)) {
+        error_log("Gemini no candidates: " . json_encode($response));
+        errorResponse('Nessuna risposta da Gemini', 500);
+    }
+
+    $candidate = $candidates[0];
+    $finishReason = $candidate['finishReason'] ?? 'STOP';
+    $parts = $candidate['content']['parts'] ?? [];
+
+    // Controlla se ci sono function calls
+    $functionCalls = [];
+    $textResponse = null;
+
+    foreach ($parts as $part) {
+        if (isset($part['functionCall'])) {
+            $functionCalls[] = $part['functionCall'];
         }
+        if (isset($part['text'])) {
+            $textResponse = $part['text'];
+        }
+    }
+
+    // Se non ci sono function calls, abbiamo la risposta finale
+    if (empty($functionCalls)) {
+        $finalResponse = $textResponse ?? "Risposta non disponibile.";
         break;
     }
 
-    // Se stop_reason è 'tool_use', esegui i tools
-    if ($stopReason === 'tool_use') {
-        $toolResults = [];
+    // Esegui le function calls
+    $functionResponses = [];
+    foreach ($functionCalls as $fc) {
+        $funcName = $fc['name'];
+        $funcArgs = $fc['args'] ?? [];
 
-        foreach ($content as $block) {
-            if ($block['type'] === 'tool_use') {
-                $toolName = $block['name'];
-                $toolInput = $block['input'];
-                $toolId = $block['id'];
+        // Esegui il tool
+        $result = executeAiTool($funcName, $funcArgs, $user);
 
-                // Esegui il tool
-                $result = executeAiTool($toolName, $toolInput, $user);
-
-                $toolResults[] = [
-                    'type' => 'tool_result',
-                    'tool_use_id' => $toolId,
-                    'content' => json_encode($result, JSON_UNESCAPED_UNICODE)
-                ];
-            }
-        }
-
-        // Aggiungi risposta assistant con tool_use
-        $messages[] = [
-            'role' => 'assistant',
-            'content' => $content
-        ];
-
-        // Aggiungi risultati tools
-        $messages[] = [
-            'role' => 'user',
-            'content' => $toolResults
+        $functionResponses[] = [
+            'functionResponse' => [
+                'name' => $funcName,
+                'response' => $result
+            ]
         ];
     }
+
+    // Aggiungi la risposta del model con function calls
+    $contents[] = [
+        'role' => 'model',
+        'parts' => $parts
+    ];
+
+    // Aggiungi i risultati delle funzioni
+    $contents[] = [
+        'role' => 'user',
+        'parts' => $functionResponses
+    ];
 }
 
 if ($finalResponse === null) {
