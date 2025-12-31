@@ -413,8 +413,8 @@ $contents[] = [
 
 // Funzione chiamata Gemini API
 function callGemini($apiKey, $systemInstruction, $contents, $functionDeclarations) {
-    // Usa gemini-1.5-flash per migliori limiti free tier
-    $model = 'gemini-1.5-flash';
+    // Usa gemini-2.5-flash (disponibile nel free tier)
+    $model = 'gemini-2.5-flash';
     $url = "https://generativelanguage.googleapis.com/v1beta/models/{$model}:generateContent?key={$apiKey}";
 
     $payload = [
