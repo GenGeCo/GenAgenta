@@ -29,6 +29,8 @@ interface AiChatProps {
   onAction?: (action: AiFrontendAction) => void;
 }
 
+const CHAT_STORAGE_KEY = 'genagenta_ai_chat_history';
+
 export function AiChat({ isOpen, onClose, onAction }: AiChatProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
@@ -37,6 +39,31 @@ export function AiChat({ isOpen, onClose, onAction }: AiChatProps) {
   const [_contextInfo, setContextInfo] = useState({ messagesCount: 0, threshold: 8 });
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+
+  // Carica conversazione da localStorage al mount
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(CHAT_STORAGE_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        // Riconverti le date da string a Date
+        const restored = parsed.map((m: { role: string; content: string; timestamp: string }) => ({
+          ...m,
+          timestamp: new Date(m.timestamp)
+        }));
+        setMessages(restored);
+      }
+    } catch (e) {
+      console.error('Errore caricamento chat salvata:', e);
+    }
+  }, []);
+
+  // Salva conversazione in localStorage quando cambia
+  useEffect(() => {
+    if (messages.length > 0) {
+      localStorage.setItem(CHAT_STORAGE_KEY, JSON.stringify(messages));
+    }
+  }, [messages]);
 
   // Scroll to bottom when messages change
   useEffect(() => {
@@ -49,6 +76,12 @@ export function AiChat({ isOpen, onClose, onAction }: AiChatProps) {
       setTimeout(() => inputRef.current?.focus(), 100);
     }
   }, [isOpen]);
+
+  // Nuova sessione - cancella tutto
+  const startNewSession = () => {
+    setMessages([]);
+    localStorage.removeItem(CHAT_STORAGE_KEY);
+  };
 
   const sendMessage = async () => {
     if (!input.trim() || isLoading) return;
@@ -193,19 +226,39 @@ export function AiChat({ isOpen, onClose, onAction }: AiChatProps) {
             </div>
           )}
         </div>
-        <button
-          onClick={onClose}
-          style={{
-            background: 'none',
-            border: 'none',
-            fontSize: '20px',
-            cursor: 'pointer',
-            color: 'var(--text-secondary)',
-            padding: '4px',
-          }}
-        >
-          ×
-        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          {/* Bottone Nuova Sessione */}
+          {messages.length > 0 && (
+            <button
+              onClick={startNewSession}
+              title="Nuova sessione"
+              style={{
+                background: 'none',
+                border: '1px solid var(--border-color)',
+                borderRadius: '6px',
+                fontSize: '11px',
+                cursor: 'pointer',
+                color: 'var(--text-secondary)',
+                padding: '4px 8px',
+              }}
+            >
+              Nuova
+            </button>
+          )}
+          <button
+            onClick={onClose}
+            style={{
+              background: 'none',
+              border: 'none',
+              fontSize: '20px',
+              cursor: 'pointer',
+              color: 'var(--text-secondary)',
+              padding: '4px',
+            }}
+          >
+            ×
+          </button>
+        </div>
       </div>
 
       {/* Messages */}
