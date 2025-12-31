@@ -492,7 +492,7 @@ function tool_createEntity(PDO $db, array $input, array $user): array {
     );
 
     $sql = "INSERT INTO neuroni (
-                id, azienda_id, nome, tipo, indirizzo, latitudine, longitudine,
+                id, azienda_id, nome, tipo, indirizzo, lat, lng,
                 email, telefono, categorie, note, personale, creato_da, creato_il
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())";
 
@@ -561,8 +561,8 @@ function tool_updateEntity(PDO $db, array $input, array $user): array {
 
     // Coordinate
     if (isset($input['lat']) && isset($input['lng'])) {
-        $updates[] = "latitudine = ?";
-        $updates[] = "longitudine = ?";
+        $updates[] = "lat = ?";
+        $updates[] = "lng = ?";
         $params[] = $input['lat'];
         $params[] = $input['lng'];
     }
@@ -930,7 +930,7 @@ function tool_mapSelectEntity(PDO $db, array $input, array $user): array {
     }
 
     // Verifica che l'entità esista e recupera coordinate
-    $stmt = $db->prepare("SELECT id, nome, latitudine, longitudine FROM neuroni WHERE id = ? AND azienda_id = ?");
+    $stmt = $db->prepare("SELECT id, nome, lat, lng FROM neuroni WHERE id = ? AND azienda_id = ?");
     $stmt->execute([$entityId, $user['azienda_id']]);
     $entity = $stmt->fetch(PDO::FETCH_ASSOC);
 
@@ -944,8 +944,8 @@ function tool_mapSelectEntity(PDO $db, array $input, array $user): array {
         '_frontend_action' => [
             'type' => 'map_select_entity',
             'entity_id' => $entityId,
-            'lat' => (float)$entity['latitudine'],
-            'lng' => (float)$entity['longitudine'],
+            'lat' => (float)$entity['lat'],
+            'lng' => (float)$entity['lng'],
             'entity_name' => $entity['nome']
         ]
     ];
