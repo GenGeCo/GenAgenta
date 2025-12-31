@@ -413,7 +413,8 @@ $contents[] = [
 
 // Funzione chiamata Gemini API
 function callGemini($apiKey, $systemInstruction, $contents, $functionDeclarations) {
-    $model = 'gemini-2.5-flash-preview-05-20';
+    // Usa gemini-1.5-flash per migliori limiti free tier
+    $model = 'gemini-1.5-flash';
     $url = "https://generativelanguage.googleapis.com/v1beta/models/{$model}:generateContent?key={$apiKey}";
 
     $payload = [
@@ -453,6 +454,12 @@ function callGemini($apiKey, $systemInstruction, $contents, $functionDeclaration
 
     if ($httpCode !== 200) {
         error_log("Gemini API error: $httpCode - $response");
+
+        // Gestione specifica per rate limit
+        if ($httpCode === 429) {
+            return ['error' => 'Troppe richieste - riprova tra qualche secondo', 'code' => 429];
+        }
+
         return ['error' => 'Errore comunicazione AI', 'details' => $response, 'code' => $httpCode];
     }
 
