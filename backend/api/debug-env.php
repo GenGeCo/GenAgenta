@@ -8,38 +8,47 @@ header('Access-Control-Allow-Origin: *');
 $results = [];
 
 try {
-    // Test 1: Carica config (che include env.php)
-    $results['step1_config'] = 'loading...';
     require_once __DIR__ . '/../config/config.php';
-    $results['step1_config'] = 'OK';
 
-    // Test 2: Carica database
-    $results['step2_database'] = 'loading...';
-    require_once __DIR__ . '/../config/database.php';
-    $results['step2_database'] = 'OK';
+    // Test Gemini API Key
+    $results['gemini_key_set'] = defined('GEMINI_API_KEY') && !empty(GEMINI_API_KEY);
+    $results['gemini_key_preview'] = defined('GEMINI_API_KEY') ? substr(GEMINI_API_KEY, 0, 15) . '...' : 'NOT SET';
 
-    // Test 3: Carica helpers
-    $results['step3_helpers'] = 'loading...';
-    require_once __DIR__ . '/../includes/helpers.php';
-    $results['step3_helpers'] = 'OK';
+    // Test chiamata Gemini
+    if (defined('GEMINI_API_KEY') && !empty(GEMINI_API_KEY)) {
+        $apiKey = GEMINI_API_KEY;
+        $url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={$apiKey}";
 
-    // Test 4: Connessione DB
-    $results['step4_db_connect'] = 'connecting...';
-    $db = getDB();
-    $results['step4_db_connect'] = 'OK';
+        $payload = [
+            'contents' => [
+                ['role' => 'user', 'parts' => [['text' => 'Rispondi solo "OK" se funziona']]]
+            ]
+        ];
 
-    // Test 5: JWT Secret
-    $results['step5_jwt_secret'] = defined('JWT_SECRET') ? substr(JWT_SECRET, 0, 10) . '...' : 'NOT DEFINED';
+        $ch = curl_init($url);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_POST, true);
+        curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($payload));
+        curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);
+        curl_setopt($ch, CURLOPT_TIMEOUT, 30);
 
-    // Test 6: Genera un JWT di test
-    $results['step6_jwt_generate'] = 'generating...';
-    $testToken = generateJWT(['test' => 'data', 'user_id' => 'test123']);
-    $results['step6_jwt_generate'] = 'OK - token length: ' . strlen($testToken);
+        $response = curl_exec($ch);
+        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $curlError = curl_error($ch);
+        curl_close($ch);
 
-    // Test 7: Verifica il JWT
-    $results['step7_jwt_verify'] = 'verifying...';
-    $decoded = verifyJWT($testToken);
-    $results['step7_jwt_verify'] = $decoded ? 'OK' : 'FAILED';
+        $results['gemini_http_code'] = $httpCode;
+        $results['gemini_curl_error'] = $curlError ?: 'none';
+
+        if ($httpCode === 200) {
+            $data = json_decode($response, true);
+            $results['gemini_test'] = 'OK';
+            $results['gemini_response'] = $data['candidates'][0]['content']['parts'][0]['text'] ?? 'no response';
+        } else {
+            $results['gemini_test'] = 'FAILED';
+            $results['gemini_error'] = $response;
+        }
+    }
 
     $results['success'] = true;
 
