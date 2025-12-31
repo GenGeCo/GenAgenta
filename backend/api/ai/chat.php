@@ -697,6 +697,11 @@ while ($iteration < $maxIterations) {
         if ($finishReason === 'SAFETY' || $finishReason === 'RECITATION') {
             errorResponse("La risposta è stata bloccata per motivi di sicurezza ($finishReason)", 400);
         }
+        // Se abbiamo già eseguito azioni, usa un messaggio di conferma
+        if (!empty($frontendActions)) {
+            $finalResponse = "Fatto!";
+            break;
+        }
         // Altrimenti considera la risposta vuota
         $finalResponse = "Non ho potuto generare una risposta. Riprova.";
         break;
