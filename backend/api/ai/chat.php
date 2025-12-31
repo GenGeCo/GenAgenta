@@ -30,11 +30,16 @@ require_once __DIR__ . '/tools.php';
 // Auth richiesta
 $user = requireAuth();
 
-// Config AI - Gemini
+// Config AI - OpenRouter (supporta Claude, GPT-4, Gemini, etc.)
+$OPENROUTER_API_KEY = getenv('OPENROUTER_API_KEY') ?: (defined('OPENROUTER_API_KEY') ? OPENROUTER_API_KEY : null);
+
+// Fallback a Gemini se OpenRouter non configurato
 $GEMINI_API_KEY = getenv('GEMINI_API_KEY') ?: (defined('GEMINI_API_KEY') ? GEMINI_API_KEY : null);
 
-if (!$GEMINI_API_KEY) {
-    errorResponse('API Key Gemini non configurata. Vai su https://aistudio.google.com/apikey per ottenere una chiave gratuita.', 500);
+$useOpenRouter = !empty($OPENROUTER_API_KEY);
+
+if (!$useOpenRouter && !$GEMINI_API_KEY) {
+    errorResponse('Nessuna API AI configurata. Configura OPENROUTER_API_KEY o GEMINI_API_KEY nel file .env', 500);
 }
 
 $data = getJsonBody();
@@ -605,9 +610,70 @@ $contents[] = [
     'parts' => [['text' => $userMessage]]
 ];
 
-// Funzione chiamata Gemini API
+// Funzione chiamata OpenRouter API (compatibile OpenAI)
+function callOpenRouter($apiKey, $systemInstruction, $messages, $tools) {
+    $url = "https://openrouter.ai/api/v1/chat/completions";
+
+    // Modello: Claude Sonnet (ottimo bilanciamento qualità/costo)
+    // Alternative: 'anthropic/claude-3-haiku' (più economico), 'openai/gpt-4o-mini'
+    $model = 'anthropic/claude-sonnet-4';
+
+    $payload = [
+        'model' => $model,
+        'messages' => $messages,
+        'tools' => $tools,
+        'temperature' => 0.7,
+        'max_tokens' => 4096
+    ];
+
+    // Aggiungi system message all'inizio
+    array_unshift($payload['messages'], [
+        'role' => 'system',
+        'content' => $systemInstruction
+    ]);
+
+    $ch = curl_init($url);
+    curl_setopt_array($ch, [
+        CURLOPT_POST => true,
+        CURLOPT_POSTFIELDS => json_encode($payload),
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_HTTPHEADER => [
+            'Content-Type: application/json',
+            'Authorization: Bearer ' . $apiKey,
+            'HTTP-Referer: https://www.gruppogea.net/genagenta',
+            'X-Title: GenAgenta CRM'
+        ],
+        CURLOPT_TIMEOUT => 90
+    ]);
+
+    $response = curl_exec($ch);
+    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    $curlError = curl_error($ch);
+    curl_close($ch);
+
+    if ($curlError) {
+        error_log("OpenRouter cURL error: $curlError");
+        return ['error' => 'Errore di connessione', 'details' => $curlError];
+    }
+
+    if ($httpCode !== 200) {
+        error_log("OpenRouter API error: $httpCode - $response");
+
+        if ($httpCode === 429) {
+            return ['error' => 'Troppe richieste - riprova tra qualche secondo', 'code' => 429];
+        }
+        if ($httpCode === 402) {
+            return ['error' => 'Credito OpenRouter esaurito - ricarica su openrouter.ai', 'code' => 402];
+        }
+
+        return ['error' => 'Errore comunicazione AI', 'details' => $response, 'code' => $httpCode];
+    }
+
+    return json_decode($response, true);
+}
+
+// Funzione chiamata Gemini API (fallback)
 function callGemini($apiKey, $systemInstruction, $contents, $functionDeclarations) {
-    // Usa gemini-2.5-flash-lite (fallback quando flash supera i limiti)
     $model = 'gemini-2.5-flash-lite';
     $url = "https://generativelanguage.googleapis.com/v1beta/models/{$model}:generateContent?key={$apiKey}";
 
@@ -649,7 +715,6 @@ function callGemini($apiKey, $systemInstruction, $contents, $functionDeclaration
     if ($httpCode !== 200) {
         error_log("Gemini API error: $httpCode - $response");
 
-        // Gestione specifica per rate limit
         if ($httpCode === 429) {
             return ['error' => 'Troppe richieste - riprova tra qualche secondo', 'code' => 429];
         }
@@ -660,116 +725,212 @@ function callGemini($apiKey, $systemInstruction, $contents, $functionDeclaration
     return json_decode($response, true);
 }
 
-// Loop per gestire function calls
-$maxIterations = 5;
-$iteration = 0;
-$finalResponse = null;
+// ============================================
+// GESTIONE DIVERSA PER OPENROUTER vs GEMINI
+// ============================================
 
-while ($iteration < $maxIterations) {
-    $iteration++;
+if ($useOpenRouter) {
+    // ========== OPENROUTER (formato OpenAI) ==========
 
-    $response = callGemini($GEMINI_API_KEY, $systemInstruction, $contents, $functionDeclarations);
-
-    if (isset($response['error'])) {
-        error_log("Gemini error response: " . json_encode($response));
-        errorResponse($response['error'] . ' - ' . ($response['details'] ?? ''), 500);
-    }
-
-    // Controlla se c'è un errore nella risposta
-    if (isset($response['error'])) {
-        errorResponse($response['error']['message'] ?? 'Errore Gemini', 500);
-    }
-
-    // Estrai candidate
-    $candidates = $response['candidates'] ?? [];
-    if (empty($candidates)) {
-        error_log("Gemini no candidates: " . json_encode($response));
-        errorResponse('Nessuna risposta da Gemini', 500);
-    }
-
-    $candidate = $candidates[0];
-    $finishReason = $candidate['finishReason'] ?? 'STOP';
-
-    // Gestisci casi in cui content potrebbe essere null
-    if (!isset($candidate['content']) || !isset($candidate['content']['parts'])) {
-        error_log("Gemini response missing content/parts: " . json_encode($candidate));
-        // Se finishReason indica un problema, riporta l'errore
-        if ($finishReason === 'SAFETY' || $finishReason === 'RECITATION') {
-            errorResponse("La risposta è stata bloccata per motivi di sicurezza ($finishReason)", 400);
-        }
-        // Se abbiamo già eseguito azioni, usa un messaggio di conferma
-        if (!empty($frontendActions)) {
-            $finalResponse = "Fatto!";
-            break;
-        }
-        // Altrimenti considera la risposta vuota
-        $finalResponse = "Non ho potuto generare una risposta. Riprova.";
-        break;
-    }
-
-    $parts = $candidate['content']['parts'];
-
-    // Controlla se ci sono function calls
-    $functionCalls = [];
-    $textResponse = null;
-
-    foreach ($parts as $part) {
-        if (isset($part['functionCall'])) {
-            $functionCalls[] = $part['functionCall'];
-        }
-        if (isset($part['text'])) {
-            $textResponse = $part['text'];
-        }
-    }
-
-    // Se non ci sono function calls, abbiamo la risposta finale
-    if (empty($functionCalls)) {
-        $finalResponse = $textResponse ?? "Risposta non disponibile.";
-        break;
-    }
-
-    // Esegui le function calls
-    $functionResponses = [];
-    foreach ($functionCalls as $fc) {
-        $funcName = $fc['name'];
-        $funcArgs = $fc['args'] ?? [];
-
-        // Esegui il tool con error handling
-        try {
-            $result = executeAiTool($funcName, $funcArgs, $user);
-        } catch (Exception $e) {
-            error_log("Tool execution error ($funcName): " . $e->getMessage());
-            $result = ['error' => "Errore nell'esecuzione del tool $funcName: " . $e->getMessage()];
-        } catch (Error $e) {
-            error_log("Tool execution fatal error ($funcName): " . $e->getMessage());
-            $result = ['error' => "Errore fatale nel tool $funcName: " . $e->getMessage()];
-        }
-
-        // Se il tool ha generato un'azione frontend, raccoglila
-        if (isset($result['_frontend_action'])) {
-            $frontendActions[] = $result['_frontend_action'];
-            unset($result['_frontend_action']);
-        }
-
-        $functionResponses[] = [
-            'functionResponse' => [
-                'name' => $funcName,
-                'response' => $result
+    // Converti tools al formato OpenAI
+    $openaiTools = [];
+    foreach ($functionDeclarations as $fd) {
+        $openaiTools[] = [
+            'type' => 'function',
+            'function' => [
+                'name' => $fd['name'],
+                'description' => $fd['description'],
+                'parameters' => $fd['parameters']
             ]
         ];
     }
 
-    // Aggiungi la risposta del model con function calls
-    $contents[] = [
-        'role' => 'model',
-        'parts' => $parts
+    // Converti history al formato OpenAI messages
+    $messages = [];
+    foreach ($conversationHistory as $msg) {
+        $messages[] = [
+            'role' => $msg['role'],
+            'content' => $msg['content']
+        ];
+    }
+    // Aggiungi messaggio utente corrente
+    $messages[] = [
+        'role' => 'user',
+        'content' => $userMessage
     ];
 
-    // Aggiungi i risultati delle funzioni
-    $contents[] = [
-        'role' => 'user',
-        'parts' => $functionResponses
-    ];
+    // Loop per gestire tool calls
+    $maxIterations = 5;
+    $iteration = 0;
+    $finalResponse = null;
+
+    while ($iteration < $maxIterations) {
+        $iteration++;
+
+        $response = callOpenRouter($OPENROUTER_API_KEY, $systemInstruction, $messages, $openaiTools);
+
+        if (isset($response['error'])) {
+            error_log("OpenRouter error: " . json_encode($response));
+            errorResponse($response['error'] . ' - ' . ($response['details'] ?? ''), 500);
+        }
+
+        // Estrai la risposta
+        $choices = $response['choices'] ?? [];
+        if (empty($choices)) {
+            error_log("OpenRouter no choices: " . json_encode($response));
+            errorResponse('Nessuna risposta da OpenRouter', 500);
+        }
+
+        $choice = $choices[0];
+        $message = $choice['message'] ?? [];
+        $finishReason = $choice['finish_reason'] ?? 'stop';
+
+        // Controlla se ci sono tool calls
+        $toolCalls = $message['tool_calls'] ?? [];
+        $textContent = $message['content'] ?? null;
+
+        // Se non ci sono tool calls, abbiamo la risposta finale
+        if (empty($toolCalls)) {
+            $finalResponse = $textContent ?? "Risposta completata.";
+            break;
+        }
+
+        // Aggiungi il messaggio dell'assistente con le tool calls
+        $messages[] = $message;
+
+        // Esegui le tool calls
+        foreach ($toolCalls as $tc) {
+            $funcName = $tc['function']['name'] ?? '';
+            $funcArgs = json_decode($tc['function']['arguments'] ?? '{}', true);
+            $toolCallId = $tc['id'] ?? '';
+
+            // Esegui il tool
+            try {
+                $result = executeAiTool($funcName, $funcArgs, $user);
+            } catch (Exception $e) {
+                error_log("Tool execution error ($funcName): " . $e->getMessage());
+                $result = ['error' => "Errore: " . $e->getMessage()];
+            } catch (Error $e) {
+                error_log("Tool execution fatal error ($funcName): " . $e->getMessage());
+                $result = ['error' => "Errore fatale: " . $e->getMessage()];
+            }
+
+            // Se il tool ha generato un'azione frontend, raccoglila
+            if (isset($result['_frontend_action'])) {
+                $frontendActions[] = $result['_frontend_action'];
+                unset($result['_frontend_action']);
+            }
+
+            // Aggiungi la risposta del tool
+            $messages[] = [
+                'role' => 'tool',
+                'tool_call_id' => $toolCallId,
+                'content' => json_encode($result)
+            ];
+        }
+    }
+
+} else {
+    // ========== GEMINI (formato Google) ==========
+
+    // Loop per gestire function calls
+    $maxIterations = 5;
+    $iteration = 0;
+    $finalResponse = null;
+
+    while ($iteration < $maxIterations) {
+        $iteration++;
+
+        $response = callGemini($GEMINI_API_KEY, $systemInstruction, $contents, $functionDeclarations);
+
+        if (isset($response['error'])) {
+            error_log("Gemini error response: " . json_encode($response));
+            errorResponse($response['error'] . ' - ' . ($response['details'] ?? ''), 500);
+        }
+
+        // Estrai candidate
+        $candidates = $response['candidates'] ?? [];
+        if (empty($candidates)) {
+            error_log("Gemini no candidates: " . json_encode($response));
+            errorResponse('Nessuna risposta da Gemini', 500);
+        }
+
+        $candidate = $candidates[0];
+        $finishReason = $candidate['finishReason'] ?? 'STOP';
+
+        // Gestisci casi in cui content potrebbe essere null
+        if (!isset($candidate['content']) || !isset($candidate['content']['parts'])) {
+            if ($finishReason === 'SAFETY' || $finishReason === 'RECITATION') {
+                errorResponse("Risposta bloccata per sicurezza ($finishReason)", 400);
+            }
+            if (!empty($frontendActions)) {
+                $finalResponse = "Fatto!";
+                break;
+            }
+            $finalResponse = "Non ho potuto generare una risposta. Riprova.";
+            break;
+        }
+
+        $parts = $candidate['content']['parts'];
+
+        // Controlla se ci sono function calls
+        $functionCalls = [];
+        $textResponse = null;
+
+        foreach ($parts as $part) {
+            if (isset($part['functionCall'])) {
+                $functionCalls[] = $part['functionCall'];
+            }
+            if (isset($part['text'])) {
+                $textResponse = $part['text'];
+            }
+        }
+
+        // Se non ci sono function calls, abbiamo la risposta finale
+        if (empty($functionCalls)) {
+            $finalResponse = $textResponse ?? "Risposta non disponibile.";
+            break;
+        }
+
+        // Esegui le function calls
+        $functionResponses = [];
+        foreach ($functionCalls as $fc) {
+            $funcName = $fc['name'];
+            $funcArgs = $fc['args'] ?? [];
+
+            try {
+                $result = executeAiTool($funcName, $funcArgs, $user);
+            } catch (Exception $e) {
+                $result = ['error' => "Errore: " . $e->getMessage()];
+            } catch (Error $e) {
+                $result = ['error' => "Errore fatale: " . $e->getMessage()];
+            }
+
+            if (isset($result['_frontend_action'])) {
+                $frontendActions[] = $result['_frontend_action'];
+                unset($result['_frontend_action']);
+            }
+
+            $functionResponses[] = [
+                'functionResponse' => [
+                    'name' => $funcName,
+                    'response' => $result
+                ]
+            ];
+        }
+
+        // Aggiungi la risposta del model con function calls
+        $contents[] = [
+            'role' => 'model',
+            'parts' => $parts
+        ];
+
+        // Aggiungi i risultati delle funzioni
+        $contents[] = [
+            'role' => 'user',
+            'parts' => $functionResponses
+        ];
+    }
 }
 
 if ($finalResponse === null) {
