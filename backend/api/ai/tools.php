@@ -1231,9 +1231,15 @@ function tool_readLearnings(array $user): array {
 
     $knowledge = json_decode(file_get_contents($knowledgeFile), true) ?? [];
 
-    // Raggruppa per categoria
+    // Raggruppa per categoria (salta metadati che iniziano con _)
     $byCategory = [];
+    $count = 0;
     foreach ($knowledge as $id => $item) {
+        // Salta chiavi di metadati
+        if (strpos($id, '_') === 0) continue;
+        // Salta item senza i campi necessari
+        if (!isset($item['title']) || !isset($item['content'])) continue;
+
         $cat = $item['category'] ?? 'general';
         if (!isset($byCategory[$cat])) {
             $byCategory[$cat] = [];
@@ -1243,13 +1249,14 @@ function tool_readLearnings(array $user): array {
             'title' => $item['title'],
             'content' => $item['content']
         ];
+        $count++;
     }
 
     return [
         'success' => true,
-        'message' => 'Ecco le mie conoscenze memorizzate',
+        'message' => $count > 0 ? 'Ecco le mie conoscenze memorizzate' : 'Nessuna conoscenza memorizzata ancora',
         'learnings' => $byCategory,
-        'total' => count($knowledge)
+        'total' => $count
     ];
 }
 
