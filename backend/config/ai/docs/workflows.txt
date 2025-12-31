@@ -1,0 +1,27 @@
+WORKFLOW COMUNI
+===============
+
+1. CREARE UN'ENTITA CON INDIRIZZO:
+   - geocode_address("Via Roma 10, Milano") -> ottieni lat/lng
+   - create_entity(nome, tipo, indirizzo, lat, lng)
+
+2. REGISTRARE UNA VENDITA:
+   - search_entities("nome cliente") -> ottieni entity_id
+   - create_sale(entity_id, importo, data, descrizione)
+   - SEMPRE chiedere conferma prima!
+
+3. CREARE CONNESSIONE TRA DUE ENTITA:
+   - search_entities per trovare entrambe
+   - create_connection(entity_from, entity_to, tipo)
+   - Tipi: commerciale, fornisce, influencer, prescrittore, tecnico, partner, collabora
+
+4. CONFERMA PRIMA DI AGIRE:
+   Prima di create/update/delete, mostra riepilogo:
+   "Sto per registrare:
+   - [dettagli]
+   Confermi?"
+
+   Per eliminazioni: "ATTENZIONE: operazione IRREVERSIBILE. Sicuro?"
+
+TIPI ENTITA: persona, impresa, luogo, cantiere
+TIPI CONNESSIONE: commerciale, fornisce, influencer, prescrittore, tecnico, partner, collabora

@@ -33,6 +33,8 @@ export function AiChat({ isOpen, onClose, onAction }: AiChatProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [loadingPhase, setLoadingPhase] = useState<'thinking' | 'compacting'>('thinking');
+  const [_contextInfo, setContextInfo] = useState({ messagesCount: 0, threshold: 8 });
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
@@ -61,6 +63,10 @@ export function AiChat({ isOpen, onClose, onAction }: AiChatProps) {
     setInput('');
     setIsLoading(true);
 
+    // Determina se faremo compaction (history > 6 significa che con questo messaggio supereremo 8)
+    const willCompact = messages.length >= 7;
+    setLoadingPhase(willCompact ? 'compacting' : 'thinking');
+
     try {
       // Prepara history per API
       const history = messages.map((m) => ({
@@ -68,7 +74,22 @@ export function AiChat({ isOpen, onClose, onAction }: AiChatProps) {
         content: m.content,
       }));
 
+      // Se stiamo per fare compaction, mostra fase "compacting" per un po'
+      if (willCompact) {
+        setLoadingPhase('compacting');
+        await new Promise(r => setTimeout(r, 500)); // Piccola pausa per UX
+      }
+      setLoadingPhase('thinking');
+
       const response = await api.aiChat(userMessage.content, history);
+
+      // Aggiorna info contesto dalla risposta
+      if (response.context) {
+        setContextInfo({
+          messagesCount: response.context.messages_count || 0,
+          threshold: response.context.compaction_threshold || 8
+        });
+      }
 
       const assistantMessage: Message = {
         role: 'assistant',
@@ -95,6 +116,7 @@ export function AiChat({ isOpen, onClose, onAction }: AiChatProps) {
       setMessages((prev) => [...prev, errorMessage]);
     } finally {
       setIsLoading(false);
+      setLoadingPhase('thinking');
     }
   };
 
@@ -149,6 +171,27 @@ export function AiChat({ isOpen, onClose, onAction }: AiChatProps) {
           <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
             AI Assistant
           </span>
+          {/* Indicatore memoria conversazione */}
+          {messages.length > 0 && (
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '4px',
+              marginLeft: '8px',
+              padding: '2px 8px',
+              backgroundColor: messages.length >= 6 ? 'rgba(234, 179, 8, 0.2)' : 'rgba(59, 130, 246, 0.1)',
+              borderRadius: '10px',
+              fontSize: '11px',
+              color: messages.length >= 6 ? '#eab308' : 'var(--text-secondary)',
+            }}>
+              <span>{Math.min(messages.length, 8)}/8</span>
+              {messages.length >= 7 && (
+                <span title="Al prossimo messaggio farò un riassunto" style={{ cursor: 'help' }}>
+                  ⚡
+                </span>
+              )}
+            </div>
+          )}
         </div>
         <button
           onClick={onClose}
@@ -294,7 +337,19 @@ export function AiChat({ isOpen, onClose, onAction }: AiChatProps) {
                 fontSize: '14px',
               }}
             >
-              <span className="typing-indicator">Sto pensando...</span>
+              {loadingPhase === 'compacting' ? (
+                <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span style={{ fontSize: '12px' }}>📝</span>
+                  Sto riassumendo la conversazione
+                  <span className="dots-animation">...</span>
+                </span>
+              ) : (
+                <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span className="thinking-dot" />
+                  Sto pensando
+                  <span className="dots-animation">...</span>
+                </span>
+              )}
             </div>
           </div>
         )}

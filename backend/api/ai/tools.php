@@ -90,6 +90,16 @@ function executeAiTool(string $toolName, array $input, array $user): array {
             case 'propose_improvement':
                 return tool_proposeImprovement($input, $user);
 
+            // Tool FILE SYSTEM - Lazy loading e memoria
+            case 'read_file':
+                return tool_readFile($input);
+
+            case 'write_file':
+                return tool_writeFile($input);
+
+            case 'list_files':
+                return tool_listFiles($input);
+
             default:
                 return ['error' => "Tool sconosciuto: $toolName"];
         }
@@ -1334,5 +1344,131 @@ function tool_proposeImprovement(array $input, array $user): array {
             'notification_message' => "Nuova proposta AI: {$title}",
             'notification_type' => 'info'
         ]
+    ];
+}
+
+// ==========================================
+// TOOL FILE SYSTEM - Lazy loading e memoria
+// ==========================================
+
+/**
+ * Tool: Legge un file
+ * Sicurezza: solo file in backend/config/ai/
+ */
+function tool_readFile(array $input): array {
+    $path = $input['path'] ?? '';
+
+    // Sicurezza: solo file in backend/config/ai/
+    $basePath = realpath(__DIR__ . '/../../config/ai');
+    if (!$basePath) {
+        return ['error' => 'Cartella AI non trovata'];
+    }
+
+    // Costruisci path completo
+    $fullPath = realpath(__DIR__ . '/../../' . ltrim($path, '/'));
+
+    // Se realpath fallisce, prova path diretto
+    if (!$fullPath) {
+        $fullPath = __DIR__ . '/../../' . ltrim($path, '/');
+    }
+
+    // Verifica che sia dentro backend/config/ai/
+    if (!str_starts_with(realpath($fullPath) ?: $fullPath, $basePath)) {
+        return ['error' => 'Accesso negato: puoi leggere solo file in backend/config/ai/'];
+    }
+
+    if (!file_exists($fullPath)) {
+        return ['error' => "File non trovato: $path"];
+    }
+
+    $content = file_get_contents($fullPath);
+    if ($content === false) {
+        return ['error' => "Impossibile leggere: $path"];
+    }
+
+    return [
+        'success' => true,
+        'path' => $path,
+        'content' => $content,
+        'size' => strlen($content)
+    ];
+}
+
+/**
+ * Tool: Scrive un file nella cartella memoria
+ * Sicurezza: solo in backend/config/ai/memory/
+ */
+function tool_writeFile(array $input): array {
+    $filename = $input['filename'] ?? '';
+    $content = $input['content'] ?? '';
+
+    // Validazione filename
+    if (empty($filename) || str_contains($filename, '..') || str_contains($filename, '/')) {
+        return ['error' => 'Nome file non valido'];
+    }
+
+    // Solo nella cartella memory
+    $memoryPath = __DIR__ . '/../../config/ai/memory';
+    if (!is_dir($memoryPath)) {
+        mkdir($memoryPath, 0755, true);
+    }
+
+    $fullPath = $memoryPath . '/' . $filename;
+
+    if (file_put_contents($fullPath, $content) === false) {
+        return ['error' => "Impossibile scrivere: $filename"];
+    }
+
+    return [
+        'success' => true,
+        'path' => "backend/config/ai/memory/$filename",
+        'message' => "File salvato: $filename",
+        'size' => strlen($content)
+    ];
+}
+
+/**
+ * Tool: Lista file in una cartella
+ * Sicurezza: solo in backend/config/ai/
+ */
+function tool_listFiles(array $input): array {
+    $path = $input['path'] ?? 'backend/config/ai';
+
+    // Sicurezza: solo in backend/config/ai/
+    $basePath = realpath(__DIR__ . '/../../config/ai');
+    if (!$basePath) {
+        return ['error' => 'Cartella AI non trovata'];
+    }
+
+    $fullPath = realpath(__DIR__ . '/../../' . ltrim($path, '/'));
+    if (!$fullPath) {
+        $fullPath = __DIR__ . '/../../' . ltrim($path, '/');
+    }
+
+    if (!str_starts_with(realpath($fullPath) ?: $fullPath, $basePath)) {
+        return ['error' => 'Accesso negato: puoi vedere solo backend/config/ai/'];
+    }
+
+    if (!is_dir($fullPath)) {
+        return ['error' => "Cartella non trovata: $path"];
+    }
+
+    $files = [];
+    foreach (scandir($fullPath) as $file) {
+        if ($file === '.' || $file === '..') continue;
+
+        $filePath = $fullPath . '/' . $file;
+        $files[] = [
+            'name' => $file,
+            'type' => is_dir($filePath) ? 'directory' : 'file',
+            'size' => is_file($filePath) ? filesize($filePath) : null
+        ];
+    }
+
+    return [
+        'success' => true,
+        'path' => $path,
+        'files' => $files,
+        'count' => count($files)
     ];
 }

@@ -537,7 +537,16 @@ class ApiClient {
   async aiChat(
     message: string,
     history: { role: string; content: string }[] = []
-  ): Promise<{ response: string; iterations: number; actions?: unknown[] }> {
+  ): Promise<{
+    response: string;
+    iterations: number;
+    actions?: unknown[];
+    context?: {
+      messages_count: number;
+      did_compaction: boolean;
+      compaction_threshold: number;
+    };
+  }> {
     const { data } = await this.client.post('/ai/chat', { message, history });
     return data;
   }

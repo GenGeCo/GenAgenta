@@ -567,8 +567,51 @@ $functionDeclarations[] = [
     ]
 ];
 
-// Carica system instruction da file esterno (facile da modificare)
-$promptFile = __DIR__ . '/../../config/ai_prompt.txt';
+// TOOL FILE SYSTEM - Per lazy loading e memoria
+$functionDeclarations[] = [
+    'name' => 'read_file',
+    'description' => 'Leggi il contenuto di un file. Usa per leggere documentazione in backend/config/ai/docs/ o i tuoi appunti in backend/config/ai/memory/',
+    'parameters' => [
+        'type' => 'object',
+        'properties' => [
+            'path' => ['type' => 'string', 'description' => 'Percorso relativo del file (es: backend/config/ai/docs/workflows.txt)']
+        ],
+        'required' => ['path']
+    ]
+];
+
+$functionDeclarations[] = [
+    'name' => 'write_file',
+    'description' => 'Scrivi contenuto in un file nella tua cartella memoria (backend/config/ai/memory/). Usa per salvare appunti e scoperte.',
+    'parameters' => [
+        'type' => 'object',
+        'properties' => [
+            'filename' => ['type' => 'string', 'description' => 'Nome del file (es: appunti.txt)'],
+            'content' => ['type' => 'string', 'description' => 'Contenuto da scrivere']
+        ],
+        'required' => ['filename', 'content']
+    ]
+];
+
+$functionDeclarations[] = [
+    'name' => 'list_files',
+    'description' => 'Elenca i file in una cartella. Usa per vedere cosa c\'è in backend/config/ai/docs/ o backend/config/ai/memory/',
+    'parameters' => [
+        'type' => 'object',
+        'properties' => [
+            'path' => ['type' => 'string', 'description' => 'Percorso cartella (es: backend/config/ai/docs)']
+        ],
+        'required' => ['path']
+    ]
+];
+
+// Carica system instruction da file (versione CORTA - lazy loading)
+$promptFile = __DIR__ . '/../../config/ai/prompt_base.txt';
+if (!file_exists($promptFile)) {
+    // Fallback al vecchio prompt se nuovo non esiste
+    $promptFile = __DIR__ . '/../../config/ai_prompt.txt';
+}
+
 if (file_exists($promptFile)) {
     $systemInstruction = file_get_contents($promptFile);
     // Sostituisci placeholder con dati utente
@@ -584,8 +627,8 @@ if (file_exists($promptFile)) {
         $user['azienda_id']
     ], $systemInstruction);
 } else {
-    // Fallback se file non esiste
-    $systemInstruction = "Sei l'assistente AI di GenAgenta. Utente: {$user['nome']}. Rispondi in italiano. Puoi usare tutti i tool disponibili per aiutare l'utente.";
+    // Fallback minimo
+    $systemInstruction = "Sei l'AI di GenAgenta. Utente: {$user['nome']}. Rispondi in italiano.";
 }
 
 // Array per raccogliere azioni frontend (mappa, UI)
@@ -765,9 +808,14 @@ if ($useOpenRouter) {
     error_log("Messages size: " . strlen(json_encode($messages)) . " bytes");
     error_log("User message: " . substr($userMessage, 0, 100));
 
+    // Variabile per tracciare se abbiamo fatto compaction
+    $didCompaction = false;
+    $messageCountBefore = count($messages);
+
     // ====== SMART COMPACTION: Riassumi conversazione lunga ======
     if (count($messages) > 8) {
         error_log("COMPACTION: Conversazione lunga (" . count($messages) . " msg), creo riassunto");
+        $didCompaction = true;
 
         // Chiedi all'AI di riassumere la conversazione
         $summaryRequest = [
@@ -1072,7 +1120,12 @@ if ($finalResponse === null) {
 // Risposta con eventuali azioni frontend
 $responseData = [
     'response' => $finalResponse,
-    'iterations' => $iteration
+    'iterations' => $iteration,
+    'context' => [
+        'messages_count' => $useOpenRouter ? count($messages) : count($contents),
+        'did_compaction' => $useOpenRouter ? ($didCompaction ?? false) : false,
+        'compaction_threshold' => 8  // Quando scatta la compaction
+    ]
 ];
 
 // Aggiungi azioni frontend se presenti

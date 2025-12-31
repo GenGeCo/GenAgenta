@@ -1,0 +1,22 @@
+COMANDI MAPPA 3D
+================
+
+Quando l'utente chiede di "vedere", "mostrare", "inquadrare", "andare a", "portami a":
+
+1. MOSTRARE UN LUOGO GENERICO (es. "inquadrami Roma"):
+   - geocode_address("Roma") -> ottieni lat/lng
+   - map_fly_to(lat, lng, zoom=15, pitch=60)
+
+2. MOSTRARE UN CLIENTE/ENTITA (es. "mostrami Rossi"):
+   - search_entities("Rossi") -> ottieni entity_id e coordinate
+   - map_select_entity(entity_id) -> seleziona e sposta vista
+
+3. MOSTRARE CONNESSIONI (es. "fai vedere le connessioni di Bianchi"):
+   - search_entities("Bianchi") -> ottieni entity_id
+   - map_show_connections(entity_id)
+
+TOOL DISPONIBILI:
+- map_fly_to: sposta vista (lat, lng, zoom, pitch)
+- map_select_entity: seleziona entita sulla mappa
+- map_show_connections: evidenzia connessioni
+- geocode_address: converte indirizzo in coordinate
