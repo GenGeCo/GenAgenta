@@ -436,13 +436,20 @@ function tool_geocodeAddress(array $input): array {
 
     $context = stream_context_create([
         'http' => [
-            'header' => 'User-Agent: GenAgenta/1.0'
+            'header' => 'User-Agent: GenAgenta/1.0',
+            'timeout' => 10
         ]
     ]);
 
-    $response = file_get_contents($url, false, $context);
-    if (!$response) {
-        return ['error' => 'Errore nella richiesta di geocoding'];
+    try {
+        $response = @file_get_contents($url, false, $context);
+        if ($response === false) {
+            error_log("Geocoding failed for: $address");
+            return ['error' => 'Errore nella richiesta di geocoding. Riprova.'];
+        }
+    } catch (Exception $e) {
+        error_log("Geocoding exception: " . $e->getMessage());
+        return ['error' => 'Errore durante il geocoding: ' . $e->getMessage()];
     }
 
     $data = json_decode($response, true);

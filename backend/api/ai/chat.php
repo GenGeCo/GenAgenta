@@ -695,7 +695,20 @@ while ($iteration < $maxIterations) {
 
     $candidate = $candidates[0];
     $finishReason = $candidate['finishReason'] ?? 'STOP';
-    $parts = $candidate['content']['parts'] ?? [];
+
+    // Gestisci casi in cui content potrebbe essere null
+    if (!isset($candidate['content']) || !isset($candidate['content']['parts'])) {
+        error_log("Gemini response missing content/parts: " . json_encode($candidate));
+        // Se finishReason indica un problema, riporta l'errore
+        if ($finishReason === 'SAFETY' || $finishReason === 'RECITATION') {
+            errorResponse("La risposta è stata bloccata per motivi di sicurezza ($finishReason)", 400);
+        }
+        // Altrimenti considera la risposta vuota
+        $finalResponse = "Non ho potuto generare una risposta. Riprova.";
+        break;
+    }
+
+    $parts = $candidate['content']['parts'];
 
     // Controlla se ci sono function calls
     $functionCalls = [];
@@ -722,8 +735,16 @@ while ($iteration < $maxIterations) {
         $funcName = $fc['name'];
         $funcArgs = $fc['args'] ?? [];
 
-        // Esegui il tool
-        $result = executeAiTool($funcName, $funcArgs, $user);
+        // Esegui il tool con error handling
+        try {
+            $result = executeAiTool($funcName, $funcArgs, $user);
+        } catch (Exception $e) {
+            error_log("Tool execution error ($funcName): " . $e->getMessage());
+            $result = ['error' => "Errore nell'esecuzione del tool $funcName: " . $e->getMessage()];
+        } catch (Error $e) {
+            error_log("Tool execution fatal error ($funcName): " . $e->getMessage());
+            $result = ['error' => "Errore fatale nel tool $funcName: " . $e->getMessage()];
+        }
 
         // Se il tool ha generato un'azione frontend, raccoglila
         if (isset($result['_frontend_action'])) {
