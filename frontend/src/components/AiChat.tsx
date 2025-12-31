@@ -141,6 +141,14 @@ export function AiChat({ isOpen, onClose, onAction }: AiChatProps) {
           setMessages([...newMessages, assistantMessage]);
           // Salva subito in localStorage
           localStorage.setItem(CHAT_STORAGE_KEY, JSON.stringify([...newMessages, assistantMessage]));
+
+          // Esegui azioni frontend ANCHE dopo compaction
+          if (response.actions && Array.isArray(response.actions) && onAction) {
+            for (const action of response.actions) {
+              console.log('Eseguo azione AI (post-compaction):', action);
+              onAction(action as AiFrontendAction);
+            }
+          }
           return; // Esci qui, abbiamo già gestito tutto
         }
       }

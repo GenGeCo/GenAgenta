@@ -1364,24 +1364,27 @@ function tool_readFile(array $input): array {
         return ['error' => 'Cartella AI non trovata'];
     }
 
-    // Costruisci path completo
-    $fullPath = realpath(__DIR__ . '/../../' . ltrim($path, '/'));
-
-    // Se realpath fallisce, prova path diretto
-    if (!$fullPath) {
-        $fullPath = __DIR__ . '/../../' . ltrim($path, '/');
+    // Normalizza path: rimuovi "backend/" se presente all'inizio
+    // L'AI potrebbe usare "backend/config/ai/..." o "config/ai/..."
+    $path = ltrim($path, '/');
+    if (str_starts_with($path, 'backend/')) {
+        $path = substr($path, 8); // Rimuovi "backend/"
     }
+
+    // Costruisci path completo (relativo a backend/)
+    $fullPath = __DIR__ . '/../../' . $path;
+    $realFullPath = realpath($fullPath);
 
     // Verifica che sia dentro backend/config/ai/
-    if (!str_starts_with(realpath($fullPath) ?: $fullPath, $basePath)) {
-        return ['error' => 'Accesso negato: puoi leggere solo file in backend/config/ai/'];
+    if (!$realFullPath || !str_starts_with($realFullPath, $basePath)) {
+        return ['error' => "Accesso negato: puoi leggere solo file in config/ai/. Path ricevuto: $path"];
     }
 
-    if (!file_exists($fullPath)) {
+    if (!file_exists($realFullPath)) {
         return ['error' => "File non trovato: $path"];
     }
 
-    $content = file_get_contents($fullPath);
+    $content = file_get_contents($realFullPath);
     if ($content === false) {
         return ['error' => "Impossibile leggere: $path"];
     }
@@ -1432,7 +1435,7 @@ function tool_writeFile(array $input): array {
  * Sicurezza: solo in backend/config/ai/
  */
 function tool_listFiles(array $input): array {
-    $path = $input['path'] ?? 'backend/config/ai';
+    $path = $input['path'] ?? 'config/ai';
 
     // Sicurezza: solo in backend/config/ai/
     $basePath = realpath(__DIR__ . '/../../config/ai');
@@ -1440,24 +1443,29 @@ function tool_listFiles(array $input): array {
         return ['error' => 'Cartella AI non trovata'];
     }
 
-    $fullPath = realpath(__DIR__ . '/../../' . ltrim($path, '/'));
-    if (!$fullPath) {
-        $fullPath = __DIR__ . '/../../' . ltrim($path, '/');
+    // Normalizza path: rimuovi "backend/" se presente all'inizio
+    $path = ltrim($path, '/');
+    if (str_starts_with($path, 'backend/')) {
+        $path = substr($path, 8); // Rimuovi "backend/"
     }
 
-    if (!str_starts_with(realpath($fullPath) ?: $fullPath, $basePath)) {
-        return ['error' => 'Accesso negato: puoi vedere solo backend/config/ai/'];
+    // Costruisci path completo (relativo a backend/)
+    $fullPath = __DIR__ . '/../../' . $path;
+    $realFullPath = realpath($fullPath);
+
+    if (!$realFullPath || !str_starts_with($realFullPath, $basePath)) {
+        return ['error' => "Accesso negato: puoi vedere solo config/ai/. Path ricevuto: $path"];
     }
 
-    if (!is_dir($fullPath)) {
+    if (!is_dir($realFullPath)) {
         return ['error' => "Cartella non trovata: $path"];
     }
 
     $files = [];
-    foreach (scandir($fullPath) as $file) {
+    foreach (scandir($realFullPath) as $file) {
         if ($file === '.' || $file === '..') continue;
 
-        $filePath = $fullPath . '/' . $file;
+        $filePath = $realFullPath . '/' . $file;
         $files[] = [
             'name' => $file,
             'type' => is_dir($filePath) ? 'directory' : 'file',
