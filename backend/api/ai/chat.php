@@ -765,10 +765,66 @@ if ($useOpenRouter) {
     error_log("Messages size: " . strlen(json_encode($messages)) . " bytes");
     error_log("User message: " . substr($userMessage, 0, 100));
 
-    // Limita history a ultimi 6 messaggi per evitare overflow
-    if (count($messages) > 7) { // 6 history + 1 current
-        $messages = array_slice($messages, -7);
-        error_log("History troncata a 7 messaggi");
+    // ====== SMART COMPACTION: Riassumi conversazione lunga ======
+    if (count($messages) > 8) {
+        error_log("COMPACTION: Conversazione lunga (" . count($messages) . " msg), creo riassunto");
+
+        // Chiedi all'AI di riassumere la conversazione
+        $summaryRequest = [
+            [
+                'role' => 'system',
+                'content' => 'Riassumi questa conversazione in 2-3 frasi. Includi: cosa ha chiesto l\'utente, cosa è stato fatto, eventuali dati importanti menzionati. Rispondi SOLO con il riassunto, niente altro.'
+            ],
+            [
+                'role' => 'user',
+                'content' => "Conversazione da riassumere:\n" . json_encode(array_slice($messages, 0, -1), JSON_UNESCAPED_UNICODE)
+            ]
+        ];
+
+        // Chiamata veloce per il riassunto (senza tools)
+        $summaryPayload = [
+            'model' => 'anthropic/claude-3-haiku',  // Haiku è più veloce per riassunti
+            'messages' => $summaryRequest,
+            'temperature' => 0.3,
+            'max_tokens' => 200
+        ];
+
+        $ch = curl_init("https://openrouter.ai/api/v1/chat/completions");
+        curl_setopt_array($ch, [
+            CURLOPT_POST => true,
+            CURLOPT_POSTFIELDS => json_encode($summaryPayload),
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_HTTPHEADER => [
+                'Content-Type: application/json',
+                'Authorization: Bearer ' . $OPENROUTER_API_KEY,
+                'HTTP-Referer: https://www.gruppogea.net/genagenta',
+                'X-Title: GenAgenta CRM'
+            ],
+            CURLOPT_TIMEOUT => 30
+        ]);
+
+        $summaryResponse = curl_exec($ch);
+        curl_close($ch);
+
+        $summaryData = json_decode($summaryResponse, true);
+        $summary = $summaryData['choices'][0]['message']['content'] ?? null;
+
+        if ($summary) {
+            error_log("COMPACTION: Riassunto creato: " . substr($summary, 0, 100) . "...");
+
+            // Sostituisci la history con il riassunto + ultimo messaggio utente
+            $messages = [
+                [
+                    'role' => 'assistant',
+                    'content' => "[Riassunto conversazione precedente: $summary]"
+                ],
+                end($messages)  // Ultimo messaggio (quello attuale dell'utente)
+            ];
+        } else {
+            // Fallback: taglia semplicemente
+            error_log("COMPACTION: Riassunto fallito, uso fallback");
+            $messages = array_slice($messages, -4);
+        }
     }
 
     // ====== ANTI-LOOP PROTECTION ======
@@ -897,29 +953,7 @@ if ($useOpenRouter) {
             ];
         }
 
-        // ====== COMPACTION: Se troppi messaggi, pulisci i tool results vecchi ======
-        if (count($messages) > 15) {
-            error_log("COMPACTION: Pulizia messaggi (da " . count($messages) . ")");
-            // Tieni solo: system (implicito), ultimi 3 user/assistant, ultimo tool result
-            $cleanedMessages = [];
-            $toolResults = [];
-            $conversations = [];
-
-            foreach ($messages as $msg) {
-                if (($msg['role'] ?? '') === 'tool') {
-                    $toolResults[] = $msg;
-                } else {
-                    $conversations[] = $msg;
-                }
-            }
-
-            // Tieni ultimi 4 messaggi conversazione + ultimo tool result
-            $messages = array_merge(
-                array_slice($conversations, -4),
-                array_slice($toolResults, -1)
-            );
-            error_log("COMPACTION: Ridotto a " . count($messages) . " messaggi");
-        }
+        // Tool results vengono gestiti dal SMART COMPACTION all'inizio
     }
 
 } else {
