@@ -892,9 +892,10 @@ if ($useOpenRouter) {
     $hasProposedImprovement = false;
     $lastTextContent = null;  // Salva l'ultimo testo valido ricevuto
     $hasExecutedMapAction = false;  // Flag per azioni mappa
+    $successfulToolsExecuted = 0;  // Conta tool eseguiti con successo
 
-    // Loop per gestire tool calls
-    $maxIterations = 5;
+    // Loop per gestire tool calls - RIDOTTO a 3 per evitare loop
+    $maxIterations = 3;
     $iteration = 0;
     $finalResponse = null;
 
@@ -965,10 +966,17 @@ if ($useOpenRouter) {
             break;
         }
 
-        // Se abbiamo già fatto un'azione mappa E abbiamo del testo, fermiamoci
-        if ($hasExecutedMapAction && $lastTextContent) {
-            error_log("ANTI-LOOP: Azione mappa completata, uso testo esistente");
-            $finalResponse = $lastTextContent;
+        // Se abbiamo già fatto un'azione mappa, fermiamoci SEMPRE
+        if ($hasExecutedMapAction) {
+            error_log("ANTI-LOOP: Azione mappa completata, mi fermo");
+            $finalResponse = $lastTextContent ?? "Fatto!";
+            break;
+        }
+
+        // Se abbiamo eseguito 2+ tool con successo, forza la risposta
+        if ($successfulToolsExecuted >= 2) {
+            error_log("ANTI-LOOP: 2+ tool eseguiti con successo, forzo risposta");
+            $finalResponse = $lastTextContent ?? "Ho completato le operazioni richieste.";
             break;
         }
 
@@ -1021,6 +1029,12 @@ if ($useOpenRouter) {
             } catch (Error $e) {
                 error_log("Tool execution fatal error ($funcName): " . $e->getMessage());
                 $result = ['error' => "Errore fatale: " . $e->getMessage()];
+            }
+
+            // Conta tool eseguiti con successo
+            if (isset($result['success']) && $result['success']) {
+                $successfulToolsExecuted++;
+                error_log("Tool $funcName eseguito con successo (totale: $successfulToolsExecuted)");
             }
 
             // Se il tool ha generato un'azione frontend, raccoglila
