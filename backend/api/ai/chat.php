@@ -547,7 +547,7 @@ $functionDeclarations = [
         'description' => 'Legge le conoscenze che hai memorizzato in precedenza. Usalo all\'inizio di una conversazione per ricordare cosa sai.',
         'parameters' => [
             'type' => 'object',
-            'properties' => new stdClass(),
+            'properties' => (object)[],
             'required' => []
         ]
     ],
