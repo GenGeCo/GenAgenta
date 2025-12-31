@@ -890,6 +890,8 @@ if ($useOpenRouter) {
     $toolCallCounts = [];
     $totalToolCalls = 0;
     $hasProposedImprovement = false;
+    $lastTextContent = null;  // Salva l'ultimo testo valido ricevuto
+    $hasExecutedMapAction = false;  // Flag per azioni mappa
 
     // Loop per gestire tool calls
     $maxIterations = 5;
@@ -922,12 +924,29 @@ if ($useOpenRouter) {
         $toolCalls = $message['tool_calls'] ?? [];
         $textContent = $message['content'] ?? null;
 
-        error_log("Iteration $iteration - Tool calls: " . count($toolCalls) . ", Has text: " . ($textContent ? 'yes' : 'no'));
+        // IMPORTANTE: Salva SEMPRE l'ultimo testo valido (Claude può mandare testo + tool calls insieme)
+        if (!empty($textContent)) {
+            $lastTextContent = $textContent;
+            error_log("Salvato textContent: " . substr($textContent, 0, 50) . "...");
+        }
 
-        // Se non ci sono tool calls, abbiamo la risposta finale
+        error_log("Iteration $iteration - finish_reason: $finishReason, Tool calls: " . count($toolCalls) . ", Has text: " . ($textContent ? 'yes' : 'no'));
+
+        // BEST PRACTICE: Usa finish_reason per determinare quando fermarsi
+        // 'stop' = risposta finale completata
+        // 'tool_calls' = Claude vuole eseguire tool
+        // 'length' = limite token raggiunto
+        if ($finishReason === 'stop' || $finishReason === 'length') {
+            $finalResponse = $textContent ?? $lastTextContent ?? "Risposta completata.";
+            error_log("Final response (finish_reason=$finishReason), length: " . strlen($finalResponse));
+            break;
+        }
+
+        // Se finish_reason non è 'stop', deve essere 'tool_calls' - verifica che ci siano effettivamente tool
         if (empty($toolCalls)) {
-            $finalResponse = $textContent ?? "Risposta completata.";
-            error_log("Final response received, length: " . strlen($finalResponse));
+            // Situazione anomala: finish_reason non è 'stop' ma non ci sono tool calls
+            error_log("WARNING: finish_reason=$finishReason ma nessun tool call!");
+            $finalResponse = $textContent ?? $lastTextContent ?? "Risposta completata.";
             break;
         }
 
@@ -940,9 +959,16 @@ if ($useOpenRouter) {
         $totalToolCalls += count($toolCalls);
 
         // Se troppi tool calls totali, forza una risposta
-        if ($totalToolCalls > 8) {
+        if ($totalToolCalls > 6) {
             error_log("ANTI-LOOP: Troppi tool calls ($totalToolCalls), forzo risposta");
-            $finalResponse = $textContent ?? "Ho elaborato la tua richiesta. C'è altro?";
+            $finalResponse = $lastTextContent ?? "Ho elaborato la tua richiesta. C'è altro?";
+            break;
+        }
+
+        // Se abbiamo già fatto un'azione mappa E abbiamo del testo, fermiamoci
+        if ($hasExecutedMapAction && $lastTextContent) {
+            error_log("ANTI-LOOP: Azione mappa completata, uso testo esistente");
+            $finalResponse = $lastTextContent;
             break;
         }
 
@@ -1000,6 +1026,12 @@ if ($useOpenRouter) {
             // Se il tool ha generato un'azione frontend, raccoglila
             if (isset($result['_frontend_action'])) {
                 $frontendActions[] = $result['_frontend_action'];
+                // Segna che abbiamo fatto un'azione mappa (per fermarci prima)
+                $actionType = $result['_frontend_action']['type'] ?? '';
+                if (in_array($actionType, ['map_fly_to', 'map_select_entity', 'map_show_connections'])) {
+                    $hasExecutedMapAction = true;
+                    error_log("FLAG: Azione mappa eseguita ($actionType)");
+                }
                 unset($result['_frontend_action']);
             }
 
@@ -1119,8 +1151,13 @@ if ($useOpenRouter) {
 
 if ($finalResponse === null) {
     error_log("WARNING: maxIterations reached without final response");
+    // Prova a usare l'ultimo testo ricevuto
+    if (!empty($lastTextContent)) {
+        $finalResponse = $lastTextContent;
+        error_log("Usando lastTextContent come fallback");
+    }
     // Se abbiamo eseguito azioni, conferma almeno quelle
-    if (!empty($frontendActions)) {
+    elseif (!empty($frontendActions)) {
         $finalResponse = "Ho eseguito " . count($frontendActions) . " azioni. C'è altro che posso fare?";
     } else {
         $finalResponse = "Mi dispiace, ho avuto difficoltà a elaborare la richiesta. Puoi riformularla in modo più semplice?";
