@@ -759,6 +759,18 @@ if ($useOpenRouter) {
         'content' => $userMessage
     ];
 
+    // DEBUG: Log dimensione history
+    error_log("=== AI CHAT DEBUG ===");
+    error_log("History size: " . count($conversationHistory) . " messaggi");
+    error_log("Messages size: " . strlen(json_encode($messages)) . " bytes");
+    error_log("User message: " . substr($userMessage, 0, 100));
+
+    // Limita history a ultimi 6 messaggi per evitare overflow
+    if (count($messages) > 7) { // 6 history + 1 current
+        $messages = array_slice($messages, -7);
+        error_log("History troncata a 7 messaggi");
+    }
+
     // Loop per gestire tool calls
     $maxIterations = 5;
     $iteration = 0;
@@ -766,6 +778,7 @@ if ($useOpenRouter) {
 
     while ($iteration < $maxIterations) {
         $iteration++;
+        error_log("Iteration $iteration - Messages count: " . count($messages));
 
         $response = callOpenRouter($OPENROUTER_API_KEY, $systemInstruction, $messages, $openaiTools);
 
@@ -789,10 +802,18 @@ if ($useOpenRouter) {
         $toolCalls = $message['tool_calls'] ?? [];
         $textContent = $message['content'] ?? null;
 
+        error_log("Iteration $iteration - Tool calls: " . count($toolCalls) . ", Has text: " . ($textContent ? 'yes' : 'no'));
+
         // Se non ci sono tool calls, abbiamo la risposta finale
         if (empty($toolCalls)) {
             $finalResponse = $textContent ?? "Risposta completata.";
+            error_log("Final response received, length: " . strlen($finalResponse));
             break;
+        }
+
+        // Log dei tool chiamati
+        foreach ($toolCalls as $tc) {
+            error_log("Tool call: " . ($tc['function']['name'] ?? 'unknown'));
         }
 
         // Aggiungi il messaggio dell'assistente con le tool calls
@@ -934,7 +955,13 @@ if ($useOpenRouter) {
 }
 
 if ($finalResponse === null) {
-    $finalResponse = "Mi dispiace, non sono riuscito a completare la richiesta. Riprova.";
+    error_log("WARNING: maxIterations reached without final response");
+    // Se abbiamo eseguito azioni, conferma almeno quelle
+    if (!empty($frontendActions)) {
+        $finalResponse = "Ho eseguito " . count($frontendActions) . " azioni. C'è altro che posso fare?";
+    } else {
+        $finalResponse = "Mi dispiace, ho avuto difficoltà a elaborare la richiesta. Puoi riformularla in modo più semplice?";
+    }
 }
 
 // Risposta con eventuali azioni frontend
