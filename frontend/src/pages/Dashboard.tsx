@@ -13,7 +13,7 @@ import InvitePopup from '../components/InvitePopup';
 import NeuroneFormModal from '../components/NeuroneFormModal';
 import SinapsiDetailPanel from '../components/SinapsiDetailPanel';
 import { QuickCreateEntity, QuickEntityActions, QuickSelectTarget, QuickConnectionType, QuickTransactionForm } from '../components/QuickActionPopup';
-import { AiChat } from '../components/AiChat';
+import { AiChat, AiFrontendAction } from '../components/AiChat';
 import type { Neurone, Sinapsi, FiltriMappa, Categoria, TipoNeuroneConfig } from '../types';
 
 // Tipi per quick actions
@@ -264,6 +264,65 @@ export default function Dashboard() {
     // Aggiorna stato utente
     if (user) {
       updateUser({ ...user, has_pin: true });
+    }
+  };
+
+  // Handler azioni AI (comandi dalla chat)
+  const handleAiAction = (action: AiFrontendAction) => {
+    console.log('AI Action ricevuta:', action);
+
+    switch (action.type) {
+      case 'map_fly_to':
+        // Sposta la mappa alle coordinate
+        if (action.lat !== undefined && action.lng !== undefined) {
+          setFlyToPosition({ lat: action.lat, lng: action.lng });
+        }
+        break;
+
+      case 'map_select_entity':
+        // Seleziona un'entita sulla mappa
+        if (action.entity_id) {
+          const neurone = neuroni.find(n => n.id === action.entity_id);
+          if (neurone) {
+            setSelectedNeurone(neurone);
+            setFocusedNeuroneId(neurone.id);
+            // Vola anche alla posizione dell'entita
+            if (neurone.lat && neurone.lng) {
+              setFlyToPosition({ lat: neurone.lat, lng: neurone.lng });
+            }
+          }
+        }
+        break;
+
+      case 'map_show_connections':
+        // Seleziona l'entita per mostrare le sue connessioni
+        if (action.entity_id) {
+          const neurone = neuroni.find(n => n.id === action.entity_id);
+          if (neurone) {
+            setFocusedNeuroneId(neurone.id);
+            setSelectedNeurone(neurone);
+          }
+        }
+        break;
+
+      case 'ui_open_panel':
+        // Apri un pannello
+        if (action.panel === 'entity_detail' && action.entity_id) {
+          const neurone = neuroni.find(n => n.id === action.entity_id);
+          if (neurone) {
+            setSelectedNeurone(neurone);
+          }
+        }
+        // Altri pannelli possono essere aggiunti qui
+        break;
+
+      case 'ui_notification':
+        // Mostra notifica (per ora solo console log)
+        if (action.notification_message) {
+          console.log(`[${action.notification_type || 'info'}] ${action.notification_message}`);
+          // TODO: implementare sistema notifiche toast
+        }
+        break;
     }
   };
 
@@ -897,7 +956,7 @@ export default function Dashboard() {
       )}
 
       {/* AI Chat */}
-      <AiChat isOpen={showAiChat} onClose={() => setShowAiChat(false)} />
+      <AiChat isOpen={showAiChat} onClose={() => setShowAiChat(false)} onAction={handleAiAction} />
     </div>
   );
 }

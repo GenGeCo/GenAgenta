@@ -345,52 +345,170 @@ $functionDeclarations = [
             ],
             'required' => ['entity_id', 'contenuto']
         ]
+    ],
+
+    // TOOL DI ELIMINAZIONE
+    [
+        'name' => 'delete_entity',
+        'description' => 'Elimina un\'entità (neurone) dal sistema. ATTENZIONE: elimina anche tutte le connessioni e transazioni associate.',
+        'parameters' => [
+            'type' => 'object',
+            'properties' => [
+                'entity_id' => [
+                    'type' => 'string',
+                    'description' => 'UUID dell\'entità da eliminare'
+                ]
+            ],
+            'required' => ['entity_id']
+        ]
+    ],
+    [
+        'name' => 'delete_connection',
+        'description' => 'Elimina una connessione (sinapsi) tra due entità.',
+        'parameters' => [
+            'type' => 'object',
+            'properties' => [
+                'sinapsi_id' => [
+                    'type' => 'string',
+                    'description' => 'UUID della connessione da eliminare'
+                ]
+            ],
+            'required' => ['sinapsi_id']
+        ]
+    ],
+    [
+        'name' => 'delete_sale',
+        'description' => 'Elimina una vendita/transazione.',
+        'parameters' => [
+            'type' => 'object',
+            'properties' => [
+                'sale_id' => [
+                    'type' => 'string',
+                    'description' => 'UUID della vendita da eliminare'
+                ]
+            ],
+            'required' => ['sale_id']
+        ]
+    ],
+
+    // TOOL MAPPA - Comandi per controllare la visualizzazione
+    [
+        'name' => 'map_fly_to',
+        'description' => 'Sposta la vista della mappa 3D verso coordinate specifiche. Usa questo quando l\'utente chiede di "vedere", "mostrare", "inquadrare", "andare a" un luogo.',
+        'parameters' => [
+            'type' => 'object',
+            'properties' => [
+                'lat' => [
+                    'type' => 'number',
+                    'description' => 'Latitudine destinazione'
+                ],
+                'lng' => [
+                    'type' => 'number',
+                    'description' => 'Longitudine destinazione'
+                ],
+                'zoom' => [
+                    'type' => 'number',
+                    'description' => 'Livello di zoom (1-20, default 15)'
+                ],
+                'pitch' => [
+                    'type' => 'number',
+                    'description' => 'Inclinazione camera in gradi (0-85, default 60)'
+                ]
+            ],
+            'required' => ['lat', 'lng']
+        ]
+    ],
+    [
+        'name' => 'map_select_entity',
+        'description' => 'Seleziona e evidenzia un\'entità sulla mappa, aprendo il suo pannello dettagli.',
+        'parameters' => [
+            'type' => 'object',
+            'properties' => [
+                'entity_id' => [
+                    'type' => 'string',
+                    'description' => 'UUID dell\'entità da selezionare'
+                ]
+            ],
+            'required' => ['entity_id']
+        ]
+    ],
+    [
+        'name' => 'map_show_connections',
+        'description' => 'Mostra/evidenzia le connessioni di un\'entità sulla mappa.',
+        'parameters' => [
+            'type' => 'object',
+            'properties' => [
+                'entity_id' => [
+                    'type' => 'string',
+                    'description' => 'UUID dell\'entità di cui mostrare le connessioni'
+                ]
+            ],
+            'required' => ['entity_id']
+        ]
+    ],
+
+    // TOOL UI - Comandi per controllare l'interfaccia
+    [
+        'name' => 'ui_open_panel',
+        'description' => 'Apre un pannello dell\'interfaccia utente.',
+        'parameters' => [
+            'type' => 'object',
+            'properties' => [
+                'panel' => [
+                    'type' => 'string',
+                    'description' => 'Nome pannello: entity_detail, connection_detail, settings, families'
+                ],
+                'entity_id' => [
+                    'type' => 'string',
+                    'description' => 'UUID entità (se pannello è entity_detail)'
+                ]
+            ],
+            'required' => ['panel']
+        ]
+    ],
+    [
+        'name' => 'ui_show_notification',
+        'description' => 'Mostra una notifica all\'utente.',
+        'parameters' => [
+            'type' => 'object',
+            'properties' => [
+                'message' => [
+                    'type' => 'string',
+                    'description' => 'Messaggio da mostrare'
+                ],
+                'type' => [
+                    'type' => 'string',
+                    'description' => 'Tipo: success, error, warning, info'
+                ]
+            ],
+            'required' => ['message']
+        ]
     ]
 ];
 
-// System instruction per Gemini
-$systemInstruction = <<<PROMPT
-Sei l'assistente AI di GenAgenta, un CRM per la gestione delle relazioni commerciali.
+// Carica system instruction da file esterno (facile da modificare)
+$promptFile = __DIR__ . '/../../config/ai_prompt.txt';
+if (file_exists($promptFile)) {
+    $systemInstruction = file_get_contents($promptFile);
+    // Sostituisci placeholder con dati utente
+    $systemInstruction = str_replace([
+        '{{user_nome}}',
+        '{{user_email}}',
+        '{{user_ruolo}}',
+        '{{azienda_id}}'
+    ], [
+        $user['nome'],
+        $user['email'],
+        $user['ruolo'],
+        $user['azienda_id']
+    ], $systemInstruction);
+} else {
+    // Fallback se file non esiste
+    $systemInstruction = "Sei l'assistente AI di GenAgenta. Utente: {$user['nome']}. Rispondi in italiano. Puoi usare tutti i tool disponibili per aiutare l'utente.";
+}
 
-CONTESTO UTENTE:
-- Nome: {$user['nome']}
-- Email: {$user['email']}
-- Ruolo: {$user['ruolo']}
-- Azienda ID: {$user['azienda_id']}
-
-STRUTTURA DATI:
-- Neuroni = Entità (persone, aziende, luoghi, cantieri)
-- Sinapsi = Connessioni tra entità (relazioni commerciali, tecniche, etc.)
-- Vendite = Transazioni con importo e data
-
-REGOLE:
-1. Rispondi SEMPRE in italiano
-2. Sii conciso ma completo
-3. Se non hai abbastanza dati, usa le funzioni per recuperarli
-4. Per query SQL, filtra SEMPRE per azienda_id = '{$user['azienda_id']}' per sicurezza
-5. Non inventare dati - se non li trovi, dillo
-6. Formatta numeri e valute in modo leggibile (€ 1.234,56)
-
-FUNZIONI DI LETTURA:
-- query_database: per query SQL personalizzate (solo SELECT)
-- get_database_schema: per conoscere struttura tabelle
-- search_entities: per cercare entità per nome
-- get_entity_details: per dettagli completi di un'entità
-- get_sales_stats: per statistiche vendite
-- get_connections: per vedere connessioni tra entità
-
-FUNZIONI DI SCRITTURA:
-- geocode_address: per cercare un indirizzo e ottenere coordinate GPS
-- create_entity: per creare nuove entità (persone, aziende, luoghi, cantieri)
-- update_entity: per aggiornare entità esistenti
-- create_connection: per creare connessioni tra entità
-- create_sale: per registrare vendite/transazioni
-- create_note: per aggiungere note alle entità
-
-WORKFLOW TIPICO PER CREARE ENTITÀ CON INDIRIZZO:
-1. Usa geocode_address per trovare le coordinate dell'indirizzo
-2. Usa create_entity passando lat, lng e indirizzo ottenuti
-PROMPT;
+// Array per raccogliere azioni frontend (mappa, UI)
+$frontendActions = [];
 
 // Prepara contenuti per Gemini
 $contents = [];
@@ -525,6 +643,12 @@ while ($iteration < $maxIterations) {
         // Esegui il tool
         $result = executeAiTool($funcName, $funcArgs, $user);
 
+        // Se il tool ha generato un'azione frontend, raccoglila
+        if (isset($result['_frontend_action'])) {
+            $frontendActions[] = $result['_frontend_action'];
+            unset($result['_frontend_action']);
+        }
+
         $functionResponses[] = [
             'functionResponse' => [
                 'name' => $funcName,
@@ -550,8 +674,15 @@ if ($finalResponse === null) {
     $finalResponse = "Mi dispiace, non sono riuscito a completare la richiesta. Riprova.";
 }
 
-// Risposta
-jsonResponse([
+// Risposta con eventuali azioni frontend
+$responseData = [
     'response' => $finalResponse,
     'iterations' => $iteration
-]);
+];
+
+// Aggiungi azioni frontend se presenti
+if (!empty($frontendActions)) {
+    $responseData['actions'] = $frontendActions;
+}
+
+jsonResponse($responseData);

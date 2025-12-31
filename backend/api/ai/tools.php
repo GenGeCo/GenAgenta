@@ -50,6 +50,33 @@ function executeAiTool(string $toolName, array $input, array $user): array {
             case 'create_note':
                 return tool_createNote($db, $input, $user);
 
+            // Tool di ELIMINAZIONE
+            case 'delete_entity':
+                return tool_deleteEntity($db, $input, $user);
+
+            case 'delete_connection':
+                return tool_deleteConnection($db, $input, $user);
+
+            case 'delete_sale':
+                return tool_deleteSale($db, $input, $user);
+
+            // Tool MAPPA - Azioni frontend
+            case 'map_fly_to':
+                return tool_mapFlyTo($input);
+
+            case 'map_select_entity':
+                return tool_mapSelectEntity($db, $input, $user);
+
+            case 'map_show_connections':
+                return tool_mapShowConnections($db, $input, $user);
+
+            // Tool UI - Azioni frontend
+            case 'ui_open_panel':
+                return tool_uiOpenPanel($input);
+
+            case 'ui_show_notification':
+                return tool_uiShowNotification($input);
+
             default:
                 return ['error' => "Tool sconosciuto: $toolName"];
         }
@@ -764,5 +791,251 @@ function tool_createNote(PDO $db, array $input, array $user): array {
         'success' => true,
         'message' => "Nota aggiunta a '{$entity['nome']}'",
         'note_id' => $id
+    ];
+}
+
+// ============================================================
+// TOOL DI ELIMINAZIONE
+// ============================================================
+
+/**
+ * Tool: Elimina un'entità (neurone)
+ */
+function tool_deleteEntity(PDO $db, array $input, array $user): array {
+    $entityId = $input['entity_id'] ?? '';
+
+    if (empty($entityId)) {
+        return ['error' => 'entity_id richiesto'];
+    }
+
+    // Verifica che l'entità esista e appartenga all'azienda
+    $stmt = $db->prepare("SELECT id, nome FROM neuroni WHERE id = ? AND azienda_id = ?");
+    $stmt->execute([$entityId, $user['azienda_id']]);
+    $entity = $stmt->fetch(PDO::FETCH_ASSOC);
+
+    if (!$entity) {
+        return ['error' => 'Entita non trovata o non accessibile'];
+    }
+
+    $nome = $entity['nome'];
+
+    // Elimina in cascata: vendite, sinapsi, note
+    $db->prepare("DELETE FROM vendite_prodotto WHERE neurone_id = ?")->execute([$entityId]);
+    $db->prepare("DELETE FROM sinapsi WHERE neurone_da = ? OR neurone_a = ?")->execute([$entityId, $entityId]);
+    $db->prepare("DELETE FROM note WHERE neurone_id = ?")->execute([$entityId]);
+
+    // Elimina l'entità
+    $db->prepare("DELETE FROM neuroni WHERE id = ? AND azienda_id = ?")->execute([$entityId, $user['azienda_id']]);
+
+    return [
+        'success' => true,
+        'message' => "Entita '$nome' eliminata con tutte le sue connessioni e transazioni"
+    ];
+}
+
+/**
+ * Tool: Elimina una connessione (sinapsi)
+ */
+function tool_deleteConnection(PDO $db, array $input, array $user): array {
+    $sinapsiId = $input['sinapsi_id'] ?? $input['connection_id'] ?? '';
+
+    if (empty($sinapsiId)) {
+        return ['error' => 'sinapsi_id richiesto'];
+    }
+
+    // Verifica che la sinapsi esista
+    $stmt = $db->prepare("SELECT id FROM sinapsi WHERE id = ? AND azienda_id = ?");
+    $stmt->execute([$sinapsiId, $user['azienda_id']]);
+    if (!$stmt->fetch()) {
+        return ['error' => 'Connessione non trovata o non accessibile'];
+    }
+
+    // Elimina vendite associate
+    $db->prepare("DELETE FROM vendite_prodotto WHERE sinapsi_id = ?")->execute([$sinapsiId]);
+
+    // Elimina la sinapsi
+    $db->prepare("DELETE FROM sinapsi WHERE id = ? AND azienda_id = ?")->execute([$sinapsiId, $user['azienda_id']]);
+
+    return [
+        'success' => true,
+        'message' => 'Connessione eliminata con successo'
+    ];
+}
+
+/**
+ * Tool: Elimina una vendita
+ */
+function tool_deleteSale(PDO $db, array $input, array $user): array {
+    $saleId = $input['sale_id'] ?? '';
+
+    if (empty($saleId)) {
+        return ['error' => 'sale_id richiesto'];
+    }
+
+    // Verifica che la vendita esista
+    $stmt = $db->prepare("SELECT id, importo FROM vendite_prodotto WHERE id = ? AND azienda_id = ?");
+    $stmt->execute([$saleId, $user['azienda_id']]);
+    $sale = $stmt->fetch(PDO::FETCH_ASSOC);
+
+    if (!$sale) {
+        return ['error' => 'Vendita non trovata o non accessibile'];
+    }
+
+    $db->prepare("DELETE FROM vendite_prodotto WHERE id = ? AND azienda_id = ?")->execute([$saleId, $user['azienda_id']]);
+
+    return [
+        'success' => true,
+        'message' => 'Vendita di ' . number_format($sale['importo'], 2, ',', '.') . ' euro eliminata'
+    ];
+}
+
+// ============================================================
+// TOOL MAPPA - Azioni per controllare la visualizzazione
+// ============================================================
+
+/**
+ * Tool: Sposta la vista della mappa a coordinate specifiche
+ */
+function tool_mapFlyTo(array $input): array {
+    $lat = $input['lat'] ?? null;
+    $lng = $input['lng'] ?? null;
+    $zoom = $input['zoom'] ?? 15;
+    $pitch = $input['pitch'] ?? 60;
+
+    if ($lat === null || $lng === null) {
+        return ['error' => 'lat e lng sono richiesti'];
+    }
+
+    return [
+        'success' => true,
+        'message' => "Mappa spostata a coordinate ($lat, $lng)",
+        '_frontend_action' => [
+            'type' => 'map_fly_to',
+            'lat' => (float)$lat,
+            'lng' => (float)$lng,
+            'zoom' => (float)$zoom,
+            'pitch' => (float)$pitch
+        ]
+    ];
+}
+
+/**
+ * Tool: Seleziona un'entità sulla mappa
+ */
+function tool_mapSelectEntity(PDO $db, array $input, array $user): array {
+    $entityId = $input['entity_id'] ?? '';
+
+    if (empty($entityId)) {
+        return ['error' => 'entity_id richiesto'];
+    }
+
+    // Verifica che l'entità esista e recupera coordinate
+    $stmt = $db->prepare("SELECT id, nome, latitudine, longitudine FROM neuroni WHERE id = ? AND azienda_id = ?");
+    $stmt->execute([$entityId, $user['azienda_id']]);
+    $entity = $stmt->fetch(PDO::FETCH_ASSOC);
+
+    if (!$entity) {
+        return ['error' => 'Entita non trovata o non accessibile'];
+    }
+
+    return [
+        'success' => true,
+        'message' => "Selezionata entita '{$entity['nome']}'",
+        '_frontend_action' => [
+            'type' => 'map_select_entity',
+            'entity_id' => $entityId,
+            'lat' => (float)$entity['latitudine'],
+            'lng' => (float)$entity['longitudine'],
+            'entity_name' => $entity['nome']
+        ]
+    ];
+}
+
+/**
+ * Tool: Mostra le connessioni di un'entità
+ */
+function tool_mapShowConnections(PDO $db, array $input, array $user): array {
+    $entityId = $input['entity_id'] ?? '';
+
+    if (empty($entityId)) {
+        return ['error' => 'entity_id richiesto'];
+    }
+
+    // Verifica che l'entità esista
+    $stmt = $db->prepare("SELECT id, nome FROM neuroni WHERE id = ? AND azienda_id = ?");
+    $stmt->execute([$entityId, $user['azienda_id']]);
+    $entity = $stmt->fetch(PDO::FETCH_ASSOC);
+
+    if (!$entity) {
+        return ['error' => 'Entita non trovata o non accessibile'];
+    }
+
+    // Conta connessioni
+    $stmt = $db->prepare("SELECT COUNT(*) as cnt FROM sinapsi WHERE (neurone_da = ? OR neurone_a = ?) AND azienda_id = ?");
+    $stmt->execute([$entityId, $entityId, $user['azienda_id']]);
+    $count = $stmt->fetch(PDO::FETCH_ASSOC)['cnt'];
+
+    return [
+        'success' => true,
+        'message' => "Mostrate $count connessioni di '{$entity['nome']}'",
+        '_frontend_action' => [
+            'type' => 'map_show_connections',
+            'entity_id' => $entityId,
+            'entity_name' => $entity['nome']
+        ]
+    ];
+}
+
+// ============================================================
+// TOOL UI - Azioni per controllare l'interfaccia
+// ============================================================
+
+/**
+ * Tool: Apre un pannello dell'interfaccia
+ */
+function tool_uiOpenPanel(array $input): array {
+    $panel = $input['panel'] ?? '';
+    $entityId = $input['entity_id'] ?? null;
+
+    $validPanels = ['entity_detail', 'connection_detail', 'settings', 'families'];
+    if (!in_array($panel, $validPanels)) {
+        return ['error' => 'Pannello non valido. Usa: ' . implode(', ', $validPanels)];
+    }
+
+    return [
+        'success' => true,
+        'message' => "Aperto pannello $panel",
+        '_frontend_action' => [
+            'type' => 'ui_open_panel',
+            'panel' => $panel,
+            'entity_id' => $entityId
+        ]
+    ];
+}
+
+/**
+ * Tool: Mostra una notifica all'utente
+ */
+function tool_uiShowNotification(array $input): array {
+    $message = $input['message'] ?? '';
+    $type = $input['type'] ?? 'info';
+
+    if (empty($message)) {
+        return ['error' => 'message richiesto'];
+    }
+
+    $validTypes = ['success', 'error', 'warning', 'info'];
+    if (!in_array($type, $validTypes)) {
+        $type = 'info';
+    }
+
+    return [
+        'success' => true,
+        'message' => 'Notifica mostrata',
+        '_frontend_action' => [
+            'type' => 'ui_notification',
+            'notification_message' => $message,
+            'notification_type' => $type
+        ]
     ];
 }

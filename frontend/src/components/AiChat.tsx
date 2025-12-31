@@ -9,12 +9,27 @@ interface Message {
   timestamp: Date;
 }
 
+// Tipi per le azioni frontend
+export interface AiFrontendAction {
+  type: 'map_fly_to' | 'map_select_entity' | 'map_show_connections' | 'ui_open_panel' | 'ui_notification';
+  lat?: number;
+  lng?: number;
+  zoom?: number;
+  pitch?: number;
+  entity_id?: string;
+  entity_name?: string;
+  panel?: string;
+  notification_message?: string;
+  notification_type?: 'success' | 'error' | 'warning' | 'info';
+}
+
 interface AiChatProps {
   isOpen: boolean;
   onClose: () => void;
+  onAction?: (action: AiFrontendAction) => void;
 }
 
-export function AiChat({ isOpen, onClose }: AiChatProps) {
+export function AiChat({ isOpen, onClose, onAction }: AiChatProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -62,6 +77,14 @@ export function AiChat({ isOpen, onClose }: AiChatProps) {
       };
 
       setMessages((prev) => [...prev, assistantMessage]);
+
+      // Esegui azioni frontend se presenti
+      if (response.actions && Array.isArray(response.actions) && onAction) {
+        for (const action of response.actions) {
+          console.log('Eseguo azione AI:', action);
+          onAction(action as AiFrontendAction);
+        }
+      }
     } catch (error) {
       console.error('Errore AI:', error);
       const errorMessage: Message = {
@@ -215,6 +238,20 @@ export function AiChat({ isOpen, onClose }: AiChatProps) {
                 }}
               >
                 Mostrami lo schema del database
+              </button>
+              <button
+                onClick={() => setInput('Inquadrami Roma sulla mappa')}
+                style={{
+                  padding: '8px 12px',
+                  background: 'var(--bg-primary)',
+                  border: '1px solid var(--border)',
+                  borderRadius: '8px',
+                  cursor: 'pointer',
+                  color: 'var(--text-primary)',
+                  fontSize: '12px',
+                }}
+              >
+                Inquadrami Roma sulla mappa
               </button>
             </div>
           </div>
