@@ -771,6 +771,12 @@ if ($useOpenRouter) {
         error_log("History troncata a 7 messaggi");
     }
 
+    // ====== ANTI-LOOP PROTECTION ======
+    // Traccia tool calls per prevenire loop
+    $toolCallCounts = [];
+    $totalToolCalls = 0;
+    $hasProposedImprovement = false;
+
     // Loop per gestire tool calls
     $maxIterations = 5;
     $iteration = 0;
@@ -816,6 +822,16 @@ if ($useOpenRouter) {
             error_log("Tool call: " . ($tc['function']['name'] ?? 'unknown'));
         }
 
+        // ====== ANTI-LOOP: Verifica se stiamo entrando in loop ======
+        $totalToolCalls += count($toolCalls);
+
+        // Se troppi tool calls totali, forza una risposta
+        if ($totalToolCalls > 8) {
+            error_log("ANTI-LOOP: Troppi tool calls ($totalToolCalls), forzo risposta");
+            $finalResponse = $textContent ?? "Ho elaborato la tua richiesta. C'è altro?";
+            break;
+        }
+
         // Aggiungi il messaggio dell'assistente con le tool calls
         $messages[] = $message;
 
@@ -824,6 +840,37 @@ if ($useOpenRouter) {
             $funcName = $tc['function']['name'] ?? '';
             $funcArgs = json_decode($tc['function']['arguments'] ?? '{}', true);
             $toolCallId = $tc['id'] ?? '';
+
+            // ====== ANTI-LOOP: Blocca tool ripetitivi ======
+            // Traccia quante volte viene chiamato ogni tool
+            $toolCallCounts[$funcName] = ($toolCallCounts[$funcName] ?? 0) + 1;
+
+            // Blocca propose_improvement dopo la prima volta
+            if ($funcName === 'propose_improvement') {
+                if ($hasProposedImprovement) {
+                    error_log("ANTI-LOOP: Blocco propose_improvement ripetuto");
+                    $result = ['blocked' => true, 'message' => 'Hai già fatto una proposta in questa conversazione'];
+                    $messages[] = [
+                        'role' => 'tool',
+                        'tool_call_id' => $toolCallId,
+                        'content' => json_encode($result)
+                    ];
+                    continue;
+                }
+                $hasProposedImprovement = true;
+            }
+
+            // Blocca qualsiasi tool chiamato più di 3 volte
+            if ($toolCallCounts[$funcName] > 3) {
+                error_log("ANTI-LOOP: Blocco $funcName (chiamato {$toolCallCounts[$funcName]} volte)");
+                $result = ['blocked' => true, 'message' => "Tool $funcName già usato troppe volte"];
+                $messages[] = [
+                    'role' => 'tool',
+                    'tool_call_id' => $toolCallId,
+                    'content' => json_encode($result)
+                ];
+                continue;
+            }
 
             // Esegui il tool
             try {
@@ -848,6 +895,30 @@ if ($useOpenRouter) {
                 'tool_call_id' => $toolCallId,
                 'content' => json_encode($result)
             ];
+        }
+
+        // ====== COMPACTION: Se troppi messaggi, pulisci i tool results vecchi ======
+        if (count($messages) > 15) {
+            error_log("COMPACTION: Pulizia messaggi (da " . count($messages) . ")");
+            // Tieni solo: system (implicito), ultimi 3 user/assistant, ultimo tool result
+            $cleanedMessages = [];
+            $toolResults = [];
+            $conversations = [];
+
+            foreach ($messages as $msg) {
+                if (($msg['role'] ?? '') === 'tool') {
+                    $toolResults[] = $msg;
+                } else {
+                    $conversations[] = $msg;
+                }
+            }
+
+            // Tieni ultimi 4 messaggi conversazione + ultimo tool result
+            $messages = array_merge(
+                array_slice($conversations, -4),
+                array_slice($toolResults, -1)
+            );
+            error_log("COMPACTION: Ridotto a " . count($messages) . " messaggi");
         }
     }
 
