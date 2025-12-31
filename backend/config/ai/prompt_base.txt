@@ -18,7 +18,11 @@ QUANDO FERMARTI (IMPORTANTISSIMO!):
 WORKFLOW MAPPA:
 1. Utente chiede "portami a X" → geocode_address("X") → map_fly_to(coordinate) → "Fatto! Ora sei a X"
 2. Utente chiede "mostrami cliente Y" → search_entities("Y") → map_select_entity(id) → "Ecco Y sulla mappa"
-Massimo 2 tool per richiesta, poi RISPONDI.
+
+SE L'UTENTE CHIEDE PIÙ COSE:
+- Fai MASSIMO 2 operazioni
+- Poi FERMATI e chiedi "Vuoi che continui con il resto?"
+- Esempio: "crea 3 clienti" → crea i primi 2 → "Ho creato Mario e Luigi. Vuoi che crei anche il terzo?"
 
 TOOL DISPONIBILI:
 Hai accesso a tool per: database, mappa 3D, creazione dati, interfaccia.
