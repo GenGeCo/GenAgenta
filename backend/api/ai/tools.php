@@ -77,6 +77,19 @@ function executeAiTool(string $toolName, array $input, array $user): array {
             case 'ui_show_notification':
                 return tool_uiShowNotification($input);
 
+            // Tool AUTONOMIA - L'AI esplora e impara
+            case 'explore_code':
+                return tool_exploreCode($input);
+
+            case 'save_learning':
+                return tool_saveLearning($input, $user);
+
+            case 'read_learnings':
+                return tool_readLearnings($user);
+
+            case 'propose_improvement':
+                return tool_proposeImprovement($input, $user);
+
             default:
                 return ['error' => "Tool sconosciuto: $toolName"];
         }
@@ -1036,6 +1049,276 @@ function tool_uiShowNotification(array $input): array {
             'type' => 'ui_notification',
             'notification_message' => $message,
             'notification_type' => $type
+        ]
+    ];
+}
+
+// ============================================================
+// TOOL AUTONOMIA - L'AI esplora il codice e impara
+// ============================================================
+
+/**
+ * Tool: Esplora il codice sorgente del progetto
+ * L'AI può leggere file per capire come funziona il software
+ */
+function tool_exploreCode(array $input): array {
+    $path = $input['path'] ?? '';
+    $search = $input['search'] ?? '';
+
+    // Directory base del progetto (2 livelli sopra api/ai/)
+    $baseDir = realpath(__DIR__ . '/../../..');
+
+    if (empty($path) && empty($search)) {
+        // Mostra struttura progetto
+        $structure = [
+            'frontend/' => 'Codice React/TypeScript dell\'interfaccia',
+            'frontend/src/components/' => 'Componenti UI (MapView, AiChat, ecc.)',
+            'frontend/src/pages/' => 'Pagine principali (Dashboard)',
+            'frontend/src/utils/' => 'Utility e API client',
+            'backend/api/' => 'Endpoint PHP',
+            'backend/api/ai/' => 'Chat AI e tools',
+            'backend/config/' => 'Configurazione e prompt AI',
+            'docs/' => 'Documentazione'
+        ];
+        return [
+            'success' => true,
+            'message' => 'Struttura progetto GenAgenta',
+            'structure' => $structure,
+            'hint' => 'Usa path per leggere un file specifico, o search per cercare nel codice'
+        ];
+    }
+
+    // Ricerca nel codice
+    if (!empty($search)) {
+        $results = [];
+        $searchDirs = ['frontend/src', 'backend/api', 'backend/config'];
+
+        foreach ($searchDirs as $dir) {
+            $fullDir = $baseDir . '/' . $dir;
+            if (!is_dir($fullDir)) continue;
+
+            $iterator = new RecursiveIteratorIterator(
+                new RecursiveDirectoryIterator($fullDir, RecursiveDirectoryIterator::SKIP_DOTS)
+            );
+
+            foreach ($iterator as $file) {
+                if (!$file->isFile()) continue;
+                $ext = $file->getExtension();
+                if (!in_array($ext, ['php', 'ts', 'tsx', 'js', 'jsx', 'txt', 'json'])) continue;
+
+                $content = file_get_contents($file->getPathname());
+                if (stripos($content, $search) !== false) {
+                    $relativePath = str_replace($baseDir . '/', '', $file->getPathname());
+                    $relativePath = str_replace('\\', '/', $relativePath);
+
+                    // Trova le righe che contengono il termine
+                    $lines = explode("\n", $content);
+                    $matches = [];
+                    foreach ($lines as $num => $line) {
+                        if (stripos($line, $search) !== false) {
+                            $matches[] = ['line' => $num + 1, 'content' => trim(substr($line, 0, 100))];
+                            if (count($matches) >= 3) break;
+                        }
+                    }
+
+                    $results[] = [
+                        'file' => $relativePath,
+                        'matches' => $matches
+                    ];
+
+                    if (count($results) >= 10) break 2;
+                }
+            }
+        }
+
+        return [
+            'success' => true,
+            'search_term' => $search,
+            'results' => $results,
+            'hint' => 'Usa path per leggere il contenuto completo di un file'
+        ];
+    }
+
+    // Lettura file specifico
+    $path = str_replace('\\', '/', $path);
+    $path = ltrim($path, '/');
+
+    // Sicurezza: impedisci path traversal
+    if (strpos($path, '..') !== false) {
+        return ['error' => 'Path non valido'];
+    }
+
+    // Solo certi tipi di file
+    $allowedExtensions = ['php', 'ts', 'tsx', 'js', 'jsx', 'txt', 'json', 'md', 'css'];
+    $ext = pathinfo($path, PATHINFO_EXTENSION);
+    if (!in_array($ext, $allowedExtensions)) {
+        return ['error' => 'Tipo file non permesso. Estensioni valide: ' . implode(', ', $allowedExtensions)];
+    }
+
+    $fullPath = $baseDir . '/' . $path;
+    if (!file_exists($fullPath)) {
+        return ['error' => "File non trovato: $path"];
+    }
+
+    $content = file_get_contents($fullPath);
+
+    // Limita dimensione output
+    if (strlen($content) > 15000) {
+        $content = substr($content, 0, 15000) . "\n\n... [TRONCATO - file troppo lungo] ...";
+    }
+
+    return [
+        'success' => true,
+        'file' => $path,
+        'content' => $content,
+        'lines' => substr_count($content, "\n") + 1
+    ];
+}
+
+/**
+ * Tool: Salva una scoperta/apprendimento dell'AI
+ */
+function tool_saveLearning(array $input, array $user): array {
+    $category = $input['category'] ?? 'general';
+    $title = $input['title'] ?? '';
+    $content = $input['content'] ?? '';
+
+    if (empty($title) || empty($content)) {
+        return ['error' => 'title e content sono richiesti'];
+    }
+
+    $knowledgeFile = __DIR__ . '/../../config/ai_knowledge.json';
+
+    // Carica conoscenze esistenti
+    $knowledge = [];
+    if (file_exists($knowledgeFile)) {
+        $knowledge = json_decode(file_get_contents($knowledgeFile), true) ?? [];
+    }
+
+    // Aggiungi nuova conoscenza
+    $id = uniqid('learn_');
+    $knowledge[$id] = [
+        'category' => $category,
+        'title' => $title,
+        'content' => $content,
+        'learned_at' => date('Y-m-d H:i:s'),
+        'learned_by' => $user['nome'] ?? 'unknown'
+    ];
+
+    // Salva
+    file_put_contents($knowledgeFile, json_encode($knowledge, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
+
+    return [
+        'success' => true,
+        'message' => "Ho memorizzato: '$title'",
+        'learning_id' => $id
+    ];
+}
+
+/**
+ * Tool: Legge le conoscenze memorizzate
+ */
+function tool_readLearnings(array $user): array {
+    $knowledgeFile = __DIR__ . '/../../config/ai_knowledge.json';
+
+    if (!file_exists($knowledgeFile)) {
+        return [
+            'success' => true,
+            'message' => 'Nessuna conoscenza memorizzata ancora',
+            'learnings' => []
+        ];
+    }
+
+    $knowledge = json_decode(file_get_contents($knowledgeFile), true) ?? [];
+
+    // Raggruppa per categoria
+    $byCategory = [];
+    foreach ($knowledge as $id => $item) {
+        $cat = $item['category'] ?? 'general';
+        if (!isset($byCategory[$cat])) {
+            $byCategory[$cat] = [];
+        }
+        $byCategory[$cat][] = [
+            'id' => $id,
+            'title' => $item['title'],
+            'content' => $item['content']
+        ];
+    }
+
+    return [
+        'success' => true,
+        'message' => 'Ecco le mie conoscenze memorizzate',
+        'learnings' => $byCategory,
+        'total' => count($knowledge)
+    ];
+}
+
+/**
+ * Tool: Propone un miglioramento al software
+ * Formatta la proposta in modo che possa essere implementata
+ */
+function tool_proposeImprovement(array $input, array $user): array {
+    $title = $input['title'] ?? '';
+    $description = $input['description'] ?? '';
+    $files_to_modify = $input['files_to_modify'] ?? [];
+    $code_changes = $input['code_changes'] ?? '';
+    $priority = $input['priority'] ?? 'normal'; // low, normal, high
+
+    if (empty($title) || empty($description)) {
+        return ['error' => 'title e description sono richiesti'];
+    }
+
+    $proposalsFile = __DIR__ . '/../../config/ai_proposals.json';
+
+    // Carica proposte esistenti
+    $proposals = [];
+    if (file_exists($proposalsFile)) {
+        $proposals = json_decode(file_get_contents($proposalsFile), true) ?? [];
+    }
+
+    // Aggiungi nuova proposta
+    $id = 'prop_' . date('Ymd_His');
+    $proposals[$id] = [
+        'title' => $title,
+        'description' => $description,
+        'files_to_modify' => $files_to_modify,
+        'code_changes' => $code_changes,
+        'priority' => $priority,
+        'status' => 'pending', // pending, approved, rejected, implemented
+        'proposed_at' => date('Y-m-d H:i:s'),
+        'proposed_during_chat_with' => $user['nome'] ?? 'unknown'
+    ];
+
+    // Salva
+    file_put_contents($proposalsFile, json_encode($proposals, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
+
+    // Formatta messaggio per l'utente
+    $message = "📝 **PROPOSTA DI MIGLIORAMENTO**\n\n";
+    $message .= "**{$title}**\n\n";
+    $message .= "{$description}\n\n";
+
+    if (!empty($files_to_modify)) {
+        $message .= "**File da modificare:**\n";
+        foreach ($files_to_modify as $file) {
+            $message .= "- {$file}\n";
+        }
+        $message .= "\n";
+    }
+
+    if (!empty($code_changes)) {
+        $message .= "**Modifiche suggerite:**\n```\n{$code_changes}\n```\n\n";
+    }
+
+    $message .= "Per implementare questa proposta, chiedi a Claude Code di farlo!";
+
+    return [
+        'success' => true,
+        'message' => $message,
+        'proposal_id' => $id,
+        '_frontend_action' => [
+            'type' => 'ui_notification',
+            'notification_message' => "Nuova proposta AI: {$title}",
+            'notification_type' => 'info'
         ]
     ];
 }

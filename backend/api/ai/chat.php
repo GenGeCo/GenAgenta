@@ -483,6 +483,88 @@ $functionDeclarations = [
             ],
             'required' => ['message']
         ]
+    ],
+
+    // TOOL AUTONOMIA - Esplora, impara, proponi miglioramenti
+    [
+        'name' => 'explore_code',
+        'description' => 'Esplora il codice sorgente del progetto GenAgenta. Usalo per capire come funziona qualcosa, cercare funzioni, o scoprire come implementare nuove feature. Senza parametri mostra la struttura del progetto.',
+        'parameters' => [
+            'type' => 'object',
+            'properties' => [
+                'path' => [
+                    'type' => 'string',
+                    'description' => 'Percorso file da leggere (es. frontend/src/components/MapView.tsx)'
+                ],
+                'search' => [
+                    'type' => 'string',
+                    'description' => 'Termine da cercare nel codice (es. "flyTo", "setBearing")'
+                ]
+            ],
+            'required' => []
+        ]
+    ],
+    [
+        'name' => 'save_learning',
+        'description' => 'Salva qualcosa che hai imparato esplorando il codice. Usalo per memorizzare scoperte utili che potrai riutilizzare in futuro.',
+        'parameters' => [
+            'type' => 'object',
+            'properties' => [
+                'category' => [
+                    'type' => 'string',
+                    'description' => 'Categoria: mappa, database, ui, api, general'
+                ],
+                'title' => [
+                    'type' => 'string',
+                    'description' => 'Titolo breve della scoperta'
+                ],
+                'content' => [
+                    'type' => 'string',
+                    'description' => 'Descrizione dettagliata di cosa hai imparato'
+                ]
+            ],
+            'required' => ['title', 'content']
+        ]
+    ],
+    [
+        'name' => 'read_learnings',
+        'description' => 'Legge le conoscenze che hai memorizzato in precedenza. Usalo all\'inizio di una conversazione per ricordare cosa sai.',
+        'parameters' => [
+            'type' => 'object',
+            'properties' => [],
+            'required' => []
+        ]
+    ],
+    [
+        'name' => 'propose_improvement',
+        'description' => 'Proponi un miglioramento al software. Quando scopri una limitazione o hai un\'idea, usa questo tool per formalizzare la proposta. L\'utente potrà poi chiedere a Claude Code di implementarla.',
+        'parameters' => [
+            'type' => 'object',
+            'properties' => [
+                'title' => [
+                    'type' => 'string',
+                    'description' => 'Titolo della proposta (es. "Aggiungere tool map_rotate")'
+                ],
+                'description' => [
+                    'type' => 'string',
+                    'description' => 'Descrizione del problema/limitazione e della soluzione proposta'
+                ],
+                'files_to_modify' => [
+                    'type' => 'array',
+                    'items' => ['type' => 'string'],
+                    'description' => 'Lista dei file che andrebbero modificati'
+                ],
+                'code_changes' => [
+                    'type' => 'string',
+                    'description' => 'Descrizione delle modifiche al codice necessarie'
+                ],
+                'priority' => [
+                    'type' => 'string',
+                    'description' => 'Priorità: low, normal, high'
+                ]
+            ],
+            'required' => ['title', 'description']
+        ]
     ]
 ];
 
