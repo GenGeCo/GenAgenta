@@ -36,7 +36,7 @@ export function AiChat({ isOpen, onClose, onAction }: AiChatProps) {
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [loadingPhase, setLoadingPhase] = useState<'thinking' | 'compacting'>('thinking');
-  const [_contextInfo, setContextInfo] = useState({ messagesCount: 0, threshold: 8 });
+  const [_contextInfo, setContextInfo] = useState({ messagesCount: 0, threshold: 50 });
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
@@ -96,8 +96,8 @@ export function AiChat({ isOpen, onClose, onAction }: AiChatProps) {
     setInput('');
     setIsLoading(true);
 
-    // Determina se faremo compaction (history > 6 significa che con questo messaggio supereremo 8)
-    const willCompact = messages.length >= 7;
+    // Determina se faremo compaction (threshold: 50 messaggi)
+    const willCompact = messages.length >= 49;
     setLoadingPhase(willCompact ? 'compacting' : 'thinking');
 
     try {
@@ -120,8 +120,29 @@ export function AiChat({ isOpen, onClose, onAction }: AiChatProps) {
       if (response.context) {
         setContextInfo({
           messagesCount: response.context.messages_count || 0,
-          threshold: response.context.compaction_threshold || 8
+          threshold: response.context.compaction_threshold || 50
         });
+
+        // Se il backend ha fatto compaction, sostituisci la history locale con il riassunto
+        if (response.context.did_compaction && response.context.compaction_summary) {
+          console.log('Compaction ricevuta, reset history con riassunto');
+          const summaryMessage: Message = {
+            role: 'assistant',
+            content: `[Riassunto: ${response.context.compaction_summary}]`,
+            timestamp: new Date(),
+          };
+          // Reset: riassunto + messaggio utente corrente + risposta AI
+          const newMessages: Message[] = [summaryMessage, userMessage];
+          const assistantMessage: Message = {
+            role: 'assistant',
+            content: response.response,
+            timestamp: new Date(),
+          };
+          setMessages([...newMessages, assistantMessage]);
+          // Salva subito in localStorage
+          localStorage.setItem(CHAT_STORAGE_KEY, JSON.stringify([...newMessages, assistantMessage]));
+          return; // Esci qui, abbiamo già gestito tutto
+        }
       }
 
       const assistantMessage: Message = {
@@ -212,13 +233,13 @@ export function AiChat({ isOpen, onClose, onAction }: AiChatProps) {
               gap: '4px',
               marginLeft: '8px',
               padding: '2px 8px',
-              backgroundColor: messages.length >= 6 ? 'rgba(234, 179, 8, 0.2)' : 'rgba(59, 130, 246, 0.1)',
+              backgroundColor: messages.length >= 45 ? 'rgba(234, 179, 8, 0.2)' : 'rgba(59, 130, 246, 0.1)',
               borderRadius: '10px',
               fontSize: '11px',
-              color: messages.length >= 6 ? '#eab308' : 'var(--text-secondary)',
+              color: messages.length >= 45 ? '#eab308' : 'var(--text-secondary)',
             }}>
-              <span>{Math.min(messages.length, 8)}/8</span>
-              {messages.length >= 7 && (
+              <span>{messages.length}</span>
+              {messages.length >= 45 && (
                 <span title="Al prossimo messaggio farò un riassunto" style={{ cursor: 'help' }}>
                   ⚡
                 </span>

@@ -814,10 +814,13 @@ if ($useOpenRouter) {
 
     // Variabile per tracciare se abbiamo fatto compaction
     $didCompaction = false;
+    $compactionSummary = null;  // Il riassunto da restituire al frontend
     $messageCountBefore = count($messages);
 
     // ====== SMART COMPACTION: Riassumi conversazione lunga ======
-    if (count($messages) > 8) {
+    // Threshold: 50 messaggi (~25 scambi utente-assistente)
+    // Claude Sonnet ha 200K token context, 50 messaggi ≈ 10-15K token = ~7% capacità
+    if (count($messages) > 50) {
         error_log("COMPACTION: Conversazione lunga (" . count($messages) . " msg), creo riassunto");
         $didCompaction = true;
 
@@ -863,6 +866,9 @@ if ($useOpenRouter) {
 
         if ($summary) {
             error_log("COMPACTION: Riassunto creato: " . substr($summary, 0, 100) . "...");
+
+            // Salva il riassunto per restituirlo al frontend
+            $compactionSummary = $summary;
 
             // Sostituisci la history con il riassunto + ultimo messaggio utente
             $messages = [
@@ -1128,7 +1134,8 @@ $responseData = [
     'context' => [
         'messages_count' => $useOpenRouter ? count($messages) : count($contents),
         'did_compaction' => $useOpenRouter ? ($didCompaction ?? false) : false,
-        'compaction_threshold' => 8  // Quando scatta la compaction
+        'compaction_threshold' => 50,  // Quando scatta la compaction
+        'compaction_summary' => $useOpenRouter ? ($compactionSummary ?? null) : null  // Riassunto per frontend
     ]
 ];
 

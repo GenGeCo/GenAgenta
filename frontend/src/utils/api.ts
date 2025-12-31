@@ -545,6 +545,7 @@ class ApiClient {
       messages_count: number;
       did_compaction: boolean;
       compaction_threshold: number;
+      compaction_summary?: string | null;
     };
   }> {
     const { data } = await this.client.post('/ai/chat', { message, history });
