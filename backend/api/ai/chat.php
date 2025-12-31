@@ -610,10 +610,14 @@ $promptFile = __DIR__ . '/../../config/ai/prompt_base.txt';
 if (!file_exists($promptFile)) {
     // Fallback al vecchio prompt se nuovo non esiste
     $promptFile = __DIR__ . '/../../config/ai_prompt.txt';
+    error_log("PROMPT: usando FALLBACK (vecchio) - " . $promptFile);
+} else {
+    error_log("PROMPT: usando NUOVO prompt_base.txt - " . $promptFile);
 }
 
 if (file_exists($promptFile)) {
     $systemInstruction = file_get_contents($promptFile);
+    error_log("PROMPT: lunghezza = " . strlen($systemInstruction) . " caratteri");
     // Sostituisci placeholder con dati utente
     $systemInstruction = str_replace([
         '{{user_nome}}',
