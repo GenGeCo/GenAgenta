@@ -1170,27 +1170,40 @@ if ($useOpenRouter) {
         // ====== COMPATTA TOOL RESULTS VECCHI ======
         // Problema: ad ogni iterazione, i tool results si accumulano in $messages
         // e vengono TUTTI passati alla prossima chiamata API → crescita esponenziale
-        // Soluzione: mantieni solo l'ultimo set di tool results, compatta i vecchi
+        // Soluzione: mantieni solo l'ultimo set di tool results che matchano l'ultimo assistant+tool_calls
         if ($iteration > 1 && count($messages) > 10) {
             $newMessages = [];
             $toolResultsToKeep = [];
             $lastAssistantWithTools = null;
+            $validToolCallIds = [];  // IDs delle tool_calls da tenere
 
-            // Scorri i messaggi al contrario per trovare l'ultimo set di tool calls
+            // PRIMO PASSO: trova l'ultimo assistant con tool_calls e raccogli i suoi IDs
+            for ($i = count($messages) - 1; $i >= 0; $i--) {
+                $msg = $messages[$i];
+                if ($msg['role'] === 'assistant' && isset($msg['tool_calls'])) {
+                    $lastAssistantWithTools = $msg;
+                    // Raccogli gli IDs delle tool_calls di questo assistant
+                    foreach ($msg['tool_calls'] as $tc) {
+                        $validToolCallIds[] = $tc['id'] ?? '';
+                    }
+                    break;  // Trovato, esci
+                }
+            }
+
+            // SECONDO PASSO: scorri i messaggi e tieni solo quelli validi
             for ($i = count($messages) - 1; $i >= 0; $i--) {
                 $msg = $messages[$i];
 
                 if ($msg['role'] === 'tool') {
-                    // Tool result - tieni solo gli ultimi (del ciclo corrente)
-                    if (count($toolResultsToKeep) < 4) {  // Max 4 tool results recenti
+                    // Tool result - tieni SOLO se il suo tool_call_id è tra quelli validi
+                    $toolCallId = $msg['tool_call_id'] ?? '';
+                    if (in_array($toolCallId, $validToolCallIds)) {
                         array_unshift($toolResultsToKeep, $msg);
                     }
+                    // Se non matcha, viene SCARTATO
                 } elseif ($msg['role'] === 'assistant' && isset($msg['tool_calls'])) {
-                    // Assistant con tool_calls - tieni SOLO l'ultimo, SCARTA gli altri
-                    if (!$lastAssistantWithTools) {
-                        $lastAssistantWithTools = $msg;
-                    }
-                    // Se già abbiamo lastAssistantWithTools, questo viene SCARTATO (non aggiunto da nessuna parte)
+                    // Assistant con tool_calls - già gestito sopra, SCARTA tutti tranne lastAssistantWithTools
+                    // (non fare nulla qui, verrà aggiunto dopo)
                 } else {
                     // Messaggi normali (user, assistant SENZA tool_calls)
                     array_unshift($newMessages, $msg);
