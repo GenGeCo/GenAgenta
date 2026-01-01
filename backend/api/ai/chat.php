@@ -1007,7 +1007,8 @@ if ($useOpenRouter) {
         // Esegui le tool calls
         foreach ($toolCalls as $tc) {
             $funcName = $tc['function']['name'] ?? '';
-            $funcArgs = json_decode($tc['function']['arguments'] ?? '{}', true);
+            // Fix: json_decode("null") restituisce null, non array - gestiamo il caso
+            $funcArgs = json_decode($tc['function']['arguments'] ?? '{}', true) ?? [];
             $toolCallId = $tc['id'] ?? '';
 
             // ====== ANTI-LOOP: Blocca tool ripetitivi ======
