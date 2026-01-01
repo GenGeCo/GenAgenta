@@ -11,7 +11,7 @@ interface Message {
 
 // Tipi per le azioni frontend
 export interface AiFrontendAction {
-  type: 'map_fly_to' | 'map_select_entity' | 'map_show_connections' | 'ui_open_panel' | 'ui_notification';
+  type: 'map_fly_to' | 'map_select_entity' | 'map_show_connections' | 'ui_open_panel' | 'ui_notification' | 'refresh_neuroni';
   lat?: number;
   lng?: number;
   zoom?: number;

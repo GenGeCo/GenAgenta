@@ -247,6 +247,24 @@ export default function Dashboard() {
     }
   };
 
+  // Ricarica neuroni (per aggiornare la mappa dopo creazione via AI)
+  const reloadNeuroni = async () => {
+    console.log('DEBUG reloadNeuroni chiamato');
+    try {
+      const neuroniRes = await api.getNeuroni({
+        tipo: filtri.tipoNeurone || undefined,
+        categoria: filtri.categoria || undefined,
+        data_inizio: filtri.dataInizio || undefined,
+        data_fine: filtri.dataFine || undefined,
+        limit: 500,
+      });
+      console.log('DEBUG reloadNeuroni completato, neuroni:', neuroniRes.data.length);
+      setNeuroni(neuroniRes.data);
+    } catch (error) {
+      console.error('Errore ricaricamento neuroni:', error);
+    }
+  };
+
   // Handler verifica PIN
   const handleVerifyPin = async (pin: string) => {
     try {
@@ -322,6 +340,12 @@ export default function Dashboard() {
           console.log(`[${action.notification_type || 'info'}] ${action.notification_message}`);
           // TODO: implementare sistema notifiche toast
         }
+        break;
+
+      case 'refresh_neuroni':
+        // Ricarica neuroni (chiamato dopo che AI crea/modifica entità)
+        console.log('AI Action: refresh_neuroni');
+        reloadNeuroni();
         break;
     }
   };

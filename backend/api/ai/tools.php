@@ -558,6 +558,10 @@ function tool_createEntity(PDO $db, array $input, array $user): array {
             'indirizzo' => $indirizzo,
             'lat' => $lat,
             'lng' => $lng
+        ],
+        // Azione frontend: ricarica neuroni per mostrare la nuova entità sulla mappa
+        '_frontend_action' => [
+            'type' => 'refresh_neuroni'
         ]
     ];
 }
@@ -621,7 +625,11 @@ function tool_updateEntity(PDO $db, array $input, array $user): array {
     return [
         'success' => true,
         'message' => "Entità aggiornata con successo",
-        'entity_id' => $entityId
+        'entity_id' => $entityId,
+        // Azione frontend: ricarica neuroni per mostrare le modifiche sulla mappa
+        '_frontend_action' => [
+            'type' => 'refresh_neuroni'
+        ]
     ];
 }
 
@@ -862,7 +870,11 @@ function tool_deleteEntity(PDO $db, array $input, array $user): array {
 
     return [
         'success' => true,
-        'message' => "Entita '$nome' eliminata con tutte le sue connessioni e transazioni"
+        'message' => "Entita '$nome' eliminata con tutte le sue connessioni e transazioni",
+        // Azione frontend: ricarica neuroni per rimuovere l'entità dalla mappa
+        '_frontend_action' => [
+            'type' => 'refresh_neuroni'
+        ]
     ];
 }
 
