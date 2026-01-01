@@ -255,10 +255,18 @@ export function AiChat({ isOpen, onClose, onAction }: AiChatProps) {
             _actionResult: actionResult
           };
 
-          // Se azione CRUD su neuroni, trigger refresh immediato
-          if (actionResult.success &&
-              ['createNeurone', 'updateNeurone', 'deleteNeurone'].includes(currentResponse.pending_action.action_type)) {
-            onAction?.({ type: 'refresh_neuroni' });
+          // Se azione CRUD su neuroni/sinapsi, trigger refresh immediato
+          if (actionResult.success) {
+            const actionType = currentResponse.pending_action.action_type;
+            const endpoint = currentResponse.pending_action.endpoint || '';
+            const isNeuroniAction = ['createNeurone', 'updateNeurone', 'deleteNeurone'].includes(actionType);
+            const isSinapsiAction = ['createSinapsi', 'deleteSinapsi'].includes(actionType);
+            const isCallApiOnNeuroni = actionType === 'callApi' &&
+              (endpoint.includes('neuroni') || endpoint.includes('sinapsi'));
+
+            if (isNeuroniAction || isSinapsiAction || isCallApiOnNeuroni) {
+              onAction?.({ type: 'refresh_neuroni' });
+            }
           }
 
           // Continua il loop
