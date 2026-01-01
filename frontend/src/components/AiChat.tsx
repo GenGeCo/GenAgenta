@@ -1,7 +1,7 @@
 // GenAgenTa - AI Chat Component
 
 import { useState, useRef, useEffect } from 'react';
-import { api } from '../utils/api';
+import { api, AiPendingAction, AiChatResponse } from '../utils/api';
 
 interface Message {
   role: 'user' | 'assistant';
@@ -83,6 +83,87 @@ export function AiChat({ isOpen, onClose, onAction }: AiChatProps) {
     localStorage.removeItem(CHAT_STORAGE_KEY);
   };
 
+  // =====================================================
+  // FRONTEND EXECUTION: Esegue pending_action dal backend
+  // =====================================================
+  const executePendingAction = async (
+    action: AiPendingAction
+  ): Promise<{ success: boolean; data?: unknown; error?: string }> => {
+    console.log('Eseguo pending_action:', action);
+
+    try {
+      let result: unknown;
+
+      switch (action.action_type) {
+        case 'createNeurone':
+          result = await api.createNeurone(action.payload as Parameters<typeof api.createNeurone>[0]);
+          break;
+
+        case 'updateNeurone':
+          if (!action.entity_id) throw new Error('entity_id mancante');
+          await api.updateNeurone(action.entity_id, action.payload as Parameters<typeof api.updateNeurone>[1]);
+          result = { success: true, id: action.entity_id };
+          break;
+
+        case 'deleteNeurone':
+          if (!action.entity_id) throw new Error('entity_id mancante');
+          await api.deleteNeurone(action.entity_id);
+          result = { success: true, deleted: action.entity_id };
+          break;
+
+        case 'createSinapsi':
+          result = await api.createSinapsi(action.payload as Parameters<typeof api.createSinapsi>[0]);
+          break;
+
+        case 'deleteSinapsi':
+          if (!action.sinapsi_id) throw new Error('sinapsi_id mancante');
+          await api.deleteSinapsi(action.sinapsi_id);
+          result = { success: true, deleted: action.sinapsi_id };
+          break;
+
+        case 'createVendita':
+          result = await api.createVendita(action.payload as Parameters<typeof api.createVendita>[0]);
+          break;
+
+        case 'deleteSale':
+          if (!action.sale_id) throw new Error('sale_id mancante');
+          await api.delete(`/v2/vendite/${action.sale_id}`);
+          result = { success: true, deleted: action.sale_id };
+          break;
+
+        case 'createNota':
+          // eslint-disable-next-line no-case-declarations
+          const notaPayload = action.payload as { neurone_id: string; testo: string };
+          result = await api.createNota(notaPayload.neurone_id, notaPayload.testo);
+          break;
+
+        case 'callApi':
+          // Chiamata API generica
+          if (action.method === 'POST') {
+            const res = await api.post(action.endpoint, action.payload);
+            result = res.data;
+          } else if (action.method === 'PUT') {
+            const res = await api.put(action.endpoint, action.payload);
+            result = res.data;
+          } else if (action.method === 'DELETE') {
+            const res = await api.delete(action.endpoint);
+            result = res.data;
+          }
+          break;
+
+        default:
+          throw new Error(`Tipo azione non supportato: ${action.action_type}`);
+      }
+
+      console.log('Pending action completata:', result);
+      return { success: true, data: result };
+    } catch (error) {
+      console.error('Errore esecuzione pending_action:', error);
+      const errorMsg = error instanceof Error ? error.message : 'Errore sconosciuto';
+      return { success: false, error: errorMsg };
+    }
+  };
+
   const sendMessage = async () => {
     if (!input.trim() || isLoading) return;
 
@@ -102,75 +183,147 @@ export function AiChat({ isOpen, onClose, onAction }: AiChatProps) {
 
     try {
       // Prepara history per API - LIMITA A ULTIMI 30 MESSAGGI e TRONCA CONTENUTO
-      // Il problema non era il NUMERO di messaggi ma la DIMENSIONE - manteniamo truncate aggressivo
       const recentMessages = messages.slice(-30);
       const history = recentMessages.map((m) => ({
         role: m.role,
-        // Tronca messaggi troppo lunghi (es. tool results giganti) - questo è il vero fix
         content: m.content.length > 1500 ? m.content.substring(0, 1500) + '...[troncato]' : m.content,
       }));
 
       // Se stiamo per fare compaction, mostra fase "compacting" per un po'
       if (willCompact) {
         setLoadingPhase('compacting');
-        await new Promise(r => setTimeout(r, 500)); // Piccola pausa per UX
+        await new Promise(r => setTimeout(r, 500));
       }
       setLoadingPhase('thinking');
 
-      const response = await api.aiChat(userMessage.content, history);
+      // =====================================================
+      // FRONTEND EXECUTION: Loop per gestire pending_action
+      // =====================================================
+      let continueLoop = true;
+      let currentResponse: AiChatResponse | null = null;
+      let resumeContext: Record<string, unknown> | null = null;
+      let loopCount = 0;
+      const maxLoops = 10; // Protezione anti-loop
 
-      // Aggiorna info contesto dalla risposta
-      if (response.context) {
-        setContextInfo({
-          messagesCount: response.context.messages_count || 0,
-          threshold: response.context.compaction_threshold || 25
-        });
+      while (continueLoop && loopCount < maxLoops) {
+        loopCount++;
 
-        // Se il backend ha fatto compaction, sostituisci la history locale con il riassunto
-        if (response.context.did_compaction && response.context.compaction_summary) {
-          console.log('Compaction ricevuta, reset history con riassunto');
-          const summaryMessage: Message = {
-            role: 'assistant',
-            content: `[Riassunto: ${response.context.compaction_summary}]`,
-            timestamp: new Date(),
-          };
-          // Reset: riassunto + messaggio utente corrente + risposta AI
-          const newMessages: Message[] = [summaryMessage, userMessage];
-          const assistantMessage: Message = {
-            role: 'assistant',
-            content: response.response,
-            timestamp: new Date(),
-          };
-          setMessages([...newMessages, assistantMessage]);
-          // Salva subito in localStorage
-          localStorage.setItem(CHAT_STORAGE_KEY, JSON.stringify([...newMessages, assistantMessage]));
+        // Prima chiamata o resume?
+        if (!resumeContext) {
+          currentResponse = await api.aiChat(userMessage.content, history);
+        } else {
+          // Resume con il risultato dell'azione
+          const actionResult = resumeContext._actionResult as { success: boolean; data?: unknown; error?: string };
+          delete resumeContext._actionResult;
+          currentResponse = await api.aiChatContinue(resumeContext, actionResult);
+        }
 
-          // Esegui azioni frontend ANCHE dopo compaction
-          if (response.actions && Array.isArray(response.actions) && onAction) {
-            for (const action of response.actions) {
-              console.log('Eseguo azione AI (post-compaction):', action);
-              onAction(action as AiFrontendAction);
-            }
+        // Check se c'è una pending_action
+        if (currentResponse.status === 'pending_action' && currentResponse.pending_action) {
+          console.log('Pending action ricevuta:', currentResponse.pending_action);
+
+          // Mostra messaggio parziale se presente
+          if (currentResponse.partial_response) {
+            const partialMessage: Message = {
+              role: 'assistant',
+              content: currentResponse.partial_response + ' ⏳',
+              timestamp: new Date(),
+            };
+            setMessages((prev) => {
+              // Rimuovi eventuale messaggio parziale precedente
+              const filtered = prev.filter(m => !m.content.endsWith(' ⏳'));
+              return [...filtered, partialMessage];
+            });
           }
-          return; // Esci qui, abbiamo già gestito tutto
+
+          // Esegui l'azione
+          const actionResult = await executePendingAction(currentResponse.pending_action);
+
+          // Prepara per resume
+          resumeContext = {
+            ...(currentResponse.resume_context || {}),
+            _actionResult: actionResult
+          };
+
+          // Se azione CRUD su neuroni, trigger refresh immediato
+          if (actionResult.success &&
+              ['createNeurone', 'updateNeurone', 'deleteNeurone'].includes(currentResponse.pending_action.action_type)) {
+            onAction?.({ type: 'refresh_neuroni' });
+          }
+
+          // Continua il loop
+          continue;
+        }
+
+        // Risposta finale - esci dal loop
+        continueLoop = false;
+
+        // Rimuovi eventuali messaggi parziali
+        setMessages((prev) => prev.filter(m => !m.content.endsWith(' ⏳')));
+
+        // Aggiorna info contesto dalla risposta
+        if (currentResponse.context) {
+          setContextInfo({
+            messagesCount: currentResponse.context.messages_count || 0,
+            threshold: currentResponse.context.compaction_threshold || 25
+          });
+
+          // Se il backend ha fatto compaction, sostituisci la history locale con il riassunto
+          if (currentResponse.context.did_compaction && currentResponse.context.compaction_summary) {
+            console.log('Compaction ricevuta, reset history con riassunto');
+            const summaryMessage: Message = {
+              role: 'assistant',
+              content: `[Riassunto: ${currentResponse.context.compaction_summary}]`,
+              timestamp: new Date(),
+            };
+            const assistantMessage: Message = {
+              role: 'assistant',
+              content: currentResponse.response || 'Fatto!',
+              timestamp: new Date(),
+            };
+            const newMessages: Message[] = [summaryMessage, userMessage, assistantMessage];
+            setMessages(newMessages);
+            localStorage.setItem(CHAT_STORAGE_KEY, JSON.stringify(newMessages));
+
+            // Esegui azioni frontend
+            if (currentResponse.actions && Array.isArray(currentResponse.actions) && onAction) {
+              for (const action of currentResponse.actions) {
+                console.log('Eseguo azione AI (post-compaction):', action);
+                onAction(action as AiFrontendAction);
+              }
+            }
+            return;
+          }
+        }
+
+        // Aggiungi risposta AI
+        const assistantMessage: Message = {
+          role: 'assistant',
+          content: currentResponse.response || 'Fatto!',
+          timestamp: new Date(),
+        };
+        setMessages((prev) => [...prev, assistantMessage]);
+
+        // Esegui azioni frontend se presenti
+        if (currentResponse.actions && Array.isArray(currentResponse.actions) && onAction) {
+          for (const action of currentResponse.actions) {
+            console.log('Eseguo azione AI:', action);
+            onAction(action as AiFrontendAction);
+          }
         }
       }
 
-      const assistantMessage: Message = {
-        role: 'assistant',
-        content: response.response,
-        timestamp: new Date(),
-      };
-
-      setMessages((prev) => [...prev, assistantMessage]);
-
-      // Esegui azioni frontend se presenti
-      if (response.actions && Array.isArray(response.actions) && onAction) {
-        for (const action of response.actions) {
-          console.log('Eseguo azione AI:', action);
-          onAction(action as AiFrontendAction);
-        }
+      // Protezione anti-loop raggiunta
+      if (loopCount >= maxLoops) {
+        console.warn('Frontend execution: raggiunto limite loop');
+        const warningMessage: Message = {
+          role: 'assistant',
+          content: 'Ho completato diverse operazioni. C\'è altro che posso fare?',
+          timestamp: new Date(),
+        };
+        setMessages((prev) => [...prev, warningMessage]);
       }
+
     } catch (error) {
       console.error('Errore AI:', error);
       const errorMessage: Message = {

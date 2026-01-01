@@ -7,6 +7,42 @@ const API_BASE = import.meta.env.PROD
   ? '/genagenta/backend/api/index.php'
   : '/api';
 
+// =====================================================
+// Interfacce per AI Chat con Frontend Execution
+// =====================================================
+
+export interface AiPendingAction {
+  action_type: 'createNeurone' | 'updateNeurone' | 'deleteNeurone' |
+               'createSinapsi' | 'deleteSinapsi' |
+               'createVendita' | 'deleteSale' |
+               'createNota' | 'callApi';
+  method: 'POST' | 'PUT' | 'DELETE';
+  endpoint: string;
+  payload?: Record<string, unknown>;
+  entity_id?: string;
+  sinapsi_id?: string;
+  sale_id?: string;
+  description: string;
+}
+
+export interface AiChatResponse {
+  // Risposta normale
+  response?: string;
+  iterations?: number;
+  actions?: unknown[];
+  context?: {
+    messages_count: number;
+    did_compaction: boolean;
+    compaction_threshold?: number;
+    compaction_summary?: string | null;
+  };
+  // Risposta con pending_action
+  status?: 'pending_action' | 'complete';
+  pending_action?: AiPendingAction;
+  resume_context?: Record<string, unknown>;
+  partial_response?: string;
+}
+
 class ApiClient {
   private client: AxiosInstance;
   private token: string | null = null;
@@ -533,22 +569,27 @@ class ApiClient {
     await this.getV2Client().post('/preferenze', preferenze);
   }
 
-  // AI Chat
+  // =====================================================
+  // AI Chat con supporto Frontend Execution
+  // =====================================================
+
   async aiChat(
     message: string,
     history: { role: string; content: string }[] = []
-  ): Promise<{
-    response: string;
-    iterations: number;
-    actions?: unknown[];
-    context?: {
-      messages_count: number;
-      did_compaction: boolean;
-      compaction_threshold: number;
-      compaction_summary?: string | null;
-    };
-  }> {
+  ): Promise<AiChatResponse> {
     const { data } = await this.client.post('/ai/chat', { message, history });
+    return data;
+  }
+
+  // Continua il loop AI dopo aver eseguito una pending_action
+  async aiChatContinue(
+    resumeContext: Record<string, unknown>,
+    actionResult: { success: boolean; data?: unknown; error?: string }
+  ): Promise<AiChatResponse> {
+    const { data } = await this.client.post('/ai/chat', {
+      resume_context: resumeContext,
+      action_result: actionResult
+    });
     return data;
   }
 

@@ -51,6 +51,165 @@ require_once __DIR__ . '/../../includes/helpers.php';
 require_once __DIR__ . '/tools.php';
 require_once __DIR__ . '/debug-helper.php';
 
+// =====================================================
+// FRONTEND EXECUTION: Costanti e funzioni per delegare
+// le operazioni WRITE al frontend
+// =====================================================
+
+const WRITE_TOOLS = [
+    'create_entity',
+    'update_entity',
+    'delete_entity',
+    'create_connection',
+    'delete_connection',
+    'create_sale',
+    'delete_sale',
+    'create_note'
+];
+
+/**
+ * Verifica se un tool è di tipo WRITE (deve essere eseguito dal frontend)
+ */
+function isWriteTool(string $toolName, array $args = []): bool {
+    if (in_array($toolName, WRITE_TOOLS)) {
+        return true;
+    }
+    // call_api è write solo per POST/PUT/DELETE
+    if ($toolName === 'call_api') {
+        $method = strtoupper($args['method'] ?? 'GET');
+        return in_array($method, ['POST', 'PUT', 'DELETE']);
+    }
+    return false;
+}
+
+/**
+ * Mappa un tool AI al formato azione frontend
+ */
+function mapToolToFrontendAction(string $toolName, array $args): array {
+    switch ($toolName) {
+        case 'create_entity':
+            return [
+                'action_type' => 'createNeurone',
+                'method' => 'POST',
+                'endpoint' => '/neuroni',
+                'payload' => [
+                    'nome' => $args['nome'] ?? '',
+                    'tipo' => $args['tipo'] ?? '',
+                    'indirizzo' => $args['indirizzo'] ?? null,
+                    'lat' => $args['lat'] ?? null,
+                    'lng' => $args['lng'] ?? null,
+                    'email' => $args['email'] ?? null,
+                    'telefono' => $args['telefono'] ?? null,
+                    'categorie' => $args['categorie'] ?? [],
+                    'visibilita' => ($args['personale'] ?? false) ? 'personale' : 'aziendale'
+                ],
+                'description' => "Creare entità: " . ($args['nome'] ?? 'senza nome')
+            ];
+
+        case 'update_entity':
+            return [
+                'action_type' => 'updateNeurone',
+                'method' => 'PUT',
+                'endpoint' => '/neuroni/' . ($args['entity_id'] ?? ''),
+                'entity_id' => $args['entity_id'] ?? '',
+                'payload' => array_filter([
+                    'nome' => $args['nome'] ?? null,
+                    'indirizzo' => $args['indirizzo'] ?? null,
+                    'lat' => $args['lat'] ?? null,
+                    'lng' => $args['lng'] ?? null,
+                    'email' => $args['email'] ?? null,
+                    'telefono' => $args['telefono'] ?? null,
+                    'note' => $args['note'] ?? null,
+                    'categorie' => $args['categorie'] ?? null
+                ], fn($v) => $v !== null),
+                'description' => "Aggiornare entità"
+            ];
+
+        case 'delete_entity':
+            return [
+                'action_type' => 'deleteNeurone',
+                'method' => 'DELETE',
+                'endpoint' => '/neuroni/' . ($args['entity_id'] ?? ''),
+                'entity_id' => $args['entity_id'] ?? '',
+                'description' => "Eliminare entità"
+            ];
+
+        case 'create_connection':
+            return [
+                'action_type' => 'createSinapsi',
+                'method' => 'POST',
+                'endpoint' => '/sinapsi',
+                'payload' => [
+                    'neurone_da' => $args['entity_from'] ?? $args['neurone_da'] ?? '',
+                    'neurone_a' => $args['entity_to'] ?? $args['neurone_a'] ?? '',
+                    'tipo' => $args['tipo'] ?? 'commerciale',
+                    'note' => $args['note'] ?? null,
+                    'personale' => $args['personale'] ?? false
+                ],
+                'description' => "Creare connessione"
+            ];
+
+        case 'delete_connection':
+            return [
+                'action_type' => 'deleteSinapsi',
+                'method' => 'DELETE',
+                'endpoint' => '/sinapsi/' . ($args['sinapsi_id'] ?? $args['connection_id'] ?? ''),
+                'sinapsi_id' => $args['sinapsi_id'] ?? $args['connection_id'] ?? '',
+                'description' => "Eliminare connessione"
+            ];
+
+        case 'create_sale':
+            return [
+                'action_type' => 'createVendita',
+                'method' => 'POST',
+                'endpoint' => '/v2/vendite',
+                'payload' => [
+                    'neurone_id' => $args['entity_id'] ?? $args['neurone_id'] ?? '',
+                    'importo' => $args['importo'] ?? 0,
+                    'famiglia_id' => $args['famiglia_id'] ?? null,
+                    'data_vendita' => $args['data'] ?? date('Y-m-d'),
+                    'descrizione' => $args['descrizione'] ?? null,
+                    'sinapsi_id' => $args['sinapsi_id'] ?? null,
+                    'tipo_transazione' => $args['tipo_transazione'] ?? 'vendita'
+                ],
+                'description' => "Registrare vendita"
+            ];
+
+        case 'delete_sale':
+            return [
+                'action_type' => 'deleteSale',
+                'method' => 'DELETE',
+                'endpoint' => '/v2/vendite/' . ($args['sale_id'] ?? ''),
+                'sale_id' => $args['sale_id'] ?? '',
+                'description' => "Eliminare vendita"
+            ];
+
+        case 'create_note':
+            return [
+                'action_type' => 'createNota',
+                'method' => 'POST',
+                'endpoint' => '/note',
+                'payload' => [
+                    'neurone_id' => $args['entity_id'] ?? $args['neurone_id'] ?? '',
+                    'testo' => $args['contenuto'] ?? $args['content'] ?? ''
+                ],
+                'description' => "Aggiungere nota"
+            ];
+
+        case 'call_api':
+            return [
+                'action_type' => 'callApi',
+                'method' => strtoupper($args['method'] ?? 'POST'),
+                'endpoint' => $args['endpoint'] ?? '',
+                'payload' => $args['body'] ?? [],
+                'description' => "Chiamare API: " . ($args['endpoint'] ?? '')
+            ];
+
+        default:
+            return ['error' => "Tool non mappato: $toolName"];
+    }
+}
+
 // Auth richiesta
 $user = requireAuth();
 
@@ -70,8 +229,34 @@ $data = getJsonBody();
 $userMessage = $data['message'] ?? '';
 $conversationHistory = $data['history'] ?? [];
 
-if (empty($userMessage)) {
+// =====================================================
+// FRONTEND EXECUTION: Gestione resume dopo pending_action
+// =====================================================
+$isResume = isset($data['resume_context']);
+$resumeContext = $data['resume_context'] ?? null;
+$actionResult = $data['action_result'] ?? null;
+
+// Validazione: se non è resume, serve il messaggio
+if (!$isResume && empty($userMessage)) {
     errorResponse('Messaggio richiesto', 400);
+}
+
+// Validazione resume_context
+if ($isResume) {
+    if (empty($resumeContext['messages'])) {
+        errorResponse('resume_context.messages mancante', 400);
+    }
+    if (empty($resumeContext['pending_tool_call_id'])) {
+        errorResponse('resume_context.pending_tool_call_id mancante', 400);
+    }
+    if (count($resumeContext['messages']) > 50) {
+        errorResponse('Contesto troppo grande (max 50 messaggi)', 400);
+    }
+    if (($resumeContext['iteration'] ?? 0) > 10) {
+        errorResponse('Troppe iterazioni (max 10)', 400);
+    }
+
+    error_log("RESUME: tool_call_id=" . $resumeContext['pending_tool_call_id'] . ", action_result=" . json_encode($actionResult));
 }
 
 // Log messaggio utente
@@ -833,28 +1018,47 @@ if ($useOpenRouter) {
         ];
     }
 
-    // Converti history al formato OpenAI messages
-    // Limita a ultimi 30 messaggi (allineato con frontend)
-    // Il truncate a 1500 char nel frontend risolve il problema dimensione
-    $limitedHistory = array_slice($conversationHistory, -30);
+    // =====================================================
+    // FRONTEND EXECUTION: Se resume, usa messages dal context
+    // =====================================================
+    $frontendActions = [];  // Inizializza qui per entrambi i casi
 
-    $messages = [];
-    foreach ($limitedHistory as $msg) {
-        // Tronca messaggi troppo lunghi (max 3000 caratteri)
-        $content = $msg['content'];
-        if (strlen($content) > 3000) {
-            $content = substr($content, 0, 3000) . "\n[...messaggio troncato...]";
-        }
+    if ($isResume && $resumeContext) {
+        // RESUME: Ripristina stato dal context
+        $messages = $resumeContext['messages'];
+        $frontendActions = $resumeContext['pending_frontend_actions'] ?? [];
+
+        // Aggiungi il risultato dell'azione eseguita dal frontend
         $messages[] = [
-            'role' => $msg['role'],
-            'content' => $content
+            'role' => 'tool',
+            'tool_call_id' => $resumeContext['pending_tool_call_id'],
+            'content' => json_encode($actionResult ?? ['error' => 'Nessun risultato'], JSON_UNESCAPED_UNICODE)
+        ];
+
+        error_log("RESUME: Ripristinato " . count($messages) . " messaggi, aggiunto tool result");
+    } else {
+        // NORMALE: Costruisci messages dalla history
+        // Limita a ultimi 30 messaggi (allineato con frontend)
+        $limitedHistory = array_slice($conversationHistory, -30);
+
+        $messages = [];
+        foreach ($limitedHistory as $msg) {
+            // Tronca messaggi troppo lunghi (max 3000 caratteri)
+            $content = $msg['content'];
+            if (strlen($content) > 3000) {
+                $content = substr($content, 0, 3000) . "\n[...messaggio troncato...]";
+            }
+            $messages[] = [
+                'role' => $msg['role'],
+                'content' => $content
+            ];
+        }
+        // Aggiungi messaggio utente corrente
+        $messages[] = [
+            'role' => 'user',
+            'content' => $userMessage
         ];
     }
-    // Aggiungi messaggio utente corrente
-    $messages[] = [
-        'role' => 'user',
-        'content' => $userMessage
-    ];
 
     // DEBUG: Log dimensione history
     error_log("=== AI CHAT DEBUG ===");
@@ -938,16 +1142,26 @@ if ($useOpenRouter) {
 
     // ====== ANTI-LOOP PROTECTION ======
     // Traccia tool calls per prevenire loop
-    $toolCallCounts = [];
-    $totalToolCalls = 0;
+    // Se resume, ripristina i contatori dal context
+    if ($isResume && $resumeContext) {
+        $toolCallCounts = $resumeContext['tool_call_counts'] ?? [];
+        $totalToolCalls = array_sum($toolCallCounts);
+        $iteration = $resumeContext['iteration'] ?? 0;
+        $lastTextContent = $resumeContext['last_text_content'] ?? null;
+        error_log("RESUME: Ripristinati contatori - iteration=$iteration, toolCalls=$totalToolCalls");
+    } else {
+        $toolCallCounts = [];
+        $totalToolCalls = 0;
+        $iteration = 0;
+        $lastTextContent = null;
+    }
     $hasProposedImprovement = false;
-    $lastTextContent = null;  // Salva l'ultimo testo valido ricevuto
     $hasExecutedMapAction = false;  // Flag per azioni mappa
     $hasToolError = false;  // Flag per errori nei tool - se true, dai all'AI un'altra chance di rispondere
 
     // Loop per gestire tool calls - 6 iterazioni per dare libertà all'AI
+    // Max 12 totali considerando i resume
     $maxIterations = 6;
-    $iteration = 0;
     $finalResponse = null;
 
     while ($iteration < $maxIterations) {
@@ -1108,7 +1322,45 @@ if ($useOpenRouter) {
                 continue;
             }
 
-            // Esegui il tool
+            // =====================================================
+            // FRONTEND EXECUTION: Sospendi su WRITE tools
+            // =====================================================
+            if (isWriteTool($funcName, $funcArgs)) {
+                error_log("FRONTEND_EXEC: Write tool $funcName - sospendo e ritorno pending_action");
+
+                // Prepara pending_action per il frontend
+                $pendingAction = mapToolToFrontendAction($funcName, $funcArgs);
+
+                // Prepara resume_context per riprendere
+                $resumeContextOut = [
+                    'messages' => $messages,
+                    'pending_tool_call_id' => $toolCallId,
+                    'pending_tool_name' => $funcName,
+                    'pending_tool_args' => $funcArgs,
+                    'pending_frontend_actions' => $frontendActions,
+                    'iteration' => $iteration,
+                    'tool_call_counts' => $toolCallCounts,
+                    'last_text_content' => $lastTextContent
+                ];
+
+                // Log debug
+                aiDebugLog('PENDING_ACTION', [
+                    'tool' => $funcName,
+                    'action_type' => $pendingAction['action_type'] ?? 'unknown',
+                    'iteration' => $iteration
+                ]);
+
+                // Ritorna al frontend per eseguire l'azione
+                jsonResponse([
+                    'status' => 'pending_action',
+                    'pending_action' => $pendingAction,
+                    'resume_context' => $resumeContextOut,
+                    'partial_response' => $lastTextContent
+                ]);
+                exit; // IMPORTANTE: esce dal loop e dallo script
+            }
+
+            // Esegui il tool (solo READ tools arrivano qui)
             try {
                 $result = executeAiTool($funcName, $funcArgs, $user);
 
