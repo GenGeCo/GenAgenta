@@ -144,8 +144,8 @@ export default function Dashboard() {
     const loadTipiCategorie = async () => {
       try {
         const [tipiRes, tipologieRes] = await Promise.all([
-          api.get('/tipi'),
-          api.get('/tipologie')
+          api.get('/tipi-neurone'),
+          api.get('/categorie')
         ]);
 
         // Mappa tipi v2 al formato TipoNeuroneConfig

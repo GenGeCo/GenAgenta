@@ -98,9 +98,9 @@ export default function SetupEntita() {
     setLoading(true);
     try {
       const [tipiRes, tipologieRes, connRes] = await Promise.all([
-        api.get('/tipi'),
-        api.get('/tipologie'),
-        api.get('/tipi-connessione'),
+        api.get('/tipi-neurone'),
+        api.get('/categorie'),
+        api.get('/tipi-sinapsi'),
       ]);
       setTipi(tipiRes.data.data);
       setTipologie(tipologieRes.data.data);

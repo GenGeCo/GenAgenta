@@ -207,10 +207,10 @@ export default function NeuroneFormModal({
   const loadTipiCategorie = async () => {
     setLoadingTipi(true);
     try {
-      // Usa API v2 per tipi e tipologie
+      // Usa API v2 per tipi e categorie
       const [tipiRes, tipologieRes] = await Promise.all([
-        api.get('/tipi'),
-        api.get('/tipologie')
+        api.get('/tipi-neurone'),
+        api.get('/categorie')
       ]);
 
       // Mappa tipi v2 al formato TipoNeuroneConfig
