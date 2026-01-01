@@ -793,11 +793,20 @@ if ($useOpenRouter) {
     }
 
     // Converti history al formato OpenAI messages
+    // IMPORTANTE: Limita a ultimi 12 messaggi per evitare context overflow
+    // (simile a Gemini che usa 10 messaggi)
+    $limitedHistory = array_slice($conversationHistory, -12);
+
     $messages = [];
-    foreach ($conversationHistory as $msg) {
+    foreach ($limitedHistory as $msg) {
+        // Tronca messaggi troppo lunghi (max 3000 caratteri)
+        $content = $msg['content'];
+        if (strlen($content) > 3000) {
+            $content = substr($content, 0, 3000) . "\n[...messaggio troncato...]";
+        }
         $messages[] = [
             'role' => $msg['role'],
-            'content' => $msg['content']
+            'content' => $content
         ];
     }
     // Aggiungi messaggio utente corrente
@@ -818,9 +827,9 @@ if ($useOpenRouter) {
     $messageCountBefore = count($messages);
 
     // ====== SMART COMPACTION: Riassumi conversazione lunga ======
-    // Threshold: 50 messaggi (~25 scambi utente-assistente)
-    // Claude Sonnet ha 200K token context, 50 messaggi ≈ 10-15K token = ~7% capacità
-    if (count($messages) > 50) {
+    // Threshold: 25 messaggi - ora che limitiamo history a 12, questo è un backup
+    // I messaggi crescono durante il loop con tool calls
+    if (count($messages) > 25) {
         error_log("COMPACTION: Conversazione lunga (" . count($messages) . " msg), creo riassunto");
         $didCompaction = true;
 
@@ -1050,10 +1059,26 @@ if ($useOpenRouter) {
             }
 
             // Aggiungi la risposta del tool
+            // IMPORTANTE: Tronca risultati troppo grandi per evitare context overflow
+            $resultJson = json_encode($result, JSON_UNESCAPED_UNICODE);
+            if (strlen($resultJson) > 4000) {
+                error_log("TRUNCATE: Tool result troppo grande (" . strlen($resultJson) . " bytes), tronco");
+                // Prova a ridurre i dati mantenendo la struttura
+                if (isset($result['data']) && is_array($result['data']) && count($result['data']) > 5) {
+                    $result['data'] = array_slice($result['data'], 0, 5);
+                    $result['_truncated'] = true;
+                    $result['_original_count'] = count($result['data']);
+                    $resultJson = json_encode($result, JSON_UNESCAPED_UNICODE);
+                }
+                // Se ancora troppo grande, tronca brutalmente
+                if (strlen($resultJson) > 4000) {
+                    $resultJson = substr($resultJson, 0, 4000) . '...}';
+                }
+            }
             $messages[] = [
                 'role' => 'tool',
                 'tool_call_id' => $toolCallId,
-                'content' => json_encode($result)
+                'content' => $resultJson
             ];
         }
 
@@ -1185,7 +1210,7 @@ $responseData = [
     'context' => [
         'messages_count' => $useOpenRouter ? count($messages) : count($contents),
         'did_compaction' => $useOpenRouter ? ($didCompaction ?? false) : false,
-        'compaction_threshold' => 50,  // Quando scatta la compaction
+        'compaction_threshold' => 25,  // Quando scatta la compaction
         'compaction_summary' => $useOpenRouter ? ($compactionSummary ?? null) : null  // Riassunto per frontend
     ]
 ];

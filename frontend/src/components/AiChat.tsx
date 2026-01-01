@@ -36,7 +36,7 @@ export function AiChat({ isOpen, onClose, onAction }: AiChatProps) {
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [loadingPhase, setLoadingPhase] = useState<'thinking' | 'compacting'>('thinking');
-  const [_contextInfo, setContextInfo] = useState({ messagesCount: 0, threshold: 50 });
+  const [_contextInfo, setContextInfo] = useState({ messagesCount: 0, threshold: 25 });
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
@@ -96,8 +96,8 @@ export function AiChat({ isOpen, onClose, onAction }: AiChatProps) {
     setInput('');
     setIsLoading(true);
 
-    // Determina se faremo compaction (threshold: 50 messaggi)
-    const willCompact = messages.length >= 49;
+    // Determina se faremo compaction (threshold: 25 messaggi)
+    const willCompact = messages.length >= 24;
     setLoadingPhase(willCompact ? 'compacting' : 'thinking');
 
     try {
@@ -120,7 +120,7 @@ export function AiChat({ isOpen, onClose, onAction }: AiChatProps) {
       if (response.context) {
         setContextInfo({
           messagesCount: response.context.messages_count || 0,
-          threshold: response.context.compaction_threshold || 50
+          threshold: response.context.compaction_threshold || 25
         });
 
         // Se il backend ha fatto compaction, sostituisci la history locale con il riassunto
@@ -241,13 +241,13 @@ export function AiChat({ isOpen, onClose, onAction }: AiChatProps) {
               gap: '4px',
               marginLeft: '8px',
               padding: '2px 8px',
-              backgroundColor: messages.length >= 45 ? 'rgba(234, 179, 8, 0.2)' : 'rgba(59, 130, 246, 0.1)',
+              backgroundColor: messages.length >= 20 ? 'rgba(234, 179, 8, 0.2)' : 'rgba(59, 130, 246, 0.1)',
               borderRadius: '10px',
               fontSize: '11px',
-              color: messages.length >= 45 ? '#eab308' : 'var(--text-secondary)',
+              color: messages.length >= 20 ? '#eab308' : 'var(--text-secondary)',
             }}>
               <span>{messages.length}</span>
-              {messages.length >= 45 && (
+              {messages.length >= 20 && (
                 <span title="Al prossimo messaggio farò un riassunto" style={{ cursor: 'help' }}>
                   ⚡
                 </span>
