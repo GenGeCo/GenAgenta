@@ -357,9 +357,10 @@ export default function Dashboard() {
         break;
 
       case 'refresh_neuroni':
-        // Ricarica neuroni (chiamato dopo che AI crea/modifica entità)
-        console.log('AI Action: refresh_neuroni');
+        // Ricarica neuroni E sinapsi (chiamato dopo che AI crea/modifica entità o connessioni)
+        console.log('AI Action: refresh_neuroni (+ sinapsi)');
         reloadNeuroni();
+        reloadSinapsi();
         break;
     }
   };
