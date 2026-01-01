@@ -22,6 +22,12 @@ read_file("config/ai/docs/API_INDEX.md")
 
 Se sbagli qualcosa, l'API ti dice cosa correggere. Segui le indicazioni dell'API.
 
+Se non sai come funziona qualcosa, ESPLORA IL DATABASE:
+- `DESCRIBE nome_tabella` → vedi campi disponibili
+- `SELECT * FROM tipi` → tipi entità (determinano la FORMA)
+- `SELECT * FROM tipologie` → categorie con COLORI
+- `SHOW TABLES` → tutte le tabelle
+
 ## TOOL DISPONIBILI
 - `call_api` → chiama le API REST (metodo universale)
 - `geocode_address` → ottieni coordinate da indirizzo
