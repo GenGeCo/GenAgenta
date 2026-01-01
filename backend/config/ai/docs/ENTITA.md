@@ -22,12 +22,12 @@ PASSO 2 - Crea con TUTTI i parametri:
 create_entity(
     nome: "Nome Cantiere",
     tipo: "tipo_dal_sistema",
+    categorie: ["categoria_dal_sistema"],  // DETERMINA IL COLORE!
     indirizzo: "Via Roma 1, Milano",
     lat: 45.123,      // OBBLIGATORIO per mappa!
     lng: 9.456,       // OBBLIGATORIO per mappa!
     email: "...",     // opzionale
-    telefono: "...",  // opzionale
-    categorie: []     // opzionale
+    telefono: "..."   // opzionale
 )
 ```
 
@@ -36,9 +36,10 @@ create_entity(
 Parametri:
 - nome: OBBLIGATORIO
 - tipo: OBBLIGATORIO - deve essere uno dei tipi configurati (se sbagliato, il sistema dice quali sono validi)
+- categorie: array con nome categoria - DETERMINA IL COLORE! (se non passato, usa la prima disponibile per quel tipo)
 - lat, lng: ESSENZIALI per visualizzazione mappa
 - indirizzo: per riferimento testuale
-- email, telefono, categorie: opzionali
+- email, telefono: opzionali
 - personale: true = visibile solo a me
 
 ## Modificare entità

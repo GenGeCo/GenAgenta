@@ -549,6 +549,59 @@ function tool_createEntity(PDO $db, array $input, array $user): array {
 
     $tipo = $tipoTrovato; // Usa il nome esatto dal database
 
+    // Recupera categorie (tipologie) disponibili per questo tipo
+    $categorieDisponibili = [];
+
+    // Prima cerca in tipologie (v2) - collegate a tipi tramite tipo_id
+    $stmt = $db->prepare("
+        SELECT tp.nome FROM tipologie tp
+        JOIN tipi t ON tp.tipo_id = t.id
+        WHERE t.team_id = ? AND t.nome = ?
+        ORDER BY tp.ordine ASC
+    ");
+    $stmt->execute([$teamId, $tipo]);
+    $categorieDisponibili = $stmt->fetchAll(PDO::FETCH_COLUMN);
+
+    // Fallback a categorie (v1) se vuoto
+    if (empty($categorieDisponibili) && $aziendaId) {
+        $stmt = $db->prepare("
+            SELECT c.nome FROM categorie c
+            JOIN tipi_neurone tn ON c.tipo_id = tn.id
+            WHERE tn.azienda_id = ? AND tn.nome = ?
+            ORDER BY c.ordine ASC
+        ");
+        $stmt->execute([$aziendaId, $tipo]);
+        $categorieDisponibili = $stmt->fetchAll(PDO::FETCH_COLUMN);
+    }
+
+    // Valida categorie
+    if (empty($categorie)) {
+        if (!empty($categorieDisponibili)) {
+            // Se non passata, usa la prima disponibile
+            $categorie = [$categorieDisponibili[0]];
+        }
+        // Se non ci sono categorie configurate, lascia vuoto (alcuni tipi potrebbero non averle)
+    } else {
+        // Valida che le categorie passate esistano (case-insensitive)
+        $categorieValide = [];
+        foreach ($categorie as $cat) {
+            $found = false;
+            foreach ($categorieDisponibili as $catDB) {
+                if (strtolower($cat) === strtolower($catDB)) {
+                    $categorieValide[] = $catDB; // Usa nome esatto dal DB
+                    $found = true;
+                    break;
+                }
+            }
+            if (!$found && !empty($categorieDisponibili)) {
+                return ['error' => "Categoria '$cat' non valida per tipo '$tipo'. Categorie disponibili: " . implode(', ', $categorieDisponibili)];
+            }
+        }
+        if (!empty($categorieValide)) {
+            $categorie = $categorieValide;
+        }
+    }
+
     // Genera UUID
     $id = sprintf('%04x%04x-%04x-%04x-%04x-%04x%04x%04x',
         mt_rand(0, 0xffff), mt_rand(0, 0xffff),
