@@ -160,7 +160,16 @@ export function AiChat({ isOpen, onClose, onAction }: AiChatProps) {
       return { success: true, data: result };
     } catch (error) {
       console.error('Errore esecuzione pending_action:', error);
-      const errorMsg = error instanceof Error ? error.message : 'Errore sconosciuto';
+      let errorMsg = 'Errore sconosciuto';
+      // Estrai messaggio di errore dall'API (Axios mette la risposta in error.response.data)
+      if (error && typeof error === 'object' && 'response' in error) {
+        const axiosError = error as { response?: { data?: { error?: string; message?: string } } };
+        if (axiosError.response?.data) {
+          errorMsg = axiosError.response.data.error || axiosError.response.data.message || 'Errore API';
+        }
+      } else if (error instanceof Error) {
+        errorMsg = error.message;
+      }
       return { success: false, error: errorMsg };
     }
   };
