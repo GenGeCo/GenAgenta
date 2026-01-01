@@ -26,6 +26,7 @@ require_once __DIR__ . '/../../config/config.php';
 require_once __DIR__ . '/../../config/database.php';
 require_once __DIR__ . '/../../includes/helpers.php';
 require_once __DIR__ . '/tools.php';
+require_once __DIR__ . '/debug-helper.php';
 
 // Auth richiesta
 $user = requireAuth();
@@ -49,6 +50,12 @@ $conversationHistory = $data['history'] ?? [];
 if (empty($userMessage)) {
     errorResponse('Messaggio richiesto', 400);
 }
+
+// Log messaggio utente
+aiDebugLog('USER_MESSAGE', $userMessage, [
+    'history_count' => count($conversationHistory),
+    'user' => $user['nome']
+]);
 
 // Definizione tools per Gemini (formato functionDeclarations)
 $functionDeclarations = [
@@ -911,6 +918,14 @@ if ($useOpenRouter) {
         $messagesSize = strlen(json_encode($messages));
         error_log("Iteration $iteration - Messages: " . count($messages) . " (~" . round($messagesSize/1024, 1) . "KB)");
 
+        // Debug log - cosa mandiamo all'AI
+        aiDebugLog('API_REQUEST', [
+            'iteration' => $iteration,
+            'messages_count' => count($messages),
+            'payload_size_kb' => round($messagesSize/1024, 1),
+            'messages_preview' => formatMessagesForDebug($messages)
+        ]);
+
         $response = callOpenRouter($OPENROUTER_API_KEY, $systemInstruction, $messages, $openaiTools);
 
         if (isset($response['error'])) {
@@ -940,6 +955,21 @@ if ($useOpenRouter) {
         }
 
         error_log("Iteration $iteration - finish_reason: $finishReason, Tool calls: " . count($toolCalls) . ", Has text: " . ($textContent ? 'yes' : 'no'));
+
+        // Debug log - risposta AI
+        aiDebugLog('API_RESPONSE', [
+            'iteration' => $iteration,
+            'finish_reason' => $finishReason,
+            'has_text' => !empty($textContent),
+            'text_preview' => $textContent ? (strlen($textContent) > 200 ? substr($textContent, 0, 200) . '...' : $textContent) : null,
+            'tool_calls_count' => count($toolCalls),
+            'tool_calls' => array_map(function($tc) {
+                return [
+                    'name' => $tc['function']['name'] ?? 'unknown',
+                    'args' => json_decode($tc['function']['arguments'] ?? '{}', true)
+                ];
+            }, $toolCalls)
+        ]);
 
         // BEST PRACTICE: Usa finish_reason per determinare quando fermarsi
         // 'stop' = risposta finale completata
@@ -1017,12 +1047,24 @@ if ($useOpenRouter) {
             // Esegui il tool
             try {
                 $result = executeAiTool($funcName, $funcArgs, $user);
+
+                // Debug log - tool eseguito
+                aiDebugLog('TOOL_EXECUTED', [
+                    'name' => $funcName,
+                    'args' => $funcArgs,
+                    'success' => !isset($result['error']),
+                    'result_preview' => is_array($result) ?
+                        (strlen(json_encode($result)) > 300 ? '[Risultato grande: ' . strlen(json_encode($result)) . ' bytes]' : $result)
+                        : $result
+                ]);
             } catch (Exception $e) {
                 error_log("Tool execution error ($funcName): " . $e->getMessage());
                 $result = ['error' => "Errore: " . $e->getMessage()];
+                aiDebugLog('TOOL_ERROR', ['name' => $funcName, 'error' => $e->getMessage()]);
             } catch (Error $e) {
                 error_log("Tool execution fatal error ($funcName): " . $e->getMessage());
                 $result = ['error' => "Errore fatale: " . $e->getMessage()];
+                aiDebugLog('TOOL_ERROR', ['name' => $funcName, 'error' => $e->getMessage()]);
             }
 
             // Se il tool ha generato un'azione frontend, raccoglila
@@ -1223,6 +1265,14 @@ if ($finalResponse === null) {
         $finalResponse = "Mi dispiace, ho avuto difficoltà a elaborare la richiesta. Puoi riformularla in modo più semplice?";
     }
 }
+
+// Debug log - risposta finale
+aiDebugLog('FINAL_RESPONSE', [
+    'response_preview' => strlen($finalResponse) > 300 ? substr($finalResponse, 0, 300) . '...' : $finalResponse,
+    'iterations' => $iteration,
+    'actions_count' => count($frontendActions),
+    'actions' => $frontendActions
+]);
 
 // Risposta con eventuali azioni frontend
 $responseData = [
