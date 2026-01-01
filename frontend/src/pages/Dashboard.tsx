@@ -997,7 +997,12 @@ export default function Dashboard() {
       )}
 
       {/* AI Chat */}
-      <AiChat isOpen={showAiChat} onClose={() => setShowAiChat(false)} onAction={handleAiAction} />
+      <AiChat
+        isOpen={showAiChat}
+        onClose={() => setShowAiChat(false)}
+        onAction={handleAiAction}
+        selectedEntity={selectedNeurone}
+      />
     </div>
   );
 }

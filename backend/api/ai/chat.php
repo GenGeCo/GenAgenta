@@ -228,6 +228,7 @@ if (!$useOpenRouter && !$GEMINI_API_KEY) {
 $data = getJsonBody();
 $userMessage = $data['message'] ?? '';
 $conversationHistory = $data['history'] ?? [];
+$uiContext = $data['context'] ?? null; // Contesto UI (entità selezionata, etc.)
 
 // =====================================================
 // FRONTEND EXECUTION: Gestione resume dopo pending_action
@@ -875,6 +876,16 @@ if (file_exists($promptFile)) {
         $user['ruolo'],
         $user['azienda_id']
     ], $systemInstruction);
+
+    // Aggiungi contesto UI se presente (entità selezionata)
+    if ($uiContext && !empty($uiContext['selectedEntity'])) {
+        $sel = $uiContext['selectedEntity'];
+        $selInfo = "CONTESTO: L'utente ha selezionato sulla mappa: \"{$sel['nome']}\"";
+        if (!empty($sel['tipo'])) $selInfo .= " (tipo: {$sel['tipo']})";
+        if (!empty($sel['id'])) $selInfo .= " [ID: {$sel['id']}]";
+        $selInfo .= ". Quando dice 'questo', 'questa entità', 'connettilo', si riferisce a questa.";
+        $systemInstruction .= "\n\n" . $selInfo;
+    }
 } else {
     // Fallback minimo
     $systemInstruction = "Sei l'AI di GenAgenta. Utente: {$user['nome']}. Rispondi in italiano.";

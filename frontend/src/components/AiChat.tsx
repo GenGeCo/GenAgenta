@@ -25,15 +25,24 @@ export interface AiFrontendAction {
   notification_type?: 'success' | 'error' | 'warning' | 'info';
 }
 
+// Tipo minimo per l'entità selezionata (evita dipendenza circolare)
+interface SelectedEntity {
+  id: string;
+  nome: string;
+  tipo?: string | null;
+  indirizzo?: string | null;
+}
+
 interface AiChatProps {
   isOpen: boolean;
   onClose: () => void;
   onAction?: (action: AiFrontendAction) => void;
+  selectedEntity?: SelectedEntity | null;
 }
 
 const CHAT_STORAGE_KEY = 'genagenta_ai_chat_history';
 
-export function AiChat({ isOpen, onClose, onAction }: AiChatProps) {
+export function AiChat({ isOpen, onClose, onAction, selectedEntity }: AiChatProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -220,7 +229,9 @@ export function AiChat({ isOpen, onClose, onAction }: AiChatProps) {
 
         // Prima chiamata o resume?
         if (!resumeContext) {
-          currentResponse = await api.aiChat(userMessage.content, history);
+          // Passa contesto selezione SOLO se c'è un'entità selezionata
+          const context = selectedEntity ? { selectedEntity } : undefined;
+          currentResponse = await api.aiChat(userMessage.content, history, context);
         } else {
           // Resume con il risultato dell'azione
           const actionResult = resumeContext._actionResult as { success: boolean; data?: unknown; error?: string };
