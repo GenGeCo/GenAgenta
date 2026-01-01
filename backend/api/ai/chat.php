@@ -908,7 +908,8 @@ if ($useOpenRouter) {
 
     while ($iteration < $maxIterations) {
         $iteration++;
-        error_log("Iteration $iteration - Messages count: " . count($messages));
+        $messagesSize = strlen(json_encode($messages));
+        error_log("Iteration $iteration - Messages: " . count($messages) . " (~" . round($messagesSize/1024, 1) . "KB)");
 
         $response = callOpenRouter($OPENROUTER_API_KEY, $systemInstruction, $messages, $openaiTools);
 
@@ -1064,6 +1065,44 @@ if ($useOpenRouter) {
             error_log("STOP: Azione mappa eseguita, mi fermo per rispondere");
             $finalResponse = $lastTextContent ?? "Fatto!";
             break;
+        }
+
+        // ====== COMPATTA TOOL RESULTS VECCHI ======
+        // Problema: ad ogni iterazione, i tool results si accumulano in $messages
+        // e vengono TUTTI passati alla prossima chiamata API → crescita esponenziale
+        // Soluzione: mantieni solo l'ultimo set di tool results, compatta i vecchi
+        if ($iteration > 1 && count($messages) > 10) {
+            $newMessages = [];
+            $toolResultsToKeep = [];
+            $lastAssistantWithTools = null;
+
+            // Scorri i messaggi al contrario per trovare l'ultimo set di tool calls
+            for ($i = count($messages) - 1; $i >= 0; $i--) {
+                $msg = $messages[$i];
+
+                if ($msg['role'] === 'tool') {
+                    // Tool result - tieni solo gli ultimi (del ciclo corrente)
+                    if (count($toolResultsToKeep) < 4) {  // Max 4 tool results recenti
+                        array_unshift($toolResultsToKeep, $msg);
+                    }
+                } elseif ($msg['role'] === 'assistant' && isset($msg['tool_calls']) && !$lastAssistantWithTools) {
+                    // L'ultimo messaggio assistant con tool_calls
+                    $lastAssistantWithTools = $msg;
+                } else {
+                    // Messaggi normali (user, assistant senza tool_calls)
+                    array_unshift($newMessages, $msg);
+                }
+            }
+
+            // Ricostruisci: messaggi normali + ultimo assistant con tools + ultimi tool results
+            if ($lastAssistantWithTools) {
+                $newMessages[] = $lastAssistantWithTools;
+            }
+            $newMessages = array_merge($newMessages, $toolResultsToKeep);
+
+            $oldCount = count($messages);
+            $messages = $newMessages;
+            error_log("COMPATTA: $oldCount → " . count($messages) . " messaggi (rimossi tool results vecchi)");
         }
     }
 
