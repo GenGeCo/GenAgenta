@@ -952,14 +952,25 @@ if ($useOpenRouter) {
 
         if (isset($response['error'])) {
             error_log("OpenRouter error: " . json_encode($response));
-            errorResponse($response['error'] . ' - ' . ($response['details'] ?? ''), 500);
+            // NON restituire 500! Restituisci messaggio AI con HTTP 200
+            $errorMsg = $response['error'] . ' - ' . ($response['details'] ?? '');
+            jsonResponse([
+                'response' => "Mi dispiace, c'è un problema di comunicazione con il servizio AI. Riprova tra qualche secondo.",
+                'iterations' => $iteration,
+                'context' => ['error_details' => $errorMsg]
+            ]);
         }
 
         // Estrai la risposta
         $choices = $response['choices'] ?? [];
         if (empty($choices)) {
             error_log("OpenRouter no choices: " . json_encode($response));
-            errorResponse('Nessuna risposta da OpenRouter', 500);
+            // NON restituire 500! Restituisci messaggio AI con HTTP 200
+            jsonResponse([
+                'response' => "Mi dispiace, non ho ricevuto una risposta valida. Riprova.",
+                'iterations' => $iteration,
+                'context' => ['error_details' => 'No choices in response']
+            ]);
         }
 
         $choice = $choices[0];
