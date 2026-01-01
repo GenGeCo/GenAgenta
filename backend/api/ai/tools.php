@@ -499,7 +499,7 @@ function tool_createEntity(PDO $db, array $input, array $user): array {
     $email = $input['email'] ?? null;
     $telefono = $input['telefono'] ?? null;
     $categorie = $input['categorie'] ?? [];
-    $personale = $input['personale'] ?? false;
+    $visibilita = $input['personale'] ?? false ? 'personale' : 'team'; // Mappa personale → visibilita
 
     if (empty($nome)) {
         return ['error' => 'Nome entità richiesto'];
@@ -521,25 +521,26 @@ function tool_createEntity(PDO $db, array $input, array $user): array {
     );
 
     try {
+        // Struttura allineata a neuroni/create.php
         $sql = "INSERT INTO neuroni (
-                    id, azienda_id, nome, tipo, indirizzo, lat, lng,
-                    email, telefono, categorie, personale, creato_da, creato_il
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())";
+                    id, nome, tipo, categorie, visibilita, lat, lng,
+                    indirizzo, telefono, email, creato_da, azienda_id
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
 
         $stmt = $db->prepare($sql);
         $stmt->execute([
             $id,
-            $user['azienda_id'],
             $nome,
             $tipo,
-            $indirizzo,
+            json_encode($categorie),
+            $visibilita,
             $lat,
             $lng,
-            $email,
+            $indirizzo,
             $telefono,
-            json_encode($categorie),
-            $personale ? 1 : 0,
-            $user['user_id']
+            $email,
+            $user['user_id'],
+            $user['azienda_id']
         ]);
     } catch (PDOException $e) {
         error_log("create_entity SQL error: " . $e->getMessage());
