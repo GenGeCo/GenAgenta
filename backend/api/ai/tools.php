@@ -1652,7 +1652,9 @@ function tool_callApi(array $input, array $user): array {
         CURLOPT_RETURNTRANSFER => true,
         CURLOPT_HTTPHEADER => $headers,
         CURLOPT_TIMEOUT => 30,
-        CURLOPT_SSL_VERIFYPEER => false, // Per sviluppo locale
+        CURLOPT_SSL_VERIFYPEER => false,
+        CURLOPT_FOLLOWLOCATION => true, // Segui redirect 301/302
+        CURLOPT_MAXREDIRS => 3,
     ]);
 
     // Per POST/PUT/DELETE, aggiungi body
