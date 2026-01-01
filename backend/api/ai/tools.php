@@ -499,7 +499,6 @@ function tool_createEntity(PDO $db, array $input, array $user): array {
     $email = $input['email'] ?? null;
     $telefono = $input['telefono'] ?? null;
     $categorie = $input['categorie'] ?? [];
-    $note = $input['note'] ?? null;
     $personale = $input['personale'] ?? false;
 
     if (empty($nome)) {
@@ -523,8 +522,8 @@ function tool_createEntity(PDO $db, array $input, array $user): array {
 
     $sql = "INSERT INTO neuroni (
                 id, azienda_id, nome, tipo, indirizzo, lat, lng,
-                email, telefono, categorie, note, personale, creato_da, creato_il
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())";
+                email, telefono, categorie, personale, creato_da, creato_il
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())";
 
     $stmt = $db->prepare($sql);
     $stmt->execute([
@@ -538,7 +537,6 @@ function tool_createEntity(PDO $db, array $input, array $user): array {
         $email,
         $telefono,
         json_encode($categorie),
-        $note,
         $personale ? 1 : 0,
         $user['user_id']
     ]);

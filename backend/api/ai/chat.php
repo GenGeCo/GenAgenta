@@ -221,10 +221,6 @@ $functionDeclarations = [
                     'items' => ['type' => 'string'],
                     'description' => 'Array di categorie/tag'
                 ],
-                'note' => [
-                    'type' => 'string',
-                    'description' => 'Note aggiuntive'
-                ],
                 'personale' => [
                     'type' => 'boolean',
                     'description' => 'Se true, è un dato personale visibile solo al creatore'
