@@ -1185,11 +1185,14 @@ if ($useOpenRouter) {
                     if (count($toolResultsToKeep) < 4) {  // Max 4 tool results recenti
                         array_unshift($toolResultsToKeep, $msg);
                     }
-                } elseif ($msg['role'] === 'assistant' && isset($msg['tool_calls']) && !$lastAssistantWithTools) {
-                    // L'ultimo messaggio assistant con tool_calls
-                    $lastAssistantWithTools = $msg;
+                } elseif ($msg['role'] === 'assistant' && isset($msg['tool_calls'])) {
+                    // Assistant con tool_calls - tieni SOLO l'ultimo, SCARTA gli altri
+                    if (!$lastAssistantWithTools) {
+                        $lastAssistantWithTools = $msg;
+                    }
+                    // Se già abbiamo lastAssistantWithTools, questo viene SCARTATO (non aggiunto da nessuna parte)
                 } else {
-                    // Messaggi normali (user, assistant senza tool_calls)
+                    // Messaggi normali (user, assistant SENZA tool_calls)
                     array_unshift($newMessages, $msg);
                 }
             }
