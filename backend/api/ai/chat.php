@@ -903,6 +903,7 @@ if ($useOpenRouter) {
     $hasProposedImprovement = false;
     $lastTextContent = null;  // Salva l'ultimo testo valido ricevuto
     $hasExecutedMapAction = false;  // Flag per azioni mappa
+    $hasToolError = false;  // Flag per errori nei tool - se true, dai all'AI un'altra chance di rispondere
 
     // Loop per gestire tool calls - 4 iterazioni per permettere sequenze come geocode→fly_to
     $maxIterations = 4;
@@ -1053,6 +1054,12 @@ if ($useOpenRouter) {
                         (strlen(json_encode($result)) > 300 ? '[Risultato grande: ' . strlen(json_encode($result)) . ' bytes]' : $result)
                         : $result
                 ]);
+
+                // Se il tool ha restituito un errore, segnalo per dare all'AI la possibilità di rispondere
+                if (isset($result['error'])) {
+                    $hasToolError = true;
+                    error_log("FLAG: Tool $funcName ha restituito errore");
+                }
             } catch (Exception $e) {
                 error_log("Tool execution error ($funcName): " . $e->getMessage());
                 $result = ['error' => "Errore: " . $e->getMessage()];
@@ -1097,13 +1104,16 @@ if ($useOpenRouter) {
             ];
         }
 
-        // Se abbiamo eseguito un'azione mappa, fermiamoci alla prossima iterazione
-        // per dare all'AI la possibilità di rispondere con testo
-        if ($hasExecutedMapAction && $iteration >= 2) {
-            error_log("STOP: Azione mappa eseguita, mi fermo per rispondere");
+        // Se abbiamo eseguito un'azione mappa E NON ci sono stati errori, fermiamoci
+        // MA se c'è stato un errore, dai all'AI un'altra chance di rispondere all'errore
+        if ($hasExecutedMapAction && $iteration >= 2 && !$hasToolError) {
+            error_log("STOP: Azione mappa eseguita senza errori, mi fermo per rispondere");
             $finalResponse = $lastTextContent ?? "Fatto!";
             break;
         }
+
+        // Reset flag errore per la prossima iterazione
+        $hasToolError = false;
 
         // ====== COMPATTA TOOL RESULTS VECCHI ======
         // Problema: ad ogni iterazione, i tool results si accumulano in $messages
