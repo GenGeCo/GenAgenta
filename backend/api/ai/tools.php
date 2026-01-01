@@ -1619,15 +1619,16 @@ function tool_callApi(array $input, array $user): array {
     $endpoint = ltrim($endpoint, '/');
 
     // Determina se è API v1 o v2
+    // NOTA: Le API usano index.php come router, quindi l'URL deve includere index.php
     $isV2 = str_starts_with($endpoint, 'v2/') || str_starts_with($endpoint, 'api_v2/');
     if ($isV2) {
         $endpoint = preg_replace('/^(v2|api_v2)\//', '', $endpoint);
         $apiVersion = 'v2';
-        $baseUrl = 'https://www.gruppogea.net/genagenta/backend/api_v2/';
+        $baseUrl = 'https://www.gruppogea.net/genagenta/backend/api_v2/index.php/';
     } else {
         $endpoint = preg_replace('/^api\//', '', $endpoint);
         $apiVersion = 'v1';
-        $baseUrl = 'https://www.gruppogea.net/genagenta/backend/api/';
+        $baseUrl = 'https://www.gruppogea.net/genagenta/backend/api/index.php/';
     }
 
     // Costruisci URL completo
