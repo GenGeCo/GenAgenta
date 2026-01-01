@@ -139,18 +139,34 @@ export default function Dashboard() {
     checkInvites();
   }, []);
 
-  // Carica tipi e categorie una volta all'avvio
+  // Carica tipi e categorie una volta all'avvio (usa API v2)
   useEffect(() => {
     const loadTipiCategorie = async () => {
       try {
-        // Usa i metodi dedicati che puntano all'API corretta
-        const [tipiRes, categorieRes] = await Promise.all([
-          api.getTipiNeurone(),
-          api.getCategorie()
+        const [tipiRes, tipologieRes] = await Promise.all([
+          api.get('/tipi'),
+          api.get('/tipologie')
         ]);
 
-        setTipiNeurone(tipiRes.data);
-        setCategorie(categorieRes.data);
+        // Mappa tipi v2 al formato TipoNeuroneConfig
+        const tipiMapped = tipiRes.data.data.map((t: { id: string; nome: string; forma: string; ordine: number }) => ({
+          id: t.id,
+          nome: t.nome,
+          forma: t.forma,
+          ordine: t.ordine
+        }));
+
+        // Mappa tipologie v2 al formato Categoria
+        const categorieMapped = tipologieRes.data.data.map((tp: { id: string; tipo_id: string; nome: string; colore: string; ordine: number }) => ({
+          id: tp.id,
+          tipo_id: tp.tipo_id,
+          nome: tp.nome,
+          colore: tp.colore,
+          ordine: tp.ordine
+        }));
+
+        setTipiNeurone(tipiMapped);
+        setCategorie(categorieMapped);
       } catch (error) {
         console.error('Errore caricamento tipi/categorie:', error);
       }

@@ -97,18 +97,17 @@ export default function SetupEntita() {
   const loadData = async () => {
     setLoading(true);
     try {
-      // Usa i metodi dedicati che puntano all'API corretta
       const [tipiRes, tipologieRes, connRes] = await Promise.all([
-        api.getTipiNeurone(),
-        api.getCategorie(),
-        api.getTipiSinapsi(),
+        api.get('/tipi'),
+        api.get('/tipologie'),
+        api.get('/tipi-connessione'),
       ]);
-      setTipi(tipiRes.data);
-      setTipologie(tipologieRes.data);
-      setTipiConnessione(connRes.data);
+      setTipi(tipiRes.data.data);
+      setTipologie(tipologieRes.data.data);
+      setTipiConnessione(connRes.data.data);
 
       // Espandi tutti i tipi di default
-      setExpandedTipi(new Set(tipiRes.data.map((t: Tipo) => t.id)));
+      setExpandedTipi(new Set(tipiRes.data.data.map((t: Tipo) => t.id)));
     } catch (error) {
       console.error('Errore caricamento:', error);
       showMessage('error', 'Errore caricamento dati');
