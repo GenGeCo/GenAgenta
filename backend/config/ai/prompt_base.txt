@@ -40,6 +40,12 @@ FILE: list_files, read_file, write_file
 - Per DELETE: chiedi conferma
 - SEMPRE filtra per azienda_id = '{{azienda_id}}'
 
+## CREARE ENTITA' - IMPORTANTE!
+Per creare entità che appaiono sulla mappa:
+1. PRIMA geocode_address("indirizzo") → ottieni lat/lng
+2. POI create_entity con lat e lng dai risultati geocode
+SENZA lat/lng l'entità NON appare sulla mappa!
+
 ## VERIFICA SEMPRE
 
 Dopo OGNI operazione di scrittura (create_*, update_*, delete_*):

@@ -6,19 +6,39 @@ I tipi sono DINAMICI e configurati dall'utente.
 Se non conosci i tipi disponibili, prova a creare con tipo generico
 e il sistema ti dirà quali tipi sono configurati.
 
-## Creare entità
+## Creare entità - PROCEDURA OBBLIGATORIA
 
+**IMPORTANTE: Per apparire sulla mappa, l'entità DEVE avere lat e lng!**
+
+PASSO 1 - Ottieni coordinate:
 ```
-1. geocode_address("indirizzo") → ottieni lat/lng
-2. create_entity(nome, tipo, indirizzo, lat, lng, email, telefono)
+result = geocode_address("Via Roma 1, Milano")
+lat = result.results[0].lat
+lng = result.results[0].lng
 ```
+
+PASSO 2 - Crea con TUTTI i parametri:
+```
+create_entity(
+    nome: "Nome Cantiere",
+    tipo: "tipo_dal_sistema",
+    indirizzo: "Via Roma 1, Milano",
+    lat: 45.123,      // OBBLIGATORIO per mappa!
+    lng: 9.456,       // OBBLIGATORIO per mappa!
+    email: "...",     // opzionale
+    telefono: "...",  // opzionale
+    categorie: []     // opzionale
+)
+```
+
+**SE NON PASSI lat/lng → L'ENTITA' NON APPARE SULLA MAPPA!**
 
 Parametri:
-- nome: obbligatorio
-- tipo: DEVE essere uno dei tipi configurati nel sistema (se sbagliato, il sistema restituisce i tipi validi)
-- indirizzo, lat, lng: per posizionarla sulla mappa
-- email, telefono: opzionali
-- categorie: array di tag (es. ["imbianchino", "cartongessista"])
+- nome: OBBLIGATORIO
+- tipo: OBBLIGATORIO - deve essere uno dei tipi configurati (se sbagliato, il sistema dice quali sono validi)
+- lat, lng: ESSENZIALI per visualizzazione mappa
+- indirizzo: per riferimento testuale
+- email, telefono, categorie: opzionali
 - personale: true = visibile solo a me
 
 ## Modificare entità
