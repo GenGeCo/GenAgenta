@@ -1336,7 +1336,37 @@ if ($finalResponse === null) {
     elseif (!empty($frontendActions)) {
         $finalResponse = "Ho eseguito " . count($frontendActions) . " azioni. C'è altro che posso fare?";
     } else {
-        $finalResponse = "Mi dispiace, ho avuto difficoltà a elaborare la richiesta. Puoi riformularla in modo più semplice?";
+        // Ultima chance: fai una chiamata senza tools per forzare risposta
+        error_log("Forcing final response without tools");
+        $forcedMessages = $messages;
+        $forcedMessages[] = ['role' => 'user', 'content' => 'Riassumi brevemente cosa hai fatto e se ci sono problemi.'];
+
+        $forcedPayload = [
+            'model' => $selectedModel,
+            'messages' => array_slice($forcedMessages, -5),
+            'max_tokens' => 200
+        ];
+
+        $forcedResponse = @file_get_contents($openRouterUrl, false, stream_context_create([
+            'http' => [
+                'method' => 'POST',
+                'header' => "Content-Type: application/json\r\nAuthorization: Bearer $openRouterKey",
+                'content' => json_encode($forcedPayload),
+                'timeout' => 15
+            ]
+        ]));
+
+        if ($forcedResponse) {
+            $forcedData = json_decode($forcedResponse, true);
+            $forcedText = $forcedData['choices'][0]['message']['content'] ?? null;
+            if ($forcedText) {
+                $finalResponse = $forcedText;
+            }
+        }
+
+        if ($finalResponse === null) {
+            $finalResponse = "Mi dispiace, ho avuto difficoltà a completare la richiesta. Riprova con istruzioni più semplici.";
+        }
     }
 }
 
