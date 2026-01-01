@@ -852,9 +852,9 @@ if ($useOpenRouter) {
     $messageCountBefore = count($messages);
 
     // ====== SMART COMPACTION: Riassumi conversazione lunga ======
-    // Threshold basato sulla history ORIGINALE ricevuta dal frontend (non quella tagliata)
-    // Se il frontend manda più di 20 messaggi, facciamo compaction
-    if (count($conversationHistory) > 20) {
+    // Threshold basato sulla history ORIGINALE ricevuta dal frontend
+    // Se il frontend manda più di 10 messaggi, facciamo compaction
+    if (count($conversationHistory) > 10) {
         error_log("COMPACTION: Conversazione lunga (" . count($messages) . " msg), creo riassunto");
         $didCompaction = true;
 
@@ -1311,7 +1311,7 @@ $responseData = [
     'context' => [
         'messages_count' => $useOpenRouter ? count($messages) : count($contents),
         'did_compaction' => $useOpenRouter ? ($didCompaction ?? false) : false,
-        'compaction_threshold' => 20,  // Quando scatta la compaction (basato su history originale)
+        'compaction_threshold' => 10,  // Quando scatta la compaction (basato su history originale)
         'compaction_summary' => $useOpenRouter ? ($compactionSummary ?? null) : null  // Riassunto per frontend
     ]
 ];

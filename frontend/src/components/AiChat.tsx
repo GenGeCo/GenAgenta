@@ -96,16 +96,17 @@ export function AiChat({ isOpen, onClose, onAction }: AiChatProps) {
     setInput('');
     setIsLoading(true);
 
-    // Determina se faremo compaction (threshold: 20 messaggi)
-    const willCompact = messages.length >= 18;
+    // Determina se faremo compaction (threshold: 10 messaggi)
+    const willCompact = messages.length >= 8;
     setLoadingPhase(willCompact ? 'compacting' : 'thinking');
 
     try {
-      // Prepara history per API - LIMITA A ULTIMI 20 MESSAGGI
-      const recentMessages = messages.slice(-20);
+      // Prepara history per API - LIMITA A ULTIMI 10 MESSAGGI e TRONCA CONTENUTO
+      const recentMessages = messages.slice(-10);
       const history = recentMessages.map((m) => ({
         role: m.role,
-        content: m.content,
+        // Tronca messaggi troppo lunghi (es. tool results giganti)
+        content: m.content.length > 2000 ? m.content.substring(0, 2000) + '...[troncato]' : m.content,
       }));
 
       // Se stiamo per fare compaction, mostra fase "compacting" per un po'
