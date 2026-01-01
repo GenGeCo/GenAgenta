@@ -25,16 +25,16 @@ Se sbagli, l'API ti dice cosa correggere.
 ## Transazioni (vendite)
 | Metodo | Endpoint | Cosa fa |
 |--------|----------|---------|
-| GET | v2/vendite | Lista vendite |
-| POST | v2/vendite | Registra vendita |
-| DELETE | v2/vendite/{id} | Elimina vendita |
+| GET | vendite | Lista vendite |
+| POST | vendite | Registra vendita |
+| DELETE | vendite/{id} | Elimina vendita |
 
 ## Configurazione
 | Metodo | Endpoint | Cosa fa |
 |--------|----------|---------|
-| GET | v2/tipi | Tipi di entità disponibili |
-| GET | v2/tipologie | Categorie/sottotipi |
-| GET | v2/tipi-connessione | Tipi di connessione |
+| GET | tipi | Tipi di entità disponibili |
+| GET | tipologie | Categorie/sottotipi |
+| GET | tipi-connessione | Tipi di connessione |
 | GET | famiglie-prodotto | Famiglie prodotto |
 
 ## Utility

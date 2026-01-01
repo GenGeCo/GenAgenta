@@ -99,7 +99,8 @@ Operazioni che modificano dati, delegate al browser:
 
 ### FRONTEND-ONLY Actions
 Azioni che controllano l'interfaccia:
-- `map_fly_to` - sposta la mappa
+- `map_fly_to` - sposta la mappa (con zoom, pitch, bearing per rotazione)
+- `map_set_style` - cambia stile mappa (satellite, streets, dark, outdoors, light)
 - `map_select_entity` - seleziona un'entità
 - `refresh_neuroni` - ricarica i dati sulla mappa
 

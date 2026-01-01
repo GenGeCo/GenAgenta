@@ -23,9 +23,11 @@ read_file("config/ai/docs/API_INDEX.md")
 Se sbagli qualcosa, l'API ti dice cosa correggere. Segui le indicazioni dell'API.
 
 ## TOOL DISPONIBILI
-- `call_api` → chiama le API REST (metodo principale)
+- `call_api` → chiama le API REST (metodo universale)
 - `geocode_address` → ottieni coordinate da indirizzo
-- `map_fly_to`, `map_select_entity` → controlla la mappa
+- `map_fly_to` → sposta mappa (con zoom, pitch, bearing)
+- `map_set_style` → cambia stile mappa (satellite, streets, dark, etc.)
+- `map_select_entity` → seleziona entità sulla mappa
 - `query_database` → query SQL dirette
 - `read_file`, `write_file` → leggi/scrivi documentazione
 
