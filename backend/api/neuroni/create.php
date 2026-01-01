@@ -50,8 +50,20 @@ if (!$tipoRow && $aziendaId) {
 }
 
 if (!$tipoRow) {
-    error_log("DEBUG create.php: tipo non trovato. data[tipo]={$data['tipo']}, team_id=$teamId, azienda_id=$aziendaId");
-    errorResponse('Tipo non valido o non accessibile: ' . $data['tipo'], 400);
+    // Recupera tipi disponibili per mostrare all'utente/AI
+    $tipiDisponibili = [];
+    if ($teamId) {
+        $stmtTipi = $db->prepare("SELECT nome FROM tipi WHERE team_id = ? ORDER BY nome");
+        $stmtTipi->execute([$teamId]);
+        $tipiDisponibili = $stmtTipi->fetchAll(PDO::FETCH_COLUMN);
+    }
+    if (empty($tipiDisponibili) && $aziendaId) {
+        $stmtTipi = $db->prepare("SELECT nome FROM tipi_neurone WHERE azienda_id = ? AND visibilita = 'aziendale' ORDER BY nome");
+        $stmtTipi->execute([$aziendaId]);
+        $tipiDisponibili = $stmtTipi->fetchAll(PDO::FETCH_COLUMN);
+    }
+    $tipiStr = implode(', ', $tipiDisponibili);
+    errorResponse("Tipo '{$data['tipo']}' non valido. Tipi disponibili: $tipiStr", 400);
 }
 // Usa il nome del tipo per salvare nel DB (per retrocompatibilità)
 $tipoNome = $tipoRow['nome'];
