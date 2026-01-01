@@ -479,8 +479,27 @@ class ApiClient {
   }
 
   // =====================================================
-  // Vendite Prodotto
+  // Vendite Prodotto (unificato in v1)
   // =====================================================
+  async getVendite(neuroneId: string): Promise<{
+    data: Array<{
+      id: string;
+      neurone_id: string;
+      famiglia_id: string;
+      importo: number;
+      data_vendita: string;
+      famiglia_nome?: string;
+      colore?: string;
+      controparte_nome?: string;
+    }>;
+    potenziale: number;
+    totale_venduto: number;
+    percentuale: number;
+  }> {
+    const { data } = await this.client.get('/vendite', { params: { neurone_id: neuroneId } });
+    return data;
+  }
+
   async createVendita(vendita: {
     neurone_id: string;
     famiglia_id: string;
@@ -490,57 +509,37 @@ class ApiClient {
     sinapsi_id?: string;
     tipo_transazione?: 'vendita' | 'acquisto';
   }): Promise<{ id: string; message: string }> {
-    const client = this.getV2Client();
-    const { data } = await client.post('/vendite', vendita);
+    const { data } = await this.client.post('/vendite', vendita);
+    return data;
+  }
+
+  async deleteVendita(id: string): Promise<{ message: string }> {
+    const { data } = await this.client.delete(`/vendite/${id}`);
     return data;
   }
 
   // =====================================================
-  // API v2 - Metodi generici per nuova architettura
+  // Metodi generici per chiamate API (usano v1 unificato)
   // =====================================================
 
-  private getV2Client() {
-    const baseURL = import.meta.env.PROD
-      ? '/genagenta/backend/api_v2'
-      : '/api_v2';
-
-    const client = axios.create({
-      baseURL,
-      headers: { 'Content-Type': 'application/json' },
-    });
-
-    client.interceptors.request.use((config) => {
-      if (this.token) {
-        config.headers.Authorization = `Bearer ${this.token}`;
-      }
-      return config;
-    });
-
-    return client;
-  }
-
   async get(path: string, params?: Record<string, unknown>) {
-    const client = this.getV2Client();
-    return client.get(path, { params });
+    return this.client.get(path, { params });
   }
 
   async post(path: string, data?: Record<string, unknown>) {
-    const client = this.getV2Client();
-    return client.post(path, data);
+    return this.client.post(path, data);
   }
 
   async put(path: string, data?: Record<string, unknown>) {
-    const client = this.getV2Client();
-    return client.put(path, data);
+    return this.client.put(path, data);
   }
 
   async delete(path: string) {
-    const client = this.getV2Client();
-    return client.delete(path);
+    return this.client.delete(path);
   }
 
   // =====================================================
-  // Preferenze Utente
+  // Preferenze Utente (unificato in v1)
   // =====================================================
   async getPreferenze(): Promise<{
     mappa_stile?: string;
@@ -551,7 +550,7 @@ class ApiClient {
     mappa_trasparenza?: number;
   } | null> {
     try {
-      const { data } = await this.getV2Client().get('/preferenze');
+      const { data } = await this.client.get('/preferenze');
       return data.data;
     } catch {
       return null;
@@ -566,7 +565,7 @@ class ApiClient {
     mappa_bearing?: number;
     mappa_trasparenza?: number;
   }): Promise<void> {
-    await this.getV2Client().post('/preferenze', preferenze);
+    await this.client.post('/preferenze', preferenze);
   }
 
   // =====================================================

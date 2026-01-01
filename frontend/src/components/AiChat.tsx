@@ -129,8 +129,7 @@ export function AiChat({ isOpen, onClose, onAction }: AiChatProps) {
 
         case 'deleteSale':
           if (!action.sale_id) throw new Error('sale_id mancante');
-          await api.delete(`/v2/vendite/${action.sale_id}`);
-          result = { success: true, deleted: action.sale_id };
+          result = await api.deleteVendita(action.sale_id);
           break;
 
         case 'createNota':

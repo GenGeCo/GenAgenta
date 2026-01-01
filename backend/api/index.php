@@ -87,6 +87,14 @@ $routes = [
 
     // Geocoding
     'GET:geocode/search' => 'geocode/search.php',
+
+    // Vendite (unificato da api_v2)
+    'GET:vendite' => 'vendite/index.php',
+    'POST:vendite' => 'vendite/index.php',
+
+    // Preferenze utente (unificato da api_v2)
+    'GET:preferenze' => 'preferenze/index.php',
+    'POST:preferenze' => 'preferenze/index.php',
 ];
 
 // Match route con parametri
@@ -166,6 +174,11 @@ if (!$handler) {
             case 'GET': $handler = 'famiglie-prodotto/get.php'; break;
             case 'PUT': $handler = 'famiglie-prodotto/update.php'; break;
             case 'DELETE': $handler = 'famiglie-prodotto/delete.php'; break;
+        }
+    } elseif (preg_match('/^vendite\/([a-zA-Z0-9-]+)$/', $path, $matches)) {
+        $params['id'] = $matches[1];
+        switch ($method) {
+            case 'DELETE': $handler = 'vendite/index.php'; break;
         }
     }
 }
