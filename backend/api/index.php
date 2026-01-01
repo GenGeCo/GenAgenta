@@ -95,6 +95,22 @@ $routes = [
     // Preferenze utente (unificato da api_v2)
     'GET:preferenze' => 'preferenze/index.php',
     'POST:preferenze' => 'preferenze/index.php',
+
+    // Tipi entità v2 (unificato da api_v2)
+    'GET:tipi' => 'tipi/index.php',
+    'POST:tipi' => 'tipi/index.php',
+
+    // Tipologie v2 (unificato da api_v2)
+    'GET:tipologie' => 'tipologie/index.php',
+    'POST:tipologie' => 'tipologie/index.php',
+
+    // Tipi connessione v2 (unificato da api_v2)
+    'GET:tipi-connessione' => 'tipi-connessione/index.php',
+    'POST:tipi-connessione' => 'tipi-connessione/index.php',
+
+    // Campi personalizzati v2 (unificato da api_v2)
+    'GET:campi' => 'campi/index.php',
+    'POST:campi' => 'campi/index.php',
 ];
 
 // Match route con parametri
@@ -179,6 +195,30 @@ if (!$handler) {
         $params['id'] = $matches[1];
         switch ($method) {
             case 'DELETE': $handler = 'vendite/index.php'; break;
+        }
+    } elseif (preg_match('/^tipi\/([a-zA-Z0-9-]+)$/', $path, $matches)) {
+        $params['id'] = $matches[1];
+        switch ($method) {
+            case 'PUT': $handler = 'tipi/index.php'; break;
+            case 'DELETE': $handler = 'tipi/index.php'; break;
+        }
+    } elseif (preg_match('/^tipologie\/([a-zA-Z0-9-]+)$/', $path, $matches)) {
+        $params['id'] = $matches[1];
+        switch ($method) {
+            case 'PUT': $handler = 'tipologie/index.php'; break;
+            case 'DELETE': $handler = 'tipologie/index.php'; break;
+        }
+    } elseif (preg_match('/^tipi-connessione\/([a-zA-Z0-9-]+)$/', $path, $matches)) {
+        $params['id'] = $matches[1];
+        switch ($method) {
+            case 'PUT': $handler = 'tipi-connessione/index.php'; break;
+            case 'DELETE': $handler = 'tipi-connessione/index.php'; break;
+        }
+    } elseif (preg_match('/^campi\/([a-zA-Z0-9-]+)$/', $path, $matches)) {
+        $params['id'] = $matches[1];
+        switch ($method) {
+            case 'PUT': $handler = 'campi/index.php'; break;
+            case 'DELETE': $handler = 'campi/index.php'; break;
         }
     }
 }
