@@ -6,18 +6,41 @@
  * L'AI ha accesso a tools per interrogare e modificare il sistema
  */
 
-// Error handler globale per debug
+// Error handler globale - converte errori PHP in eccezioni
 set_error_handler(function($severity, $message, $file, $line) {
     throw new ErrorException($message, 0, $severity, $file, $line);
 });
 
+// Exception handler globale - RESTITUISCE SEMPRE UNA RISPOSTA AI VALIDA
+// Mai crashare con 500, sempre dare un messaggio che l'utente può capire
 set_exception_handler(function($e) {
     header('Content-Type: application/json');
-    http_response_code(500);
+    // HTTP 200 - non è un errore del server, è l'AI che comunica un problema
+    http_response_code(200);
+
+    $errorMessage = $e->getMessage();
+    error_log("AI Chat Exception: $errorMessage in " . $e->getFile() . ":" . $e->getLine());
+
+    // Messaggio user-friendly basato sul tipo di errore
+    $userMessage = "Mi dispiace, ho incontrato un problema tecnico. ";
+    if (strpos($errorMessage, 'Column not found') !== false) {
+        $userMessage .= "C'è un problema con la struttura del database. Contatta l'amministratore.";
+    } elseif (strpos($errorMessage, 'SQLSTATE') !== false) {
+        $userMessage .= "C'è un problema con il database. Riprova tra poco.";
+    } elseif (strpos($errorMessage, 'timeout') !== false || strpos($errorMessage, 'cURL') !== false) {
+        $userMessage .= "Il servizio AI non risponde. Riprova tra qualche secondo.";
+    } else {
+        $userMessage .= "Riprova o formula la richiesta in modo diverso.";
+    }
+
     echo json_encode([
-        'error' => 'Errore PHP: ' . $e->getMessage(),
-        'file' => basename($e->getFile()),
-        'line' => $e->getLine()
+        'response' => $userMessage,
+        'iterations' => 0,
+        'context' => [
+            'messages_count' => 0,
+            'did_compaction' => false,
+            'error_details' => $errorMessage  // Per debug, può essere nascosto in prod
+        ]
     ]);
     exit;
 });
