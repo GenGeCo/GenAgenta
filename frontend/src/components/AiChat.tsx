@@ -96,17 +96,18 @@ export function AiChat({ isOpen, onClose, onAction }: AiChatProps) {
     setInput('');
     setIsLoading(true);
 
-    // Determina se faremo compaction (threshold: 10 messaggi)
-    const willCompact = messages.length >= 8;
+    // Determina se faremo compaction (threshold: 30 messaggi)
+    const willCompact = messages.length >= 25;
     setLoadingPhase(willCompact ? 'compacting' : 'thinking');
 
     try {
-      // Prepara history per API - LIMITA A ULTIMI 10 MESSAGGI e TRONCA CONTENUTO
-      const recentMessages = messages.slice(-10);
+      // Prepara history per API - LIMITA A ULTIMI 30 MESSAGGI e TRONCA CONTENUTO
+      // Il problema non era il NUMERO di messaggi ma la DIMENSIONE - manteniamo truncate aggressivo
+      const recentMessages = messages.slice(-30);
       const history = recentMessages.map((m) => ({
         role: m.role,
-        // Tronca messaggi troppo lunghi (es. tool results giganti)
-        content: m.content.length > 2000 ? m.content.substring(0, 2000) + '...[troncato]' : m.content,
+        // Tronca messaggi troppo lunghi (es. tool results giganti) - questo è il vero fix
+        content: m.content.length > 1500 ? m.content.substring(0, 1500) + '...[troncato]' : m.content,
       }));
 
       // Se stiamo per fare compaction, mostra fase "compacting" per un po'

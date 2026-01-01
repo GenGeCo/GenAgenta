@@ -819,8 +819,9 @@ if ($useOpenRouter) {
     }
 
     // Converti history al formato OpenAI messages
-    // Limita a ultimi 15 messaggi per bilanciare contesto e performance
-    $limitedHistory = array_slice($conversationHistory, -15);
+    // Limita a ultimi 30 messaggi (allineato con frontend)
+    // Il truncate a 1500 char nel frontend risolve il problema dimensione
+    $limitedHistory = array_slice($conversationHistory, -30);
 
     $messages = [];
     foreach ($limitedHistory as $msg) {
@@ -853,8 +854,9 @@ if ($useOpenRouter) {
 
     // ====== SMART COMPACTION: Riassumi conversazione lunga ======
     // Threshold basato sulla history ORIGINALE ricevuta dal frontend
-    // Se il frontend manda più di 10 messaggi, facciamo compaction
-    if (count($conversationHistory) > 10) {
+    // Se il frontend manda più di 30 messaggi, facciamo compaction
+    // (il problema era la DIMENSIONE dei messaggi, non il numero - ora tronchiamo a 1500 char)
+    if (count($conversationHistory) > 30) {
         error_log("COMPACTION: Conversazione lunga (" . count($messages) . " msg), creo riassunto");
         $didCompaction = true;
 
@@ -1311,7 +1313,7 @@ $responseData = [
     'context' => [
         'messages_count' => $useOpenRouter ? count($messages) : count($contents),
         'did_compaction' => $useOpenRouter ? ($didCompaction ?? false) : false,
-        'compaction_threshold' => 10,  // Quando scatta la compaction (basato su history originale)
+        'compaction_threshold' => 30,  // Quando scatta la compaction (basato su history originale)
         'compaction_summary' => $useOpenRouter ? ($compactionSummary ?? null) : null  // Riassunto per frontend
     ]
 ];
