@@ -96,8 +96,8 @@ export function AiChat({ isOpen, onClose, onAction }: AiChatProps) {
     setInput('');
     setIsLoading(true);
 
-    // Determina se faremo compaction (threshold: 30 messaggi)
-    const willCompact = messages.length >= 28;
+    // Determina se faremo compaction (threshold: 20 messaggi)
+    const willCompact = messages.length >= 18;
     setLoadingPhase(willCompact ? 'compacting' : 'thinking');
 
     try {
