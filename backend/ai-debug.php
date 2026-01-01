@@ -1,3 +1,7 @@
+<?php
+// Pagina debug AI - standalone, no auth required
+// Accesso: https://www.gruppogea.net/genagenta/backend/ai-debug.php
+?>
 <!DOCTYPE html>
 <html lang="it">
 <head>
