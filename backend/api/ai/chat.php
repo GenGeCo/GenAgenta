@@ -905,8 +905,8 @@ if ($useOpenRouter) {
     $hasExecutedMapAction = false;  // Flag per azioni mappa
     $hasToolError = false;  // Flag per errori nei tool - se true, dai all'AI un'altra chance di rispondere
 
-    // Loop per gestire tool calls - 4 iterazioni per permettere sequenze come geocode→fly_to
-    $maxIterations = 4;
+    // Loop per gestire tool calls - 6 iterazioni per dare libertà all'AI
+    $maxIterations = 6;
     $iteration = 0;
     $finalResponse = null;
 
@@ -994,8 +994,8 @@ if ($useOpenRouter) {
         // ====== ANTI-LOOP: Verifica se stiamo entrando in loop ======
         $totalToolCalls += count($toolCalls);
 
-        // Se troppi tool calls totali (>10), forza una risposta
-        if ($totalToolCalls > 10) {
+        // Se troppi tool calls totali (>20), forza una risposta
+        if ($totalToolCalls > 20) {
             error_log("ANTI-LOOP: Troppi tool calls ($totalToolCalls), forzo risposta");
             $finalResponse = $lastTextContent ?? "Ho elaborato la tua richiesta. C'è altro?";
             break;
@@ -1105,8 +1105,8 @@ if ($useOpenRouter) {
         }
 
         // Se abbiamo eseguito un'azione mappa E NON ci sono stati errori, fermiamoci
-        // MA se c'è stato un errore, dai all'AI un'altra chance di rispondere all'errore
-        if ($hasExecutedMapAction && $iteration >= 2 && !$hasToolError) {
+        // MA diamo all'AI almeno 3 iterazioni per completare operazioni complesse
+        if ($hasExecutedMapAction && $iteration >= 3 && !$hasToolError) {
             error_log("STOP: Azione mappa eseguita senza errori, mi fermo per rispondere");
             $finalResponse = $lastTextContent ?? "Fatto!";
             break;
