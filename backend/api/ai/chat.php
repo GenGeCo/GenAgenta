@@ -631,6 +631,21 @@ $functionDeclarations[] = [
     ]
 ];
 
+// TOOL API UNIFICATA - Chiama le stesse API del frontend
+$functionDeclarations[] = [
+    'name' => 'call_api',
+    'description' => 'Chiama un\'API REST del sistema GenAgenta. Usa le stesse API del frontend. Per vedere le API disponibili: read_file("docs/API_INDEX.md")',
+    'parameters' => [
+        'type' => 'object',
+        'properties' => [
+            'method' => ['type' => 'string', 'description' => 'HTTP method: GET, POST, PUT, DELETE'],
+            'endpoint' => ['type' => 'string', 'description' => 'API endpoint (es: neuroni, sinapsi/123, v2/tipi, v2/tipologie)'],
+            'body' => ['type' => 'object', 'description' => 'Request body per POST/PUT (oggetto JSON)']
+        ],
+        'required' => ['method', 'endpoint']
+    ]
+];
+
 // Carica system instruction da file (versione CORTA - lazy loading)
 $promptFile = __DIR__ . '/../../config/ai/prompt_base.txt';
 if (!file_exists($promptFile)) {

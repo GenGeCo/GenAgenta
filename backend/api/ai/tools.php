@@ -13,6 +13,10 @@ function executeAiTool(string $toolName, array $input, array $user): array {
 
     try {
         switch ($toolName) {
+            // Tool PRINCIPALE - Chiama qualsiasi API
+            case 'call_api':
+                return tool_callApi($input, $user);
+
             case 'query_database':
                 return tool_queryDatabase($db, $input, $aziendaId);
 
@@ -1585,4 +1589,219 @@ function tool_listFiles(array $input): array {
         'files' => $files,
         'count' => count($files)
     ];
+}
+
+// ============================================================
+// TOOL PRINCIPALE: CALL_API
+// Permette all'AI di chiamare qualsiasi API del sistema
+// ============================================================
+
+/**
+ * Tool: Chiama un'API del sistema
+ * L'AI può usare le stesse API che usa il frontend
+ */
+function tool_callApi(array $input, array $user): array {
+    $method = strtoupper($input['method'] ?? 'GET');
+    $endpoint = $input['endpoint'] ?? '';
+    $body = $input['body'] ?? [];
+
+    if (empty($endpoint)) {
+        return ['error' => 'endpoint richiesto. Usa read_file("docs/API_INDEX.md") per vedere le API disponibili.'];
+    }
+
+    // Valida metodo
+    if (!in_array($method, ['GET', 'POST', 'PUT', 'DELETE'])) {
+        return ['error' => 'Metodo non valido. Usa: GET, POST, PUT, DELETE'];
+    }
+
+    // Pulisci endpoint
+    $endpoint = ltrim($endpoint, '/');
+
+    // Determina se è API v1 o v2
+    $isV2 = str_starts_with($endpoint, 'v2/') || str_starts_with($endpoint, 'api_v2/');
+    if ($isV2) {
+        $endpoint = preg_replace('/^(v2|api_v2)\//', '', $endpoint);
+        $basePath = __DIR__ . '/../../../api_v2';
+        $apiVersion = 'v2';
+    } else {
+        // Rimuovi prefisso api/ se presente
+        $endpoint = preg_replace('/^api\//', '', $endpoint);
+        $basePath = __DIR__ . '/..';
+        $apiVersion = 'v1';
+    }
+
+    // Simula ambiente richiesta
+    $originalMethod = $_SERVER['REQUEST_METHOD'] ?? null;
+    $originalRequest = $_REQUEST;
+    $originalGet = $_GET;
+    $originalPost = $_POST;
+
+    try {
+        // Imposta ambiente per l'API
+        $_SERVER['REQUEST_METHOD'] = $method;
+
+        // Parse endpoint per estrarre parametri (es: neuroni/123 → id=123)
+        $pathParts = explode('/', $endpoint);
+        $resource = $pathParts[0] ?? '';
+        $resourceId = $pathParts[1] ?? null;
+
+        // Imposta parametri
+        $_REQUEST = $body;
+        $_GET = ($method === 'GET') ? $body : [];
+        $_POST = ($method !== 'GET') ? $body : [];
+
+        if ($resourceId) {
+            $_REQUEST['id'] = $resourceId;
+        }
+
+        // Per API v2, usa il router index.php
+        if ($isV2) {
+            // API v2 usa un router con $method
+            $GLOBALS['_ai_api_method'] = $method;
+            $_REQUEST['_method'] = $method;
+
+            $routerFile = "$basePath/index.php";
+            if (!file_exists($routerFile)) {
+                return ['error' => "Router API v2 non trovato"];
+            }
+
+            // Simula PATH_INFO per il router
+            $_SERVER['PATH_INFO'] = '/' . $endpoint;
+
+            // Cattura output
+            ob_start();
+
+            // Il router v2 ha bisogno di $method definito
+            $method = $method; // Per scope
+
+            // Includiamo il file index.php che gestisce il routing
+            try {
+                // Per API v2, dobbiamo gestire diversamente
+                // Leggiamo il file e vediamo come funziona
+                $indexContent = file_get_contents($routerFile);
+
+                // API v2 routing più semplice basato su resource
+                $resourceFile = "$basePath/$resource/index.php";
+                if (file_exists($resourceFile)) {
+                    include $resourceFile;
+                } else {
+                    ob_end_clean();
+                    return ['error' => "Endpoint v2 non trovato: $resource"];
+                }
+            } catch (Throwable $e) {
+                ob_end_clean();
+                return ['error' => 'Errore API v2: ' . $e->getMessage()];
+            }
+
+            $output = ob_get_clean();
+        } else {
+            // API v1 - trova handler direttamente
+            $handler = null;
+
+            // Mappa risorse a file
+            $handlers = [
+                'neuroni' => [
+                    'GET' => $resourceId ? 'neuroni/get.php' : 'neuroni/list.php',
+                    'POST' => 'neuroni/create.php',
+                    'PUT' => 'neuroni/update.php',
+                    'DELETE' => 'neuroni/delete.php',
+                ],
+                'sinapsi' => [
+                    'GET' => $resourceId ? 'sinapsi/get.php' : 'sinapsi/list.php',
+                    'POST' => 'sinapsi/create.php',
+                    'PUT' => 'sinapsi/update.php',
+                    'DELETE' => 'sinapsi/delete.php',
+                ],
+                'note' => [
+                    'GET' => 'note/list.php',
+                    'POST' => 'note/create.php',
+                    'PUT' => 'note/update.php',
+                    'DELETE' => 'note/delete.php',
+                ],
+                'tipi-neurone' => [
+                    'GET' => 'tipi-neurone/list.php',
+                    'POST' => 'tipi-neurone/create.php',
+                    'PUT' => 'tipi-neurone/update.php',
+                    'DELETE' => 'tipi-neurone/delete.php',
+                ],
+                'categorie' => [
+                    'GET' => 'categorie/list.php',
+                    'POST' => 'categorie/create.php',
+                    'PUT' => 'categorie/update.php',
+                    'DELETE' => 'categorie/delete.php',
+                ],
+                'tipi-sinapsi' => [
+                    'GET' => 'tipi-sinapsi/list.php',
+                    'POST' => 'tipi-sinapsi/create.php',
+                    'PUT' => 'tipi-sinapsi/update.php',
+                    'DELETE' => 'tipi-sinapsi/delete.php',
+                ],
+                'famiglie-prodotto' => [
+                    'GET' => $resourceId ? 'famiglie-prodotto/get.php' : 'famiglie-prodotto/list.php',
+                    'POST' => 'famiglie-prodotto/create.php',
+                    'PUT' => 'famiglie-prodotto/update.php',
+                    'DELETE' => 'famiglie-prodotto/delete.php',
+                ],
+                'stats' => [
+                    'GET' => 'stats/dashboard.php',
+                ],
+                'geocode' => [
+                    'GET' => 'geocode/search.php',
+                ],
+            ];
+
+            if (isset($handlers[$resource][$method])) {
+                $handler = $handlers[$resource][$method];
+            } else {
+                return ['error' => "Endpoint non trovato: $method $endpoint. Usa read_file(\"docs/API_INDEX.md\") per vedere le API disponibili."];
+            }
+
+            $handlerPath = "$basePath/$handler";
+            if (!file_exists($handlerPath)) {
+                return ['error' => "Handler non trovato: $handler"];
+            }
+
+            // Cattura output
+            ob_start();
+            try {
+                include $handlerPath;
+            } catch (Throwable $e) {
+                ob_end_clean();
+                return ['error' => 'Errore API: ' . $e->getMessage()];
+            }
+            $output = ob_get_clean();
+        }
+
+        // Parse risposta JSON
+        $response = json_decode($output, true);
+        if ($response === null && !empty($output)) {
+            // Se non è JSON valido, restituisci come testo
+            return [
+                'success' => false,
+                'error' => 'Risposta non JSON',
+                'raw_response' => substr($output, 0, 1000)
+            ];
+        }
+
+        // Aggiungi info sulla chiamata
+        $response['_api_call'] = [
+            'method' => $method,
+            'endpoint' => ($isV2 ? 'v2/' : '') . $endpoint,
+            'version' => $apiVersion
+        ];
+
+        // Se è una operazione di scrittura, aggiungi refresh_neuroni
+        if (in_array($method, ['POST', 'PUT', 'DELETE']) && in_array($resource, ['neuroni', 'sinapsi'])) {
+            $response['_frontend_action'] = ['type' => 'refresh_neuroni'];
+        }
+
+        return $response;
+
+    } finally {
+        // Ripristina ambiente originale
+        $_SERVER['REQUEST_METHOD'] = $originalMethod;
+        $_REQUEST = $originalRequest;
+        $_GET = $originalGet;
+        $_POST = $originalPost;
+    }
 }
