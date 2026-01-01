@@ -499,7 +499,7 @@ function tool_createEntity(PDO $db, array $input, array $user): array {
     $email = $input['email'] ?? null;
     $telefono = $input['telefono'] ?? null;
     $categorie = $input['categorie'] ?? [];
-    $visibilita = $input['personale'] ?? false ? 'personale' : 'team'; // Mappa personale → visibilita
+    $visibilita = $input['personale'] ?? false ? 'personale' : 'aziendale'; // Mappa personale → visibilita
 
     if (empty($nome)) {
         return ['error' => 'Nome entità richiesto'];
