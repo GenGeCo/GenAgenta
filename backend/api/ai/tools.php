@@ -520,26 +520,31 @@ function tool_createEntity(PDO $db, array $input, array $user): array {
         mt_rand(0, 0xffff), mt_rand(0, 0xffff), mt_rand(0, 0xffff)
     );
 
-    $sql = "INSERT INTO neuroni (
-                id, azienda_id, nome, tipo, indirizzo, lat, lng,
-                email, telefono, categorie, personale, creato_da, creato_il
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())";
+    try {
+        $sql = "INSERT INTO neuroni (
+                    id, azienda_id, nome, tipo, indirizzo, lat, lng,
+                    email, telefono, categorie, personale, creato_da, creato_il
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())";
 
-    $stmt = $db->prepare($sql);
-    $stmt->execute([
-        $id,
-        $user['azienda_id'],
-        $nome,
-        $tipo,
-        $indirizzo,
-        $lat,
-        $lng,
-        $email,
-        $telefono,
-        json_encode($categorie),
-        $personale ? 1 : 0,
-        $user['user_id']
-    ]);
+        $stmt = $db->prepare($sql);
+        $stmt->execute([
+            $id,
+            $user['azienda_id'],
+            $nome,
+            $tipo,
+            $indirizzo,
+            $lat,
+            $lng,
+            $email,
+            $telefono,
+            json_encode($categorie),
+            $personale ? 1 : 0,
+            $user['user_id']
+        ]);
+    } catch (PDOException $e) {
+        error_log("create_entity SQL error: " . $e->getMessage());
+        return ['error' => "Errore database: " . $e->getMessage()];
+    }
 
     return [
         'success' => true,
