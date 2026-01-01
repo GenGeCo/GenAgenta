@@ -21,7 +21,9 @@ interface MapViewProps {
   filtri: FiltriMappa;
   pickingMode?: boolean;
   onPickPosition?: (lat: number, lng: number) => void;
-  flyToPosition?: { lat: number; lng: number } | null;
+  flyToPosition?: { lat: number; lng: number; zoom?: number; pitch?: number; bearing?: number } | null;
+  aiStyleChange?: string | null;
+  onAiStyleApplied?: () => void;
   pickedPosition?: { lat: number; lng: number } | null;
   // Props per picking connessione (target su mappa)
   connectionPickingMode?: boolean;
@@ -393,6 +395,8 @@ export default function MapView({
   pickingMode = false,
   onPickPosition,
   flyToPosition,
+  aiStyleChange,
+  onAiStyleApplied,
   pickedPosition,
   connectionPickingMode = false,
   connectionSourceId = null,
@@ -742,17 +746,33 @@ export default function MapView({
     };
   }, []);
 
-  // Vola a una posizione quando flyToPosition cambia
+  // Vola a una posizione quando flyToPosition cambia (con parametri opzionali)
   useEffect(() => {
     if (!map.current || !mapReady || !flyToPosition) return;
 
     map.current.flyTo({
       center: [flyToPosition.lng, flyToPosition.lat],
-      zoom: 14,
-      pitch: 60,
+      zoom: flyToPosition.zoom ?? 14,
+      pitch: flyToPosition.pitch ?? 60,
+      bearing: flyToPosition.bearing ?? map.current.getBearing(),
       duration: 1500,
     });
   }, [flyToPosition, mapReady]);
+
+  // Cambia stile mappa quando richiesto dall'AI
+  useEffect(() => {
+    if (!map.current || !mapReady || !aiStyleChange) return;
+
+    console.log('AI: Cambio stile mappa a', aiStyleChange);
+    map.current.setStyle(`mapbox://styles/mapbox/${aiStyleChange}`);
+    setMapStyle(aiStyleChange);
+
+    // Quando lo stile è caricato, notifica il parent
+    map.current.once('style.load', () => {
+      setStyleLoaded(prev => prev + 1);
+      onAiStyleApplied?.();
+    });
+  }, [aiStyleChange, mapReady, onAiStyleApplied]);
 
   // Cambia cursore in picking mode o quick mode
   useEffect(() => {

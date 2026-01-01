@@ -11,11 +11,13 @@ interface Message {
 
 // Tipi per le azioni frontend
 export interface AiFrontendAction {
-  type: 'map_fly_to' | 'map_select_entity' | 'map_show_connections' | 'ui_open_panel' | 'ui_notification' | 'refresh_neuroni';
+  type: 'map_fly_to' | 'map_select_entity' | 'map_show_connections' | 'map_set_style' | 'ui_open_panel' | 'ui_notification' | 'refresh_neuroni';
   lat?: number;
   lng?: number;
   zoom?: number;
   pitch?: number;
+  bearing?: number;
+  style?: string;
   entity_id?: string;
   entity_name?: string;
   panel?: string;

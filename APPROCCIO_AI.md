@@ -3,123 +3,184 @@
 ## Il Problema
 
 L'AI ha centinaia di operazioni possibili (creare entità, connessioni, transazioni,
-navigare mappa, zoomare, filtrare, etc.). Come le insegniamo tutte?
+navigare mappa, zoomare, filtrare, etc.). Come le insegniamo tutte senza mappare
+manualmente ogni singola operazione?
 
-### Approccio SBAGLIATO (quello che abbiamo provato):
-1. Scrivere documentazione dettagliata per ogni operazione
-2. L'AI legge la documentazione e segue le istruzioni
-3. **Problema**: la documentazione è spesso sbagliata/incompleta
-4. **Risultato**: l'AI fa errori seguendo istruzioni sbagliate
+### Approcci Provati e Scartati
 
-### Approccio CORRETTO (quello attuale):
-1. L'AI sa COSA può fare (lista generale)
-2. L'AI NON sa COME farlo nei dettagli
-3. L'AI prova → l'API le dice se sbaglia → l'AI corregge
-4. **L'API è il "maestro", non la documentazione**
+1. **Documentazione dettagliata** → Docs sempre sbagliate/incomplete
+2. **Tool dedicati per ogni operazione** → Impossibile da mantenere
+3. **Backend esegue API internamente (curl)** → Problemi 404, exit(), sessioni
 
 ---
 
-## Come Funziona
+## Soluzione Attuale: "Backend Brain, Frontend Hands"
 
-### System Prompt (minimalista ~35 righe)
-```
-Puoi:
-- Gestire entità (clienti, fornitori, cantieri)
-- Gestire connessioni tra entità
-- Registrare transazioni
-- Controllare la mappa
+Architettura ispirata ai Co-pilot moderni:
 
-Come: usa call_api(). Se sbagli, l'API ti dice cosa correggere.
-```
+- **Il Cervello (AI) sta nel Backend**: logica, prompt, sicurezza
+- **Le Mani (Esecuzione) stanno nel Frontend**: il browser esegue le API
 
-### Tool Principale
-```
-call_api(method, endpoint, body)
-```
-Chiama le STESSE API REST che usa il frontend.
+### Perché Funziona
 
-### Flusso Tipico
+L'AI usa le **stesse API che usa l'utente** quando clicca i bottoni.
+- Stessi cookie, stessa sessione, stessa autenticazione
+- Se funziona per l'utente, funziona per l'AI
+- Zero problemi di CORS, curl, exit()
+
+---
+
+## Flusso di Esecuzione
 
 ```
-Utente: "crea un cantiere a Milano"
-
-AI: call_api("POST", "neuroni", {nome: "Cantiere Milano"})
-API: "Errore: campo 'tipo' richiesto"
-
-AI: call_api("POST", "neuroni", {nome: "Cantiere Milano", tipo: "cantiere"})
-API: "Errore: tipo 'cantiere' non valido. Tipi disponibili: CANTIERE, IMPRESA, PERSONA"
-
-AI: call_api("POST", "neuroni", {nome: "Cantiere Milano", tipo: "CANTIERE", categorie: ["standard"]})
-API: "Creato con successo! ID: xxx"
-
-AI: "Ho creato il cantiere. Nota: senza coordinate non apparirà sulla mappa.
-     Vuoi che cerchi l'indirizzo per aggiungerle?"
+Utente: "Crea un cantiere a Milano"
+         │
+         ▼
+┌─────────────────────────────────────────────────────────────┐
+│ FRONTEND (Browser)                                          │
+│  → Invia messaggio al backend                               │
+└─────────────────────────────────────────────────────────────┘
+         │
+         ▼
+┌─────────────────────────────────────────────────────────────┐
+│ BACKEND (PHP)                                               │
+│  → Chiama OpenRouter/Claude                                 │
+│  → AI decide: "devo chiamare create_entity"                 │
+│  → È una WRITE operation? → SOSPENDE                        │
+│  → Ritorna: {status: "pending_action", action: {...}}       │
+└─────────────────────────────────────────────────────────────┘
+         │
+         ▼
+┌─────────────────────────────────────────────────────────────┐
+│ FRONTEND (Browser)                                          │
+│  → Riceve pending_action                                    │
+│  → Esegue api.createNeurone() (stessa API del click)        │
+│  → Mostra all'utente: "Sto creando..."                      │
+│  → Invia risultato al backend                               │
+└─────────────────────────────────────────────────────────────┘
+         │
+         ▼
+┌─────────────────────────────────────────────────────────────┐
+│ BACKEND (PHP)                                               │
+│  → Riprende con il risultato dell'API                       │
+│  → AI genera risposta finale                                │
+│  → Ritorna messaggio + eventuali azioni mappa               │
+└─────────────────────────────────────────────────────────────┘
+         │
+         ▼
+┌─────────────────────────────────────────────────────────────┐
+│ FRONTEND (Browser)                                          │
+│  → Mostra risposta AI                                       │
+│  → Esegue azioni mappa (fly_to, select, refresh)            │
+│  → L'utente vede tutto in tempo reale!                      │
+└─────────────────────────────────────────────────────────────┘
 ```
+
+---
+
+## Tipi di Tool
+
+### READ Tools (eseguiti dal backend)
+Operazioni di sola lettura, eseguite direttamente nel backend:
+- `geocode_address` - ottieni coordinate da indirizzo
+- `query_database` - query SQL di lettura
+- `read_file` - leggi documentazione interna
+- `search_entities` - cerca nel database
+
+### WRITE Tools (delegati al frontend)
+Operazioni che modificano dati, delegate al browser:
+- `create_entity` → `api.createNeurone()`
+- `update_entity` → `api.updateNeurone()`
+- `delete_entity` → `api.deleteNeurone()`
+- `create_connection` → `api.createSinapsi()`
+- `delete_connection` → `api.deleteSinapsi()`
+- `create_sale` → `api.createVendita()`
+- `call_api` (POST/PUT/DELETE) → chiamata API generica
+
+### FRONTEND-ONLY Actions
+Azioni che controllano l'interfaccia:
+- `map_fly_to` - sposta la mappa
+- `map_select_entity` - seleziona un'entità
+- `refresh_neuroni` - ricarica i dati sulla mappa
 
 ---
 
 ## Vantaggi
 
-| Aspetto | Prima (docs dettagliate) | Dopo (API come maestro) |
-|---------|--------------------------|-------------------------|
-| Nuova funzionalità | Aggiorna docs + testa | Solo aggiorna API |
-| Bug nei parametri | Fix docs + fix AI | Fix solo API |
-| Sincronizzazione | Docs ≠ API (divergono) | Sempre allineati |
-| Token consumati | Molti (docs lunghe) | Pochi (prompt corto) |
-| Errori AI | Segue docs sbagliate | Impara dagli errori |
+| Aspetto | Backend-only (vecchio) | Frontend Execution (attuale) |
+|---------|------------------------|------------------------------|
+| Autenticazione | Complessa (token interni) | Usa sessione utente |
+| Cookie/CORS | Problemi con curl | Zero problemi |
+| Interattività | L'utente non vede nulla | Vede tutto in tempo reale |
+| Debug | Difficile (lato server) | Facile (F12 nel browser) |
+| Nuove API | Richiede mapping backend | Funziona subito |
+| Errori | Crash silenzioso | Errore visibile in console |
 
 ---
 
-## Regole per le API
+## "API come Maestro"
 
-Perché questo approccio funzioni, le API devono:
+Il pattern rimane valido: l'AI impara dagli errori delle API.
 
-1. **Dare errori chiari**: "Campo 'tipo' richiesto" (non "Errore 400")
+```
+AI prova → API risponde errore chiaro → AI corregge → Riprova
+```
 
-2. **Suggerire valori validi**: "Tipo 'x' non valido. Tipi disponibili: A, B, C"
-
-3. **Essere self-documenting**: l'errore stesso insegna all'AI cosa fare
-
-### Esempio API ben fatta:
+Le API devono dare errori informativi:
 ```php
-if (!$tipoRow) {
-    $tipiDisponibili = getTipiDisponibili($teamId);
-    errorResponse("Tipo '$tipo' non valido. Tipi disponibili: " . implode(', ', $tipiDisponibili));
+errorResponse("Tipo 'cantiere' non valido. Tipi disponibili: CANTIERE, IMPRESA, PERSONA");
+```
+
+---
+
+## Implementazione
+
+### Backend (chat.php)
+
+```php
+const WRITE_TOOLS = ['create_entity', 'update_entity', 'delete_entity', ...];
+
+// Quando AI chiama un write tool:
+if (isWriteTool($toolName)) {
+    return [
+        'status' => 'pending_action',
+        'pending_action' => mapToolToFrontendAction($toolName, $args),
+        'resume_context' => $conversationState
+    ];
+}
+```
+
+### Frontend (AiChat.tsx)
+
+```typescript
+while (continueLoop) {
+    const response = await api.aiChat(message, history);
+
+    if (response.status === 'pending_action') {
+        // Esegui con le API del frontend
+        const result = await executePendingAction(response.pending_action);
+        // Continua la conversazione con il risultato
+        resumeContext = { ...response.resume_context, _actionResult: result };
+        continue;
+    }
+    break; // Risposta finale
 }
 ```
 
 ---
 
-## Documentazione Residua
+## File Chiave
 
-Manteniamo docs SOLO per:
-
-1. **API_INDEX.md**: Lista endpoint (cosa esiste, non come usarlo)
-2. **Concetti non ovvi**: es. "per apparire sulla mappa serve lat/lng"
-
-NON documentiamo:
-- Parametri obbligatori (l'API lo dice)
-- Valori validi per enum (l'API lo dice)
-- Formato dei dati (l'API lo dice)
-
----
-
-## Ispirazione
-
-Questo approccio è ispirato a Claude Code:
-- Claude non ha un tool per ogni linguaggio di programmazione
-- Ha Read, Write, Bash e impara leggendo il codice
-- Se sbaglia, legge l'errore e corregge
-
-L'AI di GenAgenta funziona allo stesso modo:
-- Non ha un tool per ogni operazione
-- Ha call_api() e impara dagli errori dell'API
-- L'API la guida verso la soluzione corretta
+- `backend/api/ai/chat.php` - Logica AI + gestione pending_action
+- `frontend/src/components/AiChat.tsx` - Loop esecuzione frontend
+- `frontend/src/utils/api.ts` - Client API con tutti i metodi
+- `backend/config/ai/prompt_base.txt` - System prompt AI
 
 ---
 
 ## Evoluzione Futura
 
-1. **Più errori informativi**: ogni API dovrebbe dire cosa manca/sbagliato
-2. **Suggerimenti contestuali**: "Hai creato l'entità ma senza coordinate. Usa geocode_address per ottenerle"
-3. **Apprendimento**: l'AI può salvare cosa ha imparato per sessioni future
+1. **Preview**: mostrare anteprima prima di eseguire operazioni distruttive
+2. **Batch**: l'AI può chiedere N operazioni, il frontend le esegue tutte
+3. **Undo**: il frontend traccia le operazioni per poterle annullare
+4. **Streaming**: mostrare il "pensiero" dell'AI in tempo reale

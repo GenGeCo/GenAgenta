@@ -626,7 +626,7 @@ $functionDeclarations = [
     // TOOL MAPPA - Comandi per controllare la visualizzazione
     [
         'name' => 'map_fly_to',
-        'description' => 'Sposta la vista della mappa 3D verso coordinate specifiche. Usa questo quando l\'utente chiede di "vedere", "mostrare", "inquadrare", "andare a" un luogo.',
+        'description' => 'Sposta la vista della mappa 3D verso coordinate specifiche con controllo completo della camera. Usa per: vedere luoghi, zoomare (avanti/indietro), ruotare la mappa, inclinare la vista 3D.',
         'parameters' => [
             'type' => 'object',
             'properties' => [
@@ -640,14 +640,33 @@ $functionDeclarations = [
                 ],
                 'zoom' => [
                     'type' => 'number',
-                    'description' => 'Livello di zoom (1-20, default 15)'
+                    'description' => 'Livello di zoom: 1=mondo, 10=città, 15=quartiere, 18=edificio, 20=max dettaglio'
                 ],
                 'pitch' => [
                     'type' => 'number',
-                    'description' => 'Inclinazione camera in gradi (0-85, default 60)'
+                    'description' => 'Inclinazione camera: 0=vista dall\'alto 2D, 60=3D standard, 85=quasi orizzontale'
+                ],
+                'bearing' => [
+                    'type' => 'number',
+                    'description' => 'Rotazione mappa in gradi: 0=Nord su, 90=Est su, 180=Sud su, 270=Ovest su'
                 ]
             ],
             'required' => ['lat', 'lng']
+        ]
+    ],
+    [
+        'name' => 'map_set_style',
+        'description' => 'Cambia lo stile visivo della mappa. Usa quando l\'utente chiede: satellite, stradale, terreno, notte, chiaro, scuro.',
+        'parameters' => [
+            'type' => 'object',
+            'properties' => [
+                'style' => [
+                    'type' => 'string',
+                    'enum' => ['streets-v12', 'satellite-v9', 'satellite-streets-v12', 'outdoors-v12', 'light-v11', 'dark-v11'],
+                    'description' => 'streets-v12=strade, satellite-v9=satellite puro, satellite-streets-v12=satellite+strade, outdoors-v12=terreno, light-v11=chiaro, dark-v11=notte/scuro'
+                ]
+            ],
+            'required' => ['style']
         ]
     ],
     [

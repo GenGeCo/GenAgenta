@@ -47,7 +47,8 @@ export default function Dashboard() {
   // Stato per selezione posizione su mappa (creazione neurone)
   const [mapPickingMode, setMapPickingMode] = useState(false);
   const [pickedPosition, setPickedPosition] = useState<{ lat: number; lng: number } | null>(null);
-  const [flyToPosition, setFlyToPosition] = useState<{ lat: number; lng: number } | null>(null);
+  const [flyToPosition, setFlyToPosition] = useState<{ lat: number; lng: number; zoom?: number; pitch?: number; bearing?: number } | null>(null);
+  const [mapStyleFromAi, setMapStyleFromAi] = useState<string | null>(null);
 
   // Stato per connessione su mappa (selezione entità target)
   const [connectionPickingMode, setConnectionPickingMode] = useState(false);
@@ -291,9 +292,22 @@ export default function Dashboard() {
 
     switch (action.type) {
       case 'map_fly_to':
-        // Sposta la mappa alle coordinate
+        // Sposta la mappa alle coordinate con tutti i parametri camera
         if (action.lat !== undefined && action.lng !== undefined) {
-          setFlyToPosition({ lat: action.lat, lng: action.lng });
+          setFlyToPosition({
+            lat: action.lat,
+            lng: action.lng,
+            zoom: action.zoom,
+            pitch: action.pitch,
+            bearing: action.bearing
+          });
+        }
+        break;
+
+      case 'map_set_style':
+        // Cambia lo stile della mappa
+        if (action.style) {
+          setMapStyleFromAi(action.style);
         }
         break;
 
@@ -460,6 +474,8 @@ export default function Dashboard() {
               setMapPickingMode(false);
             }}
             flyToPosition={flyToPosition}
+            aiStyleChange={mapStyleFromAi}
+            onAiStyleApplied={() => setMapStyleFromAi(null)}
             pickedPosition={pickedPosition}
             // Props per connection picking
             connectionPickingMode={connectionPickingMode}

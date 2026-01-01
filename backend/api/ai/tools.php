@@ -68,6 +68,9 @@ function executeAiTool(string $toolName, array $input, array $user): array {
             case 'map_fly_to':
                 return tool_mapFlyTo($input);
 
+            case 'map_set_style':
+                return tool_mapSetStyle($input);
+
             case 'map_select_entity':
                 return tool_mapSelectEntity($db, $input, $user);
 
@@ -1041,6 +1044,7 @@ function tool_mapFlyTo(array $input): array {
     $lng = $input['lng'] ?? null;
     $zoom = $input['zoom'] ?? 15;
     $pitch = $input['pitch'] ?? 60;
+    $bearing = $input['bearing'] ?? 0;
 
     if ($lat === null || $lng === null) {
         return ['error' => 'lat e lng sono richiesti'];
@@ -1048,13 +1052,44 @@ function tool_mapFlyTo(array $input): array {
 
     return [
         'success' => true,
-        'message' => "Mappa spostata a coordinate ($lat, $lng)",
+        'message' => "Mappa spostata a ($lat, $lng) zoom=$zoom pitch=$pitch bearing=$bearing",
         '_frontend_action' => [
             'type' => 'map_fly_to',
             'lat' => (float)$lat,
             'lng' => (float)$lng,
             'zoom' => (float)$zoom,
-            'pitch' => (float)$pitch
+            'pitch' => (float)$pitch,
+            'bearing' => (float)$bearing
+        ]
+    ];
+}
+
+/**
+ * Tool: Cambia lo stile visivo della mappa
+ */
+function tool_mapSetStyle(array $input): array {
+    $style = $input['style'] ?? 'streets-v12';
+
+    $validStyles = ['streets-v12', 'satellite-v9', 'satellite-streets-v12', 'outdoors-v12', 'light-v11', 'dark-v11'];
+    if (!in_array($style, $validStyles)) {
+        return ['error' => "Stile non valido. Usa: " . implode(', ', $validStyles)];
+    }
+
+    $styleNames = [
+        'streets-v12' => 'Strade',
+        'satellite-v9' => 'Satellite',
+        'satellite-streets-v12' => 'Satellite con strade',
+        'outdoors-v12' => 'Terreno',
+        'light-v11' => 'Chiaro',
+        'dark-v11' => 'Scuro/Notte'
+    ];
+
+    return [
+        'success' => true,
+        'message' => "Stile mappa cambiato in: " . ($styleNames[$style] ?? $style),
+        '_frontend_action' => [
+            'type' => 'map_set_style',
+            'style' => $style
         ]
     ];
 }
