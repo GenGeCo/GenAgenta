@@ -690,7 +690,7 @@ function callOpenRouter($apiKey, $systemInstruction, $messages, $tools) {
             'HTTP-Referer: https://www.gruppogea.net/genagenta',
             'X-Title: GenAgenta CRM'
         ],
-        CURLOPT_TIMEOUT => 90
+        CURLOPT_TIMEOUT => 45  // Ridotto da 90 a 45 secondi per fail-fast
     ]);
 
     $response = curl_exec($ch);
@@ -793,9 +793,9 @@ if ($useOpenRouter) {
     }
 
     // Converti history al formato OpenAI messages
-    // IMPORTANTE: Limita a ultimi 12 messaggi per evitare context overflow
-    // (simile a Gemini che usa 10 messaggi)
-    $limitedHistory = array_slice($conversationHistory, -12);
+    // IMPORTANTE: Limita a ultimi 6 messaggi per evitare context overflow
+    // Ridotto da 12 a 6 perché ogni iterazione aggiunge tool calls
+    $limitedHistory = array_slice($conversationHistory, -6);
 
     $messages = [];
     foreach ($limitedHistory as $msg) {
@@ -827,9 +827,9 @@ if ($useOpenRouter) {
     $messageCountBefore = count($messages);
 
     // ====== SMART COMPACTION: Riassumi conversazione lunga ======
-    // Threshold: 25 messaggi - ora che limitiamo history a 12, questo è un backup
-    // I messaggi crescono durante il loop con tool calls
-    if (count($messages) > 25) {
+    // Threshold: 10 messaggi - ridotto drasticamente perché ogni tool call aggiunge messaggi
+    // Con 3 iterazioni e 2 tool per iterazione = +6 messaggi interni
+    if (count($messages) > 10) {
         error_log("COMPACTION: Conversazione lunga (" . count($messages) . " msg), creo riassunto");
         $didCompaction = true;
 
@@ -902,9 +902,10 @@ if ($useOpenRouter) {
     $lastTextContent = null;  // Salva l'ultimo testo valido ricevuto
     $hasExecutedMapAction = false;  // Flag per azioni mappa
     $successfulToolsExecuted = 0;  // Conta tool eseguiti con successo
+    $hasExecutedReadTool = false;  // Flag per query/ricerche
 
-    // Loop per gestire tool calls - RIDOTTO a 3 per evitare loop
-    $maxIterations = 3;
+    // Loop per gestire tool calls - RIDOTTO a 2 per evitare loop
+    $maxIterations = 2;
     $iteration = 0;
     $finalResponse = null;
 
@@ -968,8 +969,8 @@ if ($useOpenRouter) {
         // ====== ANTI-LOOP: Verifica se stiamo entrando in loop ======
         $totalToolCalls += count($toolCalls);
 
-        // Se troppi tool calls totali, forza una risposta
-        if ($totalToolCalls > 6) {
+        // Se troppi tool calls totali, forza una risposta (RIDOTTO da 6 a 4)
+        if ($totalToolCalls > 4) {
             error_log("ANTI-LOOP: Troppi tool calls ($totalToolCalls), forzo risposta");
             $finalResponse = $lastTextContent ?? "Ho elaborato la tua richiesta. C'è altro?";
             break;
@@ -982,10 +983,17 @@ if ($useOpenRouter) {
             break;
         }
 
-        // Se abbiamo eseguito 2+ tool con successo, forza la risposta
-        if ($successfulToolsExecuted >= 2) {
-            error_log("ANTI-LOOP: 2+ tool eseguiti con successo, forzo risposta");
-            $finalResponse = $lastTextContent ?? "Ho completato le operazioni richieste.";
+        // Se abbiamo fatto una query/ricerca, fermiamoci (evita "ora controllo...")
+        if ($hasExecutedReadTool) {
+            error_log("ANTI-LOOP: Query/ricerca completata, mi fermo");
+            $finalResponse = $lastTextContent ?? "Ecco i risultati.";
+            break;
+        }
+
+        // Se abbiamo eseguito 1+ tool con successo, forza la risposta (RIDOTTO da 2 a 1)
+        if ($successfulToolsExecuted >= 1) {
+            error_log("ANTI-LOOP: 1 tool eseguito con successo, forzo risposta");
+            $finalResponse = $lastTextContent ?? "Ho completato l'operazione.";
             break;
         }
 
@@ -1046,6 +1054,13 @@ if ($useOpenRouter) {
                 error_log("Tool $funcName eseguito con successo (totale: $successfulToolsExecuted)");
             }
 
+            // Segna se abbiamo eseguito un tool di lettura/query (per evitare loop "ora controllo...")
+            $readTools = ['query_database', 'search_entities', 'get_entity_details', 'get_sales_stats', 'get_connections', 'get_database_schema'];
+            if (in_array($funcName, $readTools) && !isset($result['error'])) {
+                $hasExecutedReadTool = true;
+                error_log("FLAG: Tool di lettura eseguito ($funcName)");
+            }
+
             // Se il tool ha generato un'azione frontend, raccoglila
             if (isset($result['_frontend_action'])) {
                 $frontendActions[] = $result['_frontend_action'];
@@ -1059,20 +1074,21 @@ if ($useOpenRouter) {
             }
 
             // Aggiungi la risposta del tool
-            // IMPORTANTE: Tronca risultati troppo grandi per evitare context overflow
+            // IMPORTANTE: Tronca risultati - RIDOTTO A 1500 bytes per evitare accumulo
             $resultJson = json_encode($result, JSON_UNESCAPED_UNICODE);
-            if (strlen($resultJson) > 4000) {
+            if (strlen($resultJson) > 1500) {
                 error_log("TRUNCATE: Tool result troppo grande (" . strlen($resultJson) . " bytes), tronco");
                 // Prova a ridurre i dati mantenendo la struttura
-                if (isset($result['data']) && is_array($result['data']) && count($result['data']) > 5) {
-                    $result['data'] = array_slice($result['data'], 0, 5);
+                if (isset($result['data']) && is_array($result['data']) && count($result['data']) > 3) {
+                    $result['data'] = array_slice($result['data'], 0, 3);
                     $result['_truncated'] = true;
                     $result['_original_count'] = count($result['data']);
+                    $result['_note'] = 'Risultati troncati. Chiedi dettagli specifici se necessario.';
                     $resultJson = json_encode($result, JSON_UNESCAPED_UNICODE);
                 }
                 // Se ancora troppo grande, tronca brutalmente
-                if (strlen($resultJson) > 4000) {
-                    $resultJson = substr($resultJson, 0, 4000) . '...}';
+                if (strlen($resultJson) > 1500) {
+                    $resultJson = substr($resultJson, 0, 1500) . '...[troncato]}';
                 }
             }
             $messages[] = [
@@ -1210,7 +1226,7 @@ $responseData = [
     'context' => [
         'messages_count' => $useOpenRouter ? count($messages) : count($contents),
         'did_compaction' => $useOpenRouter ? ($didCompaction ?? false) : false,
-        'compaction_threshold' => 25,  // Quando scatta la compaction
+        'compaction_threshold' => 10,  // Quando scatta la compaction (ridotto da 25)
         'compaction_summary' => $useOpenRouter ? ($compactionSummary ?? null) : null  // Riassunto per frontend
     ]
 ];
