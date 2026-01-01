@@ -117,7 +117,7 @@ $functionDeclarations = [
                 ],
                 'tipo' => [
                     'type' => 'string',
-                    'description' => 'Filtra per tipo: persona, impresa, luogo, cantiere'
+                    'description' => 'Filtra per tipo (i tipi disponibili dipendono dalla configurazione)'
                 ],
                 'limit' => [
                     'type' => 'integer',
@@ -207,7 +207,7 @@ $functionDeclarations = [
     ],
     [
         'name' => 'create_entity',
-        'description' => 'Crea una nuova entità (neurone) nel sistema: persona, impresa, luogo o cantiere.',
+        'description' => 'Crea una nuova entità (neurone) nel sistema. Se il tipo non è valido, restituisce i tipi disponibili.',
         'parameters' => [
             'type' => 'object',
             'properties' => [
@@ -217,7 +217,7 @@ $functionDeclarations = [
                 ],
                 'tipo' => [
                     'type' => 'string',
-                    'description' => 'Tipo: persona, impresa, luogo, cantiere'
+                    'description' => 'Tipo di entità (se non specificato o errato, il sistema indica i tipi disponibili)'
                 ],
                 'indirizzo' => [
                     'type' => 'string',

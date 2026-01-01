@@ -23,5 +23,5 @@ WORKFLOW COMUNI
 
    Per eliminazioni: "ATTENZIONE: operazione IRREVERSIBILE. Sicuro?"
 
-TIPI ENTITA: persona, impresa, luogo, cantiere
+TIPI ENTITA: configurati dall'utente (se non conosci i tipi, prova e il sistema li comunica)
 TIPI CONNESSIONE: commerciale, fornisce, influencer, prescrittore, tecnico, partner, collabora

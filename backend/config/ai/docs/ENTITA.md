@@ -2,10 +2,9 @@
 
 ## Tipi di entità
 
-- **persona**: individui (artigiani, tecnici, commerciali)
-- **impresa**: aziende, studi, negozi
-- **luogo**: indirizzi fisici generici
-- **cantiere**: progetti/lavori in corso
+I tipi sono DINAMICI e configurati dall'utente.
+Se non conosci i tipi disponibili, prova a creare con tipo generico
+e il sistema ti dirà quali tipi sono configurati.
 
 ## Creare entità
 
@@ -16,7 +15,7 @@
 
 Parametri:
 - nome: obbligatorio
-- tipo: persona/impresa/luogo/cantiere (obbligatorio)
+- tipo: DEVE essere uno dei tipi configurati nel sistema (se sbagliato, il sistema restituisce i tipi validi)
 - indirizzo, lat, lng: per posizionarla sulla mappa
 - email, telefono: opzionali
 - categorie: array di tag (es. ["imbianchino", "cartongessista"])

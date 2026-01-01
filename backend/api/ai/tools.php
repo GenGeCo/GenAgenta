@@ -492,24 +492,62 @@ function tool_geocodeAddress(array $input): array {
  */
 function tool_createEntity(PDO $db, array $input, array $user): array {
     $nome = $input['nome'] ?? '';
-    $tipo = $input['tipo'] ?? 'impresa'; // persona, impresa, luogo, cantiere
+    $tipo = $input['tipo'] ?? null;
     $indirizzo = $input['indirizzo'] ?? null;
     $lat = $input['lat'] ?? null;
     $lng = $input['lng'] ?? null;
     $email = $input['email'] ?? null;
     $telefono = $input['telefono'] ?? null;
     $categorie = $input['categorie'] ?? [];
-    $visibilita = $input['personale'] ?? false ? 'personale' : 'aziendale'; // Mappa personale → visibilita
+    $visibilita = $input['personale'] ?? false ? 'personale' : 'aziendale';
 
     if (empty($nome)) {
         return ['error' => 'Nome entità richiesto'];
     }
 
-    // Valida tipo
-    $tipiValidi = ['persona', 'impresa', 'luogo', 'cantiere'];
-    if (!in_array($tipo, $tipiValidi)) {
-        return ['error' => "Tipo non valido. Usa: " . implode(', ', $tipiValidi)];
+    // Recupera tipi disponibili dal database (prima tipi v2, poi tipi_neurone v1)
+    $aziendaId = $user['azienda_id'] ?? null;
+    $teamId = $user['team_id'] ?? $aziendaId;
+
+    $tipiDisponibili = [];
+
+    // Prima cerca in tabella tipi (v2)
+    if ($teamId) {
+        $stmt = $db->prepare("SELECT nome FROM tipi WHERE team_id = ?");
+        $stmt->execute([$teamId]);
+        $tipiDisponibili = $stmt->fetchAll(PDO::FETCH_COLUMN);
     }
+
+    // Fallback a tipi_neurone (v1) se vuoto
+    if (empty($tipiDisponibili) && $aziendaId) {
+        $stmt = $db->prepare("SELECT nome FROM tipi_neurone WHERE azienda_id = ?");
+        $stmt->execute([$aziendaId]);
+        $tipiDisponibili = $stmt->fetchAll(PDO::FETCH_COLUMN);
+    }
+
+    if (empty($tipiDisponibili)) {
+        return ['error' => 'Nessun tipo configurato nel sistema. Configura prima i tipi di entità.'];
+    }
+
+    // Se tipo non specificato, usa il primo disponibile
+    if (empty($tipo)) {
+        $tipo = $tipiDisponibili[0];
+    }
+
+    // Valida tipo (case-insensitive)
+    $tipoTrovato = null;
+    foreach ($tipiDisponibili as $t) {
+        if (strtolower($t) === strtolower($tipo)) {
+            $tipoTrovato = $t; // Usa il nome esatto dal DB
+            break;
+        }
+    }
+
+    if (!$tipoTrovato) {
+        return ['error' => "Tipo '$tipo' non valido. Tipi disponibili: " . implode(', ', $tipiDisponibili)];
+    }
+
+    $tipo = $tipoTrovato; // Usa il nome esatto dal database
 
     // Genera UUID
     $id = sprintf('%04x%04x-%04x-%04x-%04x-%04x%04x%04x',

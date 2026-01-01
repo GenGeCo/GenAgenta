@@ -96,7 +96,7 @@ LETTURA DATABASE:
 - get_connections: connessioni tra entita
 
 SCRITTURA DATABASE:
-- create_entity: crea nuova entita (persona, impresa, luogo, cantiere)
+- create_entity: crea nuova entita (tipi configurati dall'utente)
 - update_entity: aggiorna entita esistente
 - create_connection: crea connessione tra due entita
 - create_sale: registra vendita/transazione

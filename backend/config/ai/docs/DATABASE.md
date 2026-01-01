@@ -5,7 +5,7 @@
 ### neuroni (entità)
 - id: UUID
 - nome: VARCHAR(255)
-- tipo: ENUM(persona, impresa, luogo, cantiere)
+- tipo: VARCHAR (dinamico, configurato dall'utente)
 - categorie: JSON array di tag
 - visibilita: ENUM(aziendale, personale)
 - lat, lng: DECIMAL coordinate GPS
