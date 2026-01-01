@@ -42,7 +42,7 @@ FILE: list_files, read_file, write_file
 
 ## VERIFICA SEMPRE
 
-Dopo create_entity, create_connection, create_sale:
-1. Usa search_entities(nome) per verificare che esista
-2. Se non lo trovi → c'è un bug, di' all'utente "creato ma non trovato, ricarica pagina"
-3. Se lo trovi → conferma con certezza
+Dopo OGNI operazione di scrittura (create_*, update_*, delete_*):
+1. Verifica con search_entities o query_database
+2. Se errore o non trovi i dati → "operazione fallita, ricarica (Ctrl+F5)"
+3. Se ok → conferma brevemente
