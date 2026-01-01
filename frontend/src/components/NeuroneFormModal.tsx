@@ -207,43 +207,29 @@ export default function NeuroneFormModal({
   const loadTipiCategorie = async () => {
     setLoadingTipi(true);
     try {
-      // Usa API v2 per tipi e categorie
-      const [tipiRes, tipologieRes] = await Promise.all([
-        api.get('/tipi-neurone'),
-        api.get('/categorie')
+      // Usa i metodi dedicati che puntano all'API corretta
+      const [tipiRes, categorieRes] = await Promise.all([
+        api.getTipiNeurone(),
+        api.getCategorie()
       ]);
 
-      // Mappa tipi v2 al formato TipoNeuroneConfig
-      const tipiMapped = tipiRes.data.data.map((t: { id: string; nome: string; forma: string; ordine: number }) => ({
-        id: t.id,
-        nome: t.nome,
-        forma: t.forma as FormaNeurone,
-        ordine: t.ordine
-      }));
+      const tipi = tipiRes.data;
+      const categorie = categorieRes.data;
 
-      // Mappa tipologie v2 al formato Categoria
-      const categorieMapped = tipologieRes.data.data.map((tp: { id: string; tipo_id: string; nome: string; colore: string; ordine: number }) => ({
-        id: tp.id,
-        tipo_id: tp.tipo_id,
-        nome: tp.nome,
-        colore: tp.colore,
-        ordine: tp.ordine
-      }));
-
-      setTipiNeurone(tipiMapped);
-      setCategorieDB(categorieMapped);
+      setTipiNeurone(tipi);
+      setCategorieDB(categorie);
 
       // Se stiamo modificando, imposta tipo e categoria correnti
       if (neurone) {
         // Cerca il tipo per nome (backward compatibility)
-        const tipoMatch = tipiMapped.find((t: TipoNeuroneConfig) =>
+        const tipoMatch = tipi.find((t: TipoNeuroneConfig) =>
           t.nome.toLowerCase() === neurone.tipo?.toLowerCase()
         );
         if (tipoMatch) {
           setTipoId(tipoMatch.id);
           setTipoIdOriginale(tipoMatch.id); // Salva originale per avviso modifica
           // Cerca la tipologia
-          const catMatch = categorieMapped.find((c: Categoria) =>
+          const catMatch = categorie.find((c: Categoria) =>
             c.tipo_id === tipoMatch.id &&
             neurone.categorie?.includes(c.nome.toLowerCase())
           );
@@ -252,9 +238,9 @@ export default function NeuroneFormModal({
             setCategoriaIdOriginale(catMatch.id); // Salva originale per avviso modifica
           }
         }
-      } else if (tipiMapped.length > 0) {
+      } else if (tipi.length > 0) {
         // Nuovo neurone: seleziona primo tipo di default
-        setTipoId(tipiMapped[0].id);
+        setTipoId(tipi[0].id);
       }
     } catch (error) {
       console.error('Errore caricamento tipi:', error);
