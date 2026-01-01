@@ -96,20 +96,16 @@ export function AiChat({ isOpen, onClose, onAction }: AiChatProps) {
     setInput('');
     setIsLoading(true);
 
-    // Determina se faremo compaction (threshold: 10 messaggi, ridotto da 25)
-    const willCompact = messages.length >= 8;
+    // Determina se faremo compaction (threshold: 30 messaggi)
+    const willCompact = messages.length >= 28;
     setLoadingPhase(willCompact ? 'compacting' : 'thinking');
 
     try {
-      // Prepara history per API - LIMITA A ULTIMI 8 MESSAGGI per evitare overflow
-      // Il backend fa ulteriore compaction, ma meglio prevenire lato client
-      const recentMessages = messages.slice(-8);
+      // Prepara history per API - LIMITA A ULTIMI 20 MESSAGGI
+      const recentMessages = messages.slice(-20);
       const history = recentMessages.map((m) => ({
         role: m.role,
-        // Tronca messaggi troppo lunghi (max 2000 char)
-        content: m.content.length > 2000
-          ? m.content.substring(0, 2000) + '...[troncato]'
-          : m.content,
+        content: m.content,
       }));
 
       // Se stiamo per fare compaction, mostra fase "compacting" per un po'
@@ -238,26 +234,18 @@ export function AiChat({ isOpen, onClose, onAction }: AiChatProps) {
           <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
             AI Assistant
           </span>
-          {/* Indicatore memoria conversazione */}
+          {/* Contatore messaggi */}
           {messages.length > 0 && (
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '4px',
+            <span style={{
               marginLeft: '8px',
               padding: '2px 8px',
-              backgroundColor: messages.length >= 6 ? 'rgba(234, 179, 8, 0.2)' : 'rgba(59, 130, 246, 0.1)',
+              backgroundColor: 'rgba(59, 130, 246, 0.1)',
               borderRadius: '10px',
               fontSize: '11px',
-              color: messages.length >= 6 ? '#eab308' : 'var(--text-secondary)',
+              color: 'var(--text-secondary)',
             }}>
-              <span>{messages.length}/8</span>
-              {messages.length >= 6 && (
-                <span title="Al prossimo messaggio farò un riassunto" style={{ cursor: 'help' }}>
-                  ⚡
-                </span>
-              )}
-            </div>
+              {messages.length}
+            </span>
           )}
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
