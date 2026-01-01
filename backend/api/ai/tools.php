@@ -611,7 +611,6 @@ function tool_updateEntity(PDO $db, array $input, array $user): array {
         return ['error' => 'Nessun campo da aggiornare specificato'];
     }
 
-    $updates[] = "aggiornato_il = NOW()";
     $params[] = $entityId;
     $params[] = $user['azienda_id'];
 
