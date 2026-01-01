@@ -952,8 +952,19 @@ if ($useOpenRouter) {
 
         if (isset($response['error'])) {
             error_log("OpenRouter error: " . json_encode($response));
+            error_log("OpenRouter error - messages sent: " . json_encode(array_map(function($m) {
+                return ['role' => $m['role'] ?? '?', 'has_content' => isset($m['content']), 'has_tool_calls' => isset($m['tool_calls'])];
+            }, $messages)));
             // NON restituire 500! Restituisci messaggio AI con HTTP 200
             $errorMsg = $response['error'] . ' - ' . ($response['details'] ?? '');
+            aiDebugLog('OPENROUTER_ERROR', [
+                'error' => $response['error'],
+                'details' => $response['details'] ?? null,
+                'iteration' => $iteration,
+                'messages_structure' => array_map(function($m) {
+                    return ['role' => $m['role'] ?? '?', 'content_length' => strlen($m['content'] ?? ''), 'has_tool_calls' => isset($m['tool_calls'])];
+                }, $messages)
+            ]);
             jsonResponse([
                 'response' => "Mi dispiace, c'è un problema di comunicazione con il servizio AI. Riprova tra qualche secondo.",
                 'iterations' => $iteration,
@@ -1038,6 +1049,10 @@ if ($useOpenRouter) {
         }
 
         // Aggiungi il messaggio dell'assistente con le tool calls
+        // IMPORTANTE: Assicurati che content sia una stringa (anche vuota) per compatibilità OpenAI
+        if (!isset($message['content']) || $message['content'] === null) {
+            $message['content'] = '';
+        }
         $messages[] = $message;
 
         // Esegui le tool calls
