@@ -1067,7 +1067,19 @@ export default function MapView({
     // Sinapsi - applica filtri visibilità
     // NOTA: il backend già filtra per data, qui filtriamo solo per coordinate valide
     let sinapsiFiltered = sinapsi.filter((s) => {
-      return s.lat_da && s.lng_da && s.lat_a && s.lng_a;
+      const hasCoords = s.lat_da && s.lng_da && s.lat_a && s.lng_a;
+      if (!hasCoords) {
+        console.warn('DEBUG sinapsi senza coordinate:', {
+          id: s.id,
+          nome_da: s.nome_da,
+          nome_a: s.nome_a,
+          lat_da: s.lat_da,
+          lng_da: s.lng_da,
+          lat_a: s.lat_a,
+          lng_a: s.lng_a
+        });
+      }
+      return hasCoords;
     });
 
     // ID da usare per il filtro connessioni (può essere diverso da selectedId)
