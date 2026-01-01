@@ -1599,6 +1599,7 @@ function tool_listFiles(array $input): array {
 /**
  * Tool: Chiama un'API del sistema
  * L'AI può usare le stesse API che usa il frontend
+ * USA CHIAMATA HTTP per evitare che exit() uccida lo script
  */
 function tool_callApi(array $input, array $user): array {
     $method = strtoupper($input['method'] ?? 'GET');
@@ -1621,187 +1622,80 @@ function tool_callApi(array $input, array $user): array {
     $isV2 = str_starts_with($endpoint, 'v2/') || str_starts_with($endpoint, 'api_v2/');
     if ($isV2) {
         $endpoint = preg_replace('/^(v2|api_v2)\//', '', $endpoint);
-        $basePath = __DIR__ . '/../../../api_v2';
         $apiVersion = 'v2';
+        $baseUrl = 'https://www.gruppogea.net/genagenta/backend/api_v2/';
     } else {
-        // Rimuovi prefisso api/ se presente
         $endpoint = preg_replace('/^api\//', '', $endpoint);
-        $basePath = __DIR__ . '/..';
         $apiVersion = 'v1';
+        $baseUrl = 'https://www.gruppogea.net/genagenta/backend/api/';
     }
 
-    // Simula ambiente richiesta
-    $originalMethod = $_SERVER['REQUEST_METHOD'] ?? null;
-    $originalRequest = $_REQUEST;
-    $originalGet = $_GET;
-    $originalPost = $_POST;
+    // Costruisci URL completo
+    $url = $baseUrl . $endpoint;
 
-    try {
-        // Imposta ambiente per l'API
-        $_SERVER['REQUEST_METHOD'] = $method;
+    // Per GET, aggiungi parametri alla query string
+    if ($method === 'GET' && !empty($body)) {
+        $url .= '?' . http_build_query($body);
+    }
 
-        // Parse endpoint per estrarre parametri (es: neuroni/123 → id=123)
-        $pathParts = explode('/', $endpoint);
-        $resource = $pathParts[0] ?? '';
-        $resourceId = $pathParts[1] ?? null;
+    // Prepara headers con token utente
+    $token = $_SERVER['HTTP_AUTHORIZATION'] ?? '';
+    $headers = [
+        'Content-Type: application/json',
+        'Authorization: ' . $token
+    ];
 
-        // Imposta parametri
-        $_REQUEST = $body;
-        $_GET = ($method === 'GET') ? $body : [];
-        $_POST = ($method !== 'GET') ? $body : [];
+    // Chiamata HTTP
+    $ch = curl_init($url);
+    curl_setopt_array($ch, [
+        CURLOPT_CUSTOMREQUEST => $method,
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_HTTPHEADER => $headers,
+        CURLOPT_TIMEOUT => 30,
+        CURLOPT_SSL_VERIFYPEER => false, // Per sviluppo locale
+    ]);
 
-        if ($resourceId) {
-            $_REQUEST['id'] = $resourceId;
-        }
+    // Per POST/PUT/DELETE, aggiungi body
+    if ($method !== 'GET' && !empty($body)) {
+        curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($body));
+    }
 
-        // Per API v2, usa il router index.php
-        if ($isV2) {
-            // API v2 usa un router con $method
-            $GLOBALS['_ai_api_method'] = $method;
-            $_REQUEST['_method'] = $method;
+    $response = curl_exec($ch);
+    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    $curlError = curl_error($ch);
+    curl_close($ch);
 
-            $routerFile = "$basePath/index.php";
-            if (!file_exists($routerFile)) {
-                return ['error' => "Router API v2 non trovato"];
-            }
+    if ($curlError) {
+        return ['error' => 'Errore connessione API: ' . $curlError];
+    }
 
-            // Simula PATH_INFO per il router
-            $_SERVER['PATH_INFO'] = '/' . $endpoint;
-
-            // Cattura output
-            ob_start();
-
-            // Il router v2 ha bisogno di $method definito
-            $method = $method; // Per scope
-
-            // Includiamo il file index.php che gestisce il routing
-            try {
-                // Per API v2, dobbiamo gestire diversamente
-                // Leggiamo il file e vediamo come funziona
-                $indexContent = file_get_contents($routerFile);
-
-                // API v2 routing più semplice basato su resource
-                $resourceFile = "$basePath/$resource/index.php";
-                if (file_exists($resourceFile)) {
-                    include $resourceFile;
-                } else {
-                    ob_end_clean();
-                    return ['error' => "Endpoint v2 non trovato: $resource"];
-                }
-            } catch (Throwable $e) {
-                ob_end_clean();
-                return ['error' => 'Errore API v2: ' . $e->getMessage()];
-            }
-
-            $output = ob_get_clean();
-        } else {
-            // API v1 - trova handler direttamente
-            $handler = null;
-
-            // Mappa risorse a file
-            $handlers = [
-                'neuroni' => [
-                    'GET' => $resourceId ? 'neuroni/get.php' : 'neuroni/list.php',
-                    'POST' => 'neuroni/create.php',
-                    'PUT' => 'neuroni/update.php',
-                    'DELETE' => 'neuroni/delete.php',
-                ],
-                'sinapsi' => [
-                    'GET' => $resourceId ? 'sinapsi/get.php' : 'sinapsi/list.php',
-                    'POST' => 'sinapsi/create.php',
-                    'PUT' => 'sinapsi/update.php',
-                    'DELETE' => 'sinapsi/delete.php',
-                ],
-                'note' => [
-                    'GET' => 'note/list.php',
-                    'POST' => 'note/create.php',
-                    'PUT' => 'note/update.php',
-                    'DELETE' => 'note/delete.php',
-                ],
-                'tipi-neurone' => [
-                    'GET' => 'tipi-neurone/list.php',
-                    'POST' => 'tipi-neurone/create.php',
-                    'PUT' => 'tipi-neurone/update.php',
-                    'DELETE' => 'tipi-neurone/delete.php',
-                ],
-                'categorie' => [
-                    'GET' => 'categorie/list.php',
-                    'POST' => 'categorie/create.php',
-                    'PUT' => 'categorie/update.php',
-                    'DELETE' => 'categorie/delete.php',
-                ],
-                'tipi-sinapsi' => [
-                    'GET' => 'tipi-sinapsi/list.php',
-                    'POST' => 'tipi-sinapsi/create.php',
-                    'PUT' => 'tipi-sinapsi/update.php',
-                    'DELETE' => 'tipi-sinapsi/delete.php',
-                ],
-                'famiglie-prodotto' => [
-                    'GET' => $resourceId ? 'famiglie-prodotto/get.php' : 'famiglie-prodotto/list.php',
-                    'POST' => 'famiglie-prodotto/create.php',
-                    'PUT' => 'famiglie-prodotto/update.php',
-                    'DELETE' => 'famiglie-prodotto/delete.php',
-                ],
-                'stats' => [
-                    'GET' => 'stats/dashboard.php',
-                ],
-                'geocode' => [
-                    'GET' => 'geocode/search.php',
-                ],
-            ];
-
-            if (isset($handlers[$resource][$method])) {
-                $handler = $handlers[$resource][$method];
-            } else {
-                return ['error' => "Endpoint non trovato: $method $endpoint. Usa read_file(\"docs/API_INDEX.md\") per vedere le API disponibili."];
-            }
-
-            $handlerPath = "$basePath/$handler";
-            if (!file_exists($handlerPath)) {
-                return ['error' => "Handler non trovato: $handler"];
-            }
-
-            // Cattura output
-            ob_start();
-            try {
-                include $handlerPath;
-            } catch (Throwable $e) {
-                ob_end_clean();
-                return ['error' => 'Errore API: ' . $e->getMessage()];
-            }
-            $output = ob_get_clean();
-        }
-
-        // Parse risposta JSON
-        $response = json_decode($output, true);
-        if ($response === null && !empty($output)) {
-            // Se non è JSON valido, restituisci come testo
-            return [
-                'success' => false,
-                'error' => 'Risposta non JSON',
-                'raw_response' => substr($output, 0, 1000)
-            ];
-        }
-
-        // Aggiungi info sulla chiamata
-        $response['_api_call'] = [
-            'method' => $method,
-            'endpoint' => ($isV2 ? 'v2/' : '') . $endpoint,
-            'version' => $apiVersion
+    // Parse risposta JSON
+    $result = json_decode($response, true);
+    if ($result === null) {
+        return [
+            'error' => 'Risposta API non valida',
+            'http_code' => $httpCode,
+            'raw' => substr($response, 0, 500)
         ];
-
-        // Se è una operazione di scrittura, aggiungi refresh_neuroni
-        if (in_array($method, ['POST', 'PUT', 'DELETE']) && in_array($resource, ['neuroni', 'sinapsi'])) {
-            $response['_frontend_action'] = ['type' => 'refresh_neuroni'];
-        }
-
-        return $response;
-
-    } finally {
-        // Ripristina ambiente originale
-        $_SERVER['REQUEST_METHOD'] = $originalMethod;
-        $_REQUEST = $originalRequest;
-        $_GET = $originalGet;
-        $_POST = $originalPost;
     }
+
+    // Aggiungi info sulla chiamata
+    $result['_api_call'] = [
+        'method' => $method,
+        'endpoint' => ($isV2 ? 'v2/' : '') . $endpoint,
+        'version' => $apiVersion,
+        'http_code' => $httpCode
+    ];
+
+    // Estrai resource dal path
+    $pathParts = explode('/', $endpoint);
+    $resource = $pathParts[0] ?? '';
+
+    // Se è una operazione di scrittura, aggiungi refresh_neuroni
+    if (in_array($method, ['POST', 'PUT', 'DELETE']) && in_array($resource, ['neuroni', 'sinapsi'])) {
+        $result['_frontend_action'] = ['type' => 'refresh_neuroni'];
+    }
+
+    return $result;
 }
+
