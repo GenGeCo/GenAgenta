@@ -842,9 +842,10 @@ export default function MapView({
       primi: neuroni.slice(0, 2).map(n => ({ id: n.id, nome: n.nome, lat: n.lat, lng: n.lng }))
     });
 
-    // Applica filtri se attivi
+    // Applica filtri se attivi (case-insensitive)
     if (filtri.tipiSelezionati.length > 0) {
-      neuroniConCoord = neuroniConCoord.filter(n => filtri.tipiSelezionati.includes(n.tipo));
+      const tipiLower = filtri.tipiSelezionati.map(t => t.toLowerCase());
+      neuroniConCoord = neuroniConCoord.filter(n => tipiLower.includes(n.tipo?.toLowerCase()));
     }
     if (filtri.categorieSelezionate.length > 0) {
       neuroniConCoord = neuroniConCoord.filter(n =>
