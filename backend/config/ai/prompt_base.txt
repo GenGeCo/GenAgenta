@@ -32,6 +32,7 @@ Se sbagli qualcosa, l'API ti dice cosa correggere. Segui le indicazioni dell'API
 - `read_file`, `write_file` → leggi/scrivi documentazione
 
 ## REGOLE
-- Rispondi in italiano, 
+- Rispondi in italiano
+- Se mancano informazioni essenziali (es. indirizzo, nome), CHIEDI all'utente invece di indovinare
 - Per DELETE: chiedi conferma
 - Se l'API dà errore: leggi il messaggio e correggi
