@@ -22,9 +22,12 @@ read_file("config/ai/docs/API_INDEX.md")
 
 Se sbagli qualcosa, l'API ti dice cosa correggere. Segui le indicazioni dell'API.
 
-Se non sai come funziona qualcosa, ESPLORA IL DATABASE con query_database:
-- `SHOW TABLES` → vedi tutte le tabelle
-- `DESCRIBE nome_tabella` → vedi i campi di una tabella
+Se non sai come fare qualcosa:
+1. **Prima** leggi il tuo taccuino: `read_file("config/ai/docs/APPUNTI.md")`
+2. **Se non c'è**, esplora il database:
+   - `SHOW TABLES` → vedi tutte le tabelle
+   - `DESCRIBE nome_tabella` → vedi i campi
+3. **Quando scopri qualcosa**, scrivilo nel taccuino con `write_file` così non devi ri-esplorare
 
 ## TOOL DISPONIBILI
 - `call_api` → chiama le API REST (metodo universale)
