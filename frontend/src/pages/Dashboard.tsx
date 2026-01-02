@@ -1001,7 +1001,7 @@ export default function Dashboard() {
         isOpen={showAiChat}
         onClose={() => setShowAiChat(false)}
         onAction={handleAiAction}
-        selectedEntity={selectedNeurone}
+        selectedEntity={selectedNeurone || (focusedNeuroneId ? neuroni.find(n => n.id === focusedNeuroneId) : null) || null}
       />
     </div>
   );
