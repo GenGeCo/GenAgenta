@@ -270,12 +270,24 @@ export function AiChat({ isOpen, onClose, onAction, selectedEntity }: AiChatProp
           if (actionResult.success) {
             const actionType = currentResponse.pending_action.action_type;
             const endpoint = currentResponse.pending_action.endpoint || '';
+            const method = currentResponse.pending_action.method || '';
             const isNeuroniAction = ['createNeurone', 'updateNeurone', 'deleteNeurone'].includes(actionType);
             const isSinapsiAction = ['createSinapsi', 'deleteSinapsi'].includes(actionType);
             const isCallApiOnNeuroni = actionType === 'callApi' &&
               (endpoint.includes('neuroni') || endpoint.includes('sinapsi'));
 
+            console.log('DEBUG refresh check:', {
+              actionType,
+              endpoint,
+              method,
+              isNeuroniAction,
+              isSinapsiAction,
+              isCallApiOnNeuroni,
+              willRefresh: isNeuroniAction || isSinapsiAction || isCallApiOnNeuroni
+            });
+
             if (isNeuroniAction || isSinapsiAction || isCallApiOnNeuroni) {
+              console.log('TRIGGERING refresh_neuroni!');
               onAction?.({ type: 'refresh_neuroni' });
             }
           }
