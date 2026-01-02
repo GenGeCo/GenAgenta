@@ -1377,10 +1377,10 @@ if ($useOpenRouter) {
                     'last_text_content' => $lastTextContent
                 ];
 
-                // Log debug
+                // Log debug - include TUTTO il pendingAction per debugging
                 aiDebugLog('PENDING_ACTION', [
                     'tool' => $funcName,
-                    'action_type' => $pendingAction['action_type'] ?? 'unknown',
+                    'pending_action_full' => $pendingAction,
                     'iteration' => $iteration
                 ]);
 
