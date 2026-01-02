@@ -1193,9 +1193,9 @@ if ($useOpenRouter) {
     $hasExecutedMapAction = false;  // Flag per azioni mappa
     $hasToolError = false;  // Flag per errori nei tool - se true, dai all'AI un'altra chance di rispondere
 
-    // Loop per gestire tool calls - 12 iterazioni per dare libertà all'AI
-    // L'AI deve poter sbagliare, leggere errori, e correggersi
-    $maxIterations = 12;
+    // Loop per gestire tool calls - 20 iterazioni per dare libertà all'AI
+    // L'AI deve poter esplorare DB, leggere file, sbagliare e correggersi
+    $maxIterations = 20;
     $finalResponse = null;
 
     while ($iteration < $maxIterations) {
@@ -1527,7 +1527,7 @@ if ($useOpenRouter) {
     // ========== GEMINI (formato Google) ==========
 
     // Loop per gestire function calls
-    $maxIterations = 12;
+    $maxIterations = 20;
     $iteration = 0;
     $finalResponse = null;
 
