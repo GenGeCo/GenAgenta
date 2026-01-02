@@ -878,6 +878,7 @@ if (file_exists($promptFile)) {
     ], $systemInstruction);
 
     // Aggiungi contesto UI se presente (entità selezionata)
+    error_log("AI CONTEXT: uiContext = " . json_encode($uiContext));
     if ($uiContext && !empty($uiContext['selectedEntity'])) {
         $sel = $uiContext['selectedEntity'];
         $selInfo = "CONTESTO: L'utente ha selezionato sulla mappa: \"{$sel['nome']}\"";
@@ -885,6 +886,9 @@ if (file_exists($promptFile)) {
         if (!empty($sel['id'])) $selInfo .= " [ID: {$sel['id']}]";
         $selInfo .= ". Quando dice 'questo', 'questa entità', 'connettilo', si riferisce a questa.";
         $systemInstruction .= "\n\n" . $selInfo;
+        error_log("AI CONTEXT: aggiunto contesto selezione: " . $selInfo);
+    } else {
+        error_log("AI CONTEXT: nessuna selezione");
     }
 } else {
     // Fallback minimo
