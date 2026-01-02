@@ -431,6 +431,26 @@ export function AiChat({ isOpen, onClose, onAction, selectedEntity }: AiChatProp
               {messages.length}
             </span>
           )}
+          {/* Indicatore entità selezionata */}
+          {selectedEntity && (
+            <span
+              title={`Contesto: ${selectedEntity.nome}`}
+              style={{
+                marginLeft: '4px',
+                padding: '2px 6px',
+                backgroundColor: 'rgba(34, 197, 94, 0.15)',
+                borderRadius: '10px',
+                fontSize: '10px',
+                color: '#22c55e',
+                maxWidth: '100px',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              {selectedEntity.nome}
+            </span>
+          )}
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           {/* Bottone Nuova Sessione */}
