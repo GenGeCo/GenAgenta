@@ -468,6 +468,7 @@ export default function Dashboard() {
             filterSelectedId={focusedNeuroneId || selectedNeurone?.id || null}
             onSelectNeurone={handleSelectNeurone}
             onFocusNeurone={(id) => setFocusedNeuroneId(id)}
+            onClearFocus={() => setFocusedNeuroneId(null)}
             filtri={filtri}
             pickingMode={mapPickingMode}
             onPickPosition={(lat, lng) => {

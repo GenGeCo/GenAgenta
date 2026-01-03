@@ -18,6 +18,7 @@ interface MapViewProps {
   filterSelectedId?: string | null; // ID per filtro connessioni (può essere diverso da selectedId)
   onSelectNeurone: (neurone: Neurone) => void;
   onFocusNeurone?: (id: string) => void; // Chiamato quando si clicca su un edificio (anche senza aprire dettagli)
+  onClearFocus?: () => void; // Chiamato quando si clicca su zona vuota (deseleziona)
   filtri: FiltriMappa;
   pickingMode?: boolean;
   onPickPosition?: (lat: number, lng: number) => void;
@@ -391,6 +392,7 @@ export default function MapView({
   filterSelectedId,
   onSelectNeurone,
   onFocusNeurone,
+  onClearFocus,
   filtri,
   pickingMode = false,
   onPickPosition,
@@ -442,6 +444,7 @@ export default function MapView({
   const selectedIdRef = useRef(selectedId);
   // Ref per onFocusNeurone (per tracciare edificio cliccato)
   const onFocusNeuroneRef = useRef(onFocusNeurone);
+  const onClearFocusRef = useRef(onClearFocus);
 
   // Colori default per le famiglie prodotto nel popup
   const coloriProdotti = ['#ef4444', '#f97316', '#eab308', '#22c55e', '#14b8a6', '#3b82f6', '#8b5cf6', '#ec4899'];
@@ -462,7 +465,8 @@ export default function MapView({
 
   useEffect(() => {
     onFocusNeuroneRef.current = onFocusNeurone;
-  }, [onFocusNeurone]);
+    onClearFocusRef.current = onClearFocus;
+  }, [onFocusNeurone, onClearFocus]);
 
   // Aggiorna refs per connection picking
   useEffect(() => {
@@ -719,12 +723,23 @@ export default function MapView({
         return;
       }
 
-      // Quick Map Mode - click su zona vuota (non su entità)
-      if (quickMapModeRef.current && onQuickMapClickRef.current) {
-        // Verifica se il click è su un neurone (in tal caso verrà gestito dall'altro handler)
-        const features = map.current?.queryRenderedFeatures(e.point, { layers: ['neuroni-3d'] });
-        if (!features || features.length === 0) {
-          // Click su zona vuota - passa coordinate geografiche e screen
+      // Verifica se il click è su un neurone
+      const features = map.current?.queryRenderedFeatures(e.point, { layers: ['neuroni-3d'] });
+      const clickedOnEmpty = !features || features.length === 0;
+
+      // Click su zona vuota - deseleziona e chiudi popup
+      if (clickedOnEmpty) {
+        // Chiudi popup se aperto
+        if (popup.current) {
+          popup.current.remove();
+        }
+        // Notifica Dashboard per resettare focusedNeuroneId
+        if (onClearFocusRef.current) {
+          onClearFocusRef.current();
+        }
+
+        // Quick Map Mode - click su zona vuota
+        if (quickMapModeRef.current && onQuickMapClickRef.current) {
           onQuickMapClickRef.current(e.lngLat.lat, e.lngLat.lng, e.point.x, e.point.y);
         }
       }
