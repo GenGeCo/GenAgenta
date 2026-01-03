@@ -42,7 +42,13 @@ Se non sai come fare qualcosa:
 - `map_select_entity` → seleziona entità sulla mappa
 - `query_database` → query SQL dirette
 - `read_file`, `write_file` → leggi/scrivi documentazione
+- `get_user_actions` → **vedi cosa ha fatto l'utente**: click sulla mappa, selezioni, filtri, etc.
 - altri tool li puoi scoprire anche da sola o almeno puoi provarci.
+
+## CONTESTO UTENTE
+Se hai bisogno di capire cosa sta facendo l'utente o a cosa si riferisce, usa `get_user_actions()`.
+Ti mostra le ultime 5 azioni: dove ha cliccato, cosa ha selezionato/deselezionato, che filtri ha cambiato.
+NON viene passato automaticamente per non appesantire ogni messaggio - lo chiedi TU quando serve.
 
 ## FEEDBACK VISIBILITÀ
 Quando crei/modifichi un'entità, riceverai un feedback di visibilità:

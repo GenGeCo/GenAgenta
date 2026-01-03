@@ -230,6 +230,9 @@ $userMessage = $data['message'] ?? '';
 $conversationHistory = $data['history'] ?? [];
 $uiContext = $data['context'] ?? null; // Contesto UI (entità selezionata, etc.)
 
+// Estrai userActions dal context e rendile disponibili globalmente per il tool get_user_actions
+$GLOBALS['ai_user_actions'] = $uiContext['userActions'] ?? [];
+
 // =====================================================
 // FRONTEND EXECUTION: Gestione resume dopo pending_action
 // =====================================================
@@ -797,6 +800,19 @@ $functionDeclarations[] = [
         'required' => ['title', 'description']
     ]
 ];
+
+// TOOL CONTESTO UTENTE - Lazy loading delle azioni utente
+$getUserActionsTool = [
+    'name' => 'get_user_actions',
+    'description' => 'Ottiene le ultime azioni dell\'utente nell\'interfaccia (click mappa, selezioni, filtri, etc.). Utile per capire il contesto: cosa sta guardando l\'utente? Dove ha cliccato? Cosa ha selezionato/deselezionato?',
+    'parameters' => [
+        'type' => 'object',
+        'properties' => [],
+        'required' => []
+    ]
+];
+$getUserActionsTool['parameters']['properties'] = new stdClass();
+$functionDeclarations[] = $getUserActionsTool;
 
 // TOOL FILE SYSTEM - Per lazy loading e memoria
 $functionDeclarations[] = [

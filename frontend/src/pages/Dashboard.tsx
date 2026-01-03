@@ -14,7 +14,7 @@ import NeuroneFormModal from '../components/NeuroneFormModal';
 import SinapsiDetailPanel from '../components/SinapsiDetailPanel';
 import { QuickCreateEntity, QuickEntityActions, QuickSelectTarget, QuickConnectionType, QuickTransactionForm } from '../components/QuickActionPopup';
 import { AiChat, AiFrontendAction } from '../components/AiChat';
-import type { Neurone, Sinapsi, FiltriMappa, Categoria, TipoNeuroneConfig } from '../types';
+import type { Neurone, Sinapsi, FiltriMappa, Categoria, TipoNeuroneConfig, UserAction, UserActionType } from '../types';
 
 // Tipi per quick actions
 type QuickPopupType = 'create' | 'entityActions' | 'selectTarget' | 'connectionType' | 'transactionForm' | null;
@@ -69,6 +69,20 @@ export default function Dashboard() {
   // ID del neurone "in focus" (cliccato sulla mappa, anche senza aprire dettagli)
   // Usato per il filtro "Solo del selezionato"
   const [focusedNeuroneId, setFocusedNeuroneId] = useState<string | null>(null);
+
+  // Log azioni utente per contesto AI (ultime 5 azioni)
+  const [userActions, setUserActions] = useState<UserAction[]>([]);
+
+  // Funzione per loggare un'azione utente
+  const logUserAction = (type: UserActionType, data: UserAction['data']) => {
+    const action: UserAction = {
+      type,
+      timestamp: new Date().toISOString(),
+      data
+    };
+    setUserActions(prev => [...prev.slice(-4), action]); // Mantieni ultime 5
+    console.log('User action logged:', action);
+  };
 
   // Refs per evitare closure stale nei callback
   const connectionPickingModeRef = useRef(false);
@@ -467,8 +481,25 @@ export default function Dashboard() {
             selectedId={selectedNeurone?.id || null}
             filterSelectedId={focusedNeuroneId || selectedNeurone?.id || null}
             onSelectNeurone={handleSelectNeurone}
-            onFocusNeurone={(id) => setFocusedNeuroneId(id)}
-            onClearFocus={() => setFocusedNeuroneId(null)}
+            onFocusNeurone={(id) => {
+              setFocusedNeuroneId(id);
+              const n = neuroni.find(n => n.id === id);
+              if (n) {
+                logUserAction('select_entity', {
+                  entityId: n.id,
+                  entityName: n.nome,
+                  entityType: n.tipo || undefined
+                });
+              }
+            }}
+            onClearFocus={(lat?: number, lng?: number) => {
+              setFocusedNeuroneId(null);
+              if (lat !== undefined && lng !== undefined) {
+                logUserAction('map_click', { lat, lng });
+              } else {
+                logUserAction('deselect', {});
+              }
+            }}
             filtri={filtri}
             pickingMode={mapPickingMode}
             onPickPosition={(lat, lng) => {
@@ -1010,6 +1041,7 @@ export default function Dashboard() {
             categoria: filtri.categoria
           }
         }}
+        userActions={userActions}
       />
     </div>
   );

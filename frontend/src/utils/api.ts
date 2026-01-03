@@ -575,7 +575,10 @@ class ApiClient {
   async aiChat(
     message: string,
     history: { role: string; content: string }[] = [],
-    context?: { selectedEntity?: { id: string; nome: string; tipo?: string | null } }
+    context?: {
+      selectedEntity?: { id: string; nome: string; tipo?: string | null } | null;
+      userActions?: Array<{ type: string; timestamp: string; data: Record<string, unknown> }>;
+    }
   ): Promise<AiChatResponse> {
     const { data } = await this.client.post('/ai/chat', { message, history, context });
     return data;

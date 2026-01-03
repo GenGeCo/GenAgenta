@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { api, AiPendingAction, AiChatResponse } from '../utils/api';
+import type { UserAction } from '../types';
 
 interface Message {
   role: 'user' | 'assistant';
@@ -51,11 +52,12 @@ interface AiChatProps {
   onAction?: (action: AiFrontendAction) => void;
   selectedEntity?: SelectedEntity | null;
   visibilityContext?: VisibilityContext;  // Per feedback visibilità
+  userActions?: UserAction[];  // Ultime azioni utente per contesto
 }
 
 const CHAT_STORAGE_KEY = 'genagenta_ai_chat_history';
 
-export function AiChat({ isOpen, onClose, onAction, selectedEntity, visibilityContext }: AiChatProps) {
+export function AiChat({ isOpen, onClose, onAction, selectedEntity, visibilityContext, userActions }: AiChatProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -299,9 +301,11 @@ export function AiChat({ isOpen, onClose, onAction, selectedEntity, visibilityCo
 
         // Prima chiamata o resume?
         if (!resumeContext) {
-          // Passa contesto selezione SOLO se c'è un'entità selezionata
-          const context = selectedEntity ? { selectedEntity } : undefined;
-          currentResponse = await api.aiChat(userMessage.content, history, context);
+          // Passa contesto (selezione + azioni utente)
+          const context: { selectedEntity?: typeof selectedEntity; userActions?: UserAction[] } = {};
+          if (selectedEntity) context.selectedEntity = selectedEntity;
+          if (userActions && userActions.length > 0) context.userActions = userActions;
+          currentResponse = await api.aiChat(userMessage.content, history, Object.keys(context).length > 0 ? context : undefined);
         } else {
           // Resume con il risultato dell'azione
           const actionResult = resumeContext._actionResult as { success: boolean; data?: unknown; error?: string };

@@ -18,7 +18,7 @@ interface MapViewProps {
   filterSelectedId?: string | null; // ID per filtro connessioni (può essere diverso da selectedId)
   onSelectNeurone: (neurone: Neurone) => void;
   onFocusNeurone?: (id: string) => void; // Chiamato quando si clicca su un edificio (anche senza aprire dettagli)
-  onClearFocus?: () => void; // Chiamato quando si clicca su zona vuota (deseleziona)
+  onClearFocus?: (lat?: number, lng?: number) => void; // Chiamato quando si clicca su zona vuota (deseleziona, con coordinate)
   filtri: FiltriMappa;
   pickingMode?: boolean;
   onPickPosition?: (lat: number, lng: number) => void;
@@ -733,9 +733,9 @@ export default function MapView({
         if (popup.current) {
           popup.current.remove();
         }
-        // Notifica Dashboard per resettare focusedNeuroneId
+        // Notifica Dashboard per resettare focusedNeuroneId (con coordinate per logging)
         if (onClearFocusRef.current) {
-          onClearFocusRef.current();
+          onClearFocusRef.current(e.lngLat.lat, e.lngLat.lng);
         }
 
         // Quick Map Mode - click su zona vuota

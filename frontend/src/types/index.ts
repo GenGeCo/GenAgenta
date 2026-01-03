@@ -241,3 +241,35 @@ export interface VenditaProdotto {
   tipo_transazione?: 'acquisto' | 'vendita';
   controparte_nome?: string; // Nome della controparte (da JOIN)
 }
+
+// Azioni utente per contesto AI
+export type UserActionType =
+  | 'map_click'       // Click su zona vuota mappa
+  | 'select_entity'   // Selezionata entità
+  | 'deselect'        // Deselezionata entità
+  | 'filter_change'   // Cambio filtro
+  | 'map_move'        // Spostamento/zoom mappa
+  | 'panel_open'      // Apertura pannello
+  | 'panel_close';    // Chiusura pannello
+
+export interface UserAction {
+  type: UserActionType;
+  timestamp: string;  // ISO string
+  data: {
+    // Per map_click
+    lat?: number;
+    lng?: number;
+    // Per select_entity
+    entityId?: string;
+    entityName?: string;
+    entityType?: string;
+    // Per filter_change
+    filterName?: string;
+    filterValue?: string | null;
+    // Per map_move
+    center?: { lat: number; lng: number };
+    zoom?: number;
+    // Per panel_open/close
+    panelName?: string;
+  };
+}

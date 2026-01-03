@@ -107,6 +107,10 @@ function executeAiTool(string $toolName, array $input, array $user): array {
             case 'list_files':
                 return tool_listFiles($input);
 
+            // Tool CONTESTO UTENTE - Lazy loading azioni utente
+            case 'get_user_actions':
+                return tool_getUserActions();
+
             default:
                 return ['error' => "Tool sconosciuto: $toolName"];
         }
@@ -1735,5 +1739,101 @@ function tool_callApi(array $input, array $user): array {
     }
 
     return $result;
+}
+
+// ============================================================
+// TOOL CONTESTO UTENTE - Lazy loading delle azioni utente
+// ============================================================
+
+/**
+ * Tool: Ottiene le ultime azioni dell'utente nell'interfaccia
+ * Le azioni vengono passate dal frontend nel context e salvate in $GLOBALS['ai_user_actions']
+ */
+function tool_getUserActions(): array {
+    $actions = $GLOBALS['ai_user_actions'] ?? [];
+
+    if (empty($actions)) {
+        return [
+            'success' => true,
+            'message' => 'Nessuna azione recente registrata',
+            'actions' => [],
+            'count' => 0
+        ];
+    }
+
+    // Formatta le azioni per una lettura più facile
+    $formattedActions = [];
+    foreach ($actions as $action) {
+        $formatted = [
+            'tipo' => $action['type'] ?? 'unknown',
+            'quando' => $action['timestamp'] ?? 'unknown'
+        ];
+
+        $data = $action['data'] ?? [];
+
+        switch ($action['type'] ?? '') {
+            case 'map_click':
+                $formatted['descrizione'] = sprintf(
+                    'Click sulla mappa in posizione (%.4f, %.4f)',
+                    $data['lat'] ?? 0,
+                    $data['lng'] ?? 0
+                );
+                break;
+
+            case 'select_entity':
+                $formatted['descrizione'] = sprintf(
+                    'Selezionata entità "%s" (tipo: %s, id: %s)',
+                    $data['entityName'] ?? 'sconosciuto',
+                    $data['entityType'] ?? 'sconosciuto',
+                    $data['entityId'] ?? ''
+                );
+                $formatted['entity_id'] = $data['entityId'] ?? null;
+                break;
+
+            case 'deselect':
+                $formatted['descrizione'] = 'Deselezionata entità (click su zona vuota o chiusura pannello)';
+                break;
+
+            case 'filter_change':
+                $formatted['descrizione'] = sprintf(
+                    'Cambiato filtro "%s" a "%s"',
+                    $data['filterName'] ?? 'sconosciuto',
+                    $data['filterValue'] ?? 'vuoto'
+                );
+                break;
+
+            case 'map_move':
+                $center = $data['center'] ?? [];
+                $formatted['descrizione'] = sprintf(
+                    'Spostata mappa a (%.4f, %.4f) zoom %s',
+                    $center['lat'] ?? 0,
+                    $center['lng'] ?? 0,
+                    $data['zoom'] ?? 'sconosciuto'
+                );
+                break;
+
+            case 'panel_open':
+                $formatted['descrizione'] = sprintf('Aperto pannello "%s"', $data['panelName'] ?? 'sconosciuto');
+                break;
+
+            case 'panel_close':
+                $formatted['descrizione'] = sprintf('Chiuso pannello "%s"', $data['panelName'] ?? 'sconosciuto');
+                break;
+
+            default:
+                $formatted['descrizione'] = 'Azione sconosciuta';
+                $formatted['data'] = $data;
+        }
+
+        $formattedActions[] = $formatted;
+    }
+
+    return [
+        'success' => true,
+        'message' => 'Ultime ' . count($actions) . ' azioni dell\'utente',
+        'actions' => $formattedActions,
+        'count' => count($actions),
+        'hint' => 'L\'azione più recente è l\'ultima della lista'
+    ];
 }
 
