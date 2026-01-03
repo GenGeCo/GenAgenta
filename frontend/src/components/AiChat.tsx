@@ -443,7 +443,7 @@ export function AiChat({ isOpen, onClose, onAction, selectedEntity, visibilityCo
       console.error('Errore AI:', error);
       const errorMessage: Message = {
         role: 'assistant',
-        content: 'Mi dispiace, si è verificato un errore. Riprova.',
+        content: 'Ahia! 😅 Mi sa che ho fatto un pasticcio... Forse dovremmo dare un\'occhiata lato software, da qui non riesco proprio! Prova a riformulare in modo diverso oppure chiedi al supporto tecnico.',
         timestamp: new Date(),
       };
       setMessages((prev) => [...prev, errorMessage]);
