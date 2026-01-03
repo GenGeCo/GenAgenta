@@ -138,6 +138,34 @@ export default function Dashboard() {
     ricerca: '',
   });
 
+  // Wrapper per setFiltri che logga le modifiche per AI
+  const handleFiltriChange = (newFiltri: FiltriMappa | ((prev: FiltriMappa) => FiltriMappa)) => {
+    setFiltri(prev => {
+      const nextFiltri = typeof newFiltri === 'function' ? newFiltri(prev) : newFiltri;
+      // Identifica quali filtri sono cambiati e logga
+      const changes: string[] = [];
+      if (prev.tipoNeurone !== nextFiltri.tipoNeurone) {
+        changes.push(`tipo: ${nextFiltri.tipoNeurone || 'tutti'}`);
+      }
+      if (prev.categoria !== nextFiltri.categoria) {
+        changes.push(`categoria: ${nextFiltri.categoria || 'tutte'}`);
+      }
+      if (prev.ricerca !== nextFiltri.ricerca) {
+        changes.push(`ricerca: "${nextFiltri.ricerca}"`);
+      }
+      if (JSON.stringify(prev.tipiSelezionati) !== JSON.stringify(nextFiltri.tipiSelezionati)) {
+        changes.push(`tipi: ${nextFiltri.tipiSelezionati.length > 0 ? nextFiltri.tipiSelezionati.join(', ') : 'tutti'}`);
+      }
+      if (JSON.stringify(prev.categorieSelezionate) !== JSON.stringify(nextFiltri.categorieSelezionate)) {
+        changes.push(`categorie: ${nextFiltri.categorieSelezionate.length > 0 ? nextFiltri.categorieSelezionate.join(', ') : 'tutte'}`);
+      }
+      if (changes.length > 0) {
+        logUserAction('filter_change', { filterName: 'filtri', filterValue: changes.join('; ') });
+      }
+      return nextFiltri;
+    });
+  };
+
   // Controlla inviti pendenti al caricamento
   useEffect(() => {
     const checkInvites = async () => {
@@ -241,6 +269,8 @@ export default function Dashboard() {
       setSelectedNeurone(fullNeurone);
       // Chiudi pannello sinapsi se aperto (evita sovrapposizione)
       setSelectedSinapsiId(null);
+      // Log apertura pannello per AI
+      logUserAction('panel_open', { panelName: 'detail_panel' });
     } catch (error) {
       console.error('Errore caricamento dettaglio:', error);
     }
@@ -387,7 +417,7 @@ export default function Dashboard() {
         selectedId={selectedNeurone?.id || null}
         onSelect={handleSelectNeurone}
         filtri={filtri}
-        onFiltriChange={setFiltri}
+        onFiltriChange={handleFiltriChange}
         loading={loading}
         onAddNeurone={() => setShowNeuroneForm(true)}
         onQuickMapMode={() => setQuickMapMode(true)}
@@ -432,10 +462,14 @@ export default function Dashboard() {
             {personalAccess ? '🔓' : '🔒'}
           </button>
 
-          {/* Bottone AI Chat */}
+          {/* Bottone AI Chat (Agea) */}
           <button
-            onClick={() => setShowAiChat(!showAiChat)}
-            title="Assistente AI"
+            onClick={() => {
+              const newState = !showAiChat;
+              logUserAction(newState ? 'panel_open' : 'panel_close', { panelName: 'agea_chat' });
+              setShowAiChat(newState);
+            }}
+            title="Agea - Assistente AI"
             style={{
               background: showAiChat ? 'rgba(59, 130, 246, 0.15)' : 'transparent',
               border: 'none',
@@ -499,6 +533,9 @@ export default function Dashboard() {
               } else {
                 logUserAction('deselect', {});
               }
+            }}
+            onMapMove={(center, zoom) => {
+              logUserAction('map_move', { center, zoom });
             }}
             filtri={filtri}
             pickingMode={mapPickingMode}
@@ -886,6 +923,7 @@ export default function Dashboard() {
               personalAccess={personalAccess}
               categorie={categorie}
               onClose={() => {
+                logUserAction('panel_close', { panelName: 'detail_panel' });
                 setSelectedNeurone(null);
                 setConnectionPickingMode(false);
                 setConnectionTargetEntity(null);
@@ -934,7 +972,10 @@ export default function Dashboard() {
           {selectedSinapsiId && !connectionPickingMode && (
             <SinapsiDetailPanel
               sinapsiId={selectedSinapsiId}
-              onClose={() => setSelectedSinapsiId(null)}
+              onClose={() => {
+                logUserAction('panel_close', { panelName: 'sinapsi_panel' });
+                setSelectedSinapsiId(null);
+              }}
               onSaved={reloadSinapsi}
             />
           )}
@@ -944,7 +985,7 @@ export default function Dashboard() {
         <TimeSlider
           dataInizio={filtri.dataInizio || ''}
           dataFine={filtri.dataFine || ''}
-          onChange={(inizio, fine) => setFiltri((f) => ({
+          onChange={(inizio, fine) => handleFiltriChange((f) => ({
             ...f,
             dataInizio: inizio,
             dataFine: fine,
@@ -1028,7 +1069,7 @@ export default function Dashboard() {
         />
       )}
 
-      {/* AI Chat */}
+      {/* Agea Chat */}
       <AiChat
         isOpen={showAiChat}
         onClose={() => setShowAiChat(false)}
@@ -1042,6 +1083,7 @@ export default function Dashboard() {
           }
         }}
         userActions={userActions}
+        userName={user?.nome}
       />
     </div>
   );

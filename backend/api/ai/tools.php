@@ -111,6 +111,19 @@ function executeAiTool(string $toolName, array $input, array $user): array {
             case 'get_user_actions':
                 return tool_getUserActions();
 
+            // Tool MEMORIA AGEA - Memoria strutturata persistente
+            case 'agea_read_memory':
+                return tool_ageaReadMemory();
+
+            case 'agea_update_memory':
+                return tool_ageaUpdateMemory($input);
+
+            case 'agea_remember_entity':
+                return tool_ageaRememberEntity($input);
+
+            case 'agea_save_insight':
+                return tool_ageaSaveInsight($input);
+
             default:
                 return ['error' => "Tool sconosciuto: $toolName"];
         }
@@ -1834,6 +1847,212 @@ function tool_getUserActions(): array {
         'actions' => $formattedActions,
         'count' => count($actions),
         'hint' => 'L\'azione più recente è l\'ultima della lista'
+    ];
+}
+
+
+// ============================================================================
+// TOOL MEMORIA AGEA - Memoria strutturata persistente
+// ============================================================================
+
+define('AGEA_MEMORY_PATH', __DIR__ . '/../../config/ai/agea_memory.json');
+
+/**
+ * Legge la memoria di Agea
+ */
+function tool_ageaReadMemory(): array {
+    if (!file_exists(AGEA_MEMORY_PATH)) {
+        return [
+            'success' => true,
+            'memory' => [
+                'utente' => ['interessi_recenti' => [], 'argomenti_frequenti' => [], 'ultimo_argomento' => null],
+                'entita_importanti' => [],
+                'conversazioni_chiave' => [],
+                'insights_salvati' => []
+            ],
+            'message' => 'Memoria vuota - prima sessione'
+        ];
+    }
+
+    $content = file_get_contents(AGEA_MEMORY_PATH);
+    $memory = json_decode($content, true);
+
+    if (json_last_error() !== JSON_ERROR_NONE) {
+        return ['error' => 'Errore lettura memoria: ' . json_last_error_msg()];
+    }
+
+    return [
+        'success' => true,
+        'memory' => $memory,
+        'message' => 'Memoria caricata'
+    ];
+}
+
+/**
+ * Aggiorna campi specifici della memoria di Agea
+ */
+function tool_ageaUpdateMemory(array $input): array {
+    // Leggi memoria corrente
+    $memory = [];
+    if (file_exists(AGEA_MEMORY_PATH)) {
+        $content = file_get_contents(AGEA_MEMORY_PATH);
+        $memory = json_decode($content, true) ?? [];
+    }
+
+    // Campi aggiornabili
+    $updates = [];
+
+    // Ultimo argomento discusso
+    if (isset($input['ultimo_argomento'])) {
+        $memory['utente']['ultimo_argomento'] = $input['ultimo_argomento'];
+        $updates[] = 'ultimo_argomento';
+    }
+
+    // Aggiungi interesse recente (max 10, FIFO)
+    if (isset($input['interesse'])) {
+        if (!isset($memory['utente']['interessi_recenti'])) {
+            $memory['utente']['interessi_recenti'] = [];
+        }
+        // Evita duplicati
+        if (!in_array($input['interesse'], $memory['utente']['interessi_recenti'])) {
+            array_unshift($memory['utente']['interessi_recenti'], $input['interesse']);
+            $memory['utente']['interessi_recenti'] = array_slice($memory['utente']['interessi_recenti'], 0, 10);
+            $updates[] = 'interessi_recenti';
+        }
+    }
+
+    // Aggiungi argomento frequente
+    if (isset($input['argomento_frequente'])) {
+        if (!isset($memory['utente']['argomenti_frequenti'])) {
+            $memory['utente']['argomenti_frequenti'] = [];
+        }
+        // Conta frequenza
+        $found = false;
+        foreach ($memory['utente']['argomenti_frequenti'] as &$arg) {
+            if (strtolower($arg['nome']) === strtolower($input['argomento_frequente'])) {
+                $arg['count'] = ($arg['count'] ?? 1) + 1;
+                $found = true;
+                break;
+            }
+        }
+        if (!$found) {
+            $memory['utente']['argomenti_frequenti'][] = [
+                'nome' => $input['argomento_frequente'],
+                'count' => 1
+            ];
+        }
+        // Ordina per frequenza e mantieni top 10
+        usort($memory['utente']['argomenti_frequenti'], fn($a, $b) => ($b['count'] ?? 0) - ($a['count'] ?? 0));
+        $memory['utente']['argomenti_frequenti'] = array_slice($memory['utente']['argomenti_frequenti'], 0, 10);
+        $updates[] = 'argomenti_frequenti';
+    }
+
+    // Timestamp aggiornamento
+    $memory['ultimo_aggiornamento'] = date('Y-m-d H:i:s');
+
+    // Salva
+    $result = file_put_contents(AGEA_MEMORY_PATH, json_encode($memory, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
+
+    if ($result === false) {
+        return ['error' => 'Impossibile salvare memoria'];
+    }
+
+    return [
+        'success' => true,
+        'message' => 'Memoria aggiornata: ' . implode(', ', $updates),
+        'updates' => $updates
+    ];
+}
+
+/**
+ * Ricorda un'entità importante (cliente, fornitore, etc.)
+ */
+function tool_ageaRememberEntity(array $input): array {
+    $entityId = $input['entity_id'] ?? null;
+    $entityNome = $input['entity_nome'] ?? null;
+    $nota = $input['nota'] ?? null;
+
+    if (!$entityId || !$entityNome) {
+        return ['error' => 'Richiesti entity_id e entity_nome'];
+    }
+
+    // Leggi memoria
+    $memory = [];
+    if (file_exists(AGEA_MEMORY_PATH)) {
+        $content = file_get_contents(AGEA_MEMORY_PATH);
+        $memory = json_decode($content, true) ?? [];
+    }
+
+    if (!isset($memory['entita_importanti'])) {
+        $memory['entita_importanti'] = [];
+    }
+
+    // Aggiorna o crea entry
+    $memory['entita_importanti'][$entityId] = [
+        'nome' => $entityNome,
+        'note_agea' => $nota,
+        'ultimo_check' => date('Y-m-d'),
+        'volte_menzionata' => ($memory['entita_importanti'][$entityId]['volte_menzionata'] ?? 0) + 1
+    ];
+
+    // Limita a 50 entità (rimuovi quelle meno menzionate)
+    if (count($memory['entita_importanti']) > 50) {
+        uasort($memory['entita_importanti'], fn($a, $b) => ($b['volte_menzionata'] ?? 0) - ($a['volte_menzionata'] ?? 0));
+        $memory['entita_importanti'] = array_slice($memory['entita_importanti'], 0, 50, true);
+    }
+
+    $memory['ultimo_aggiornamento'] = date('Y-m-d H:i:s');
+
+    file_put_contents(AGEA_MEMORY_PATH, json_encode($memory, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
+
+    return [
+        'success' => true,
+        'message' => "Ricorderò '$entityNome'",
+        'entity_id' => $entityId
+    ];
+}
+
+/**
+ * Salva un insight/conversazione importante
+ */
+function tool_ageaSaveInsight(array $input): array {
+    $sintesi = $input['sintesi'] ?? null;
+    $tipo = $input['tipo'] ?? 'generale'; // analisi, problema, opportunita, seguito
+    $entitaCollegate = $input['entita_collegate'] ?? [];
+
+    if (!$sintesi) {
+        return ['error' => 'Richiesta sintesi dell\'insight'];
+    }
+
+    // Leggi memoria
+    $memory = [];
+    if (file_exists(AGEA_MEMORY_PATH)) {
+        $content = file_get_contents(AGEA_MEMORY_PATH);
+        $memory = json_decode($content, true) ?? [];
+    }
+
+    if (!isset($memory['conversazioni_chiave'])) {
+        $memory['conversazioni_chiave'] = [];
+    }
+
+    // Aggiungi insight
+    array_unshift($memory['conversazioni_chiave'], [
+        'data' => date('Y-m-d'),
+        'tipo' => $tipo,
+        'sintesi' => $sintesi,
+        'entita_collegate' => $entitaCollegate
+    ]);
+
+    // Mantieni solo ultimi 20 insight
+    $memory['conversazioni_chiave'] = array_slice($memory['conversazioni_chiave'], 0, 20);
+    $memory['ultimo_aggiornamento'] = date('Y-m-d H:i:s');
+
+    file_put_contents(AGEA_MEMORY_PATH, json_encode($memory, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
+
+    return [
+        'success' => true,
+        'message' => 'Insight salvato',
+        'tipo' => $tipo
     ];
 }
 

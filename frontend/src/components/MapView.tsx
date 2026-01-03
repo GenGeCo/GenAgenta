@@ -19,6 +19,7 @@ interface MapViewProps {
   onSelectNeurone: (neurone: Neurone) => void;
   onFocusNeurone?: (id: string) => void; // Chiamato quando si clicca su un edificio (anche senza aprire dettagli)
   onClearFocus?: (lat?: number, lng?: number) => void; // Chiamato quando si clicca su zona vuota (deseleziona, con coordinate)
+  onMapMove?: (center: { lat: number; lng: number }, zoom: number) => void; // Tracking movimento mappa per AI
   filtri: FiltriMappa;
   pickingMode?: boolean;
   onPickPosition?: (lat: number, lng: number) => void;
@@ -393,6 +394,7 @@ export default function MapView({
   onSelectNeurone,
   onFocusNeurone,
   onClearFocus,
+  onMapMove,
   filtri,
   pickingMode = false,
   onPickPosition,
@@ -440,6 +442,9 @@ export default function MapView({
   const onQuickEntityClickRef = useRef(onQuickEntityClick);
   // Ref per dettagli sinapsi
   const onSelectSinapsiRef = useRef(onSelectSinapsi);
+  // Ref per tracking movimento mappa
+  const onMapMoveRef = useRef(onMapMove);
+  const mapMoveDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Ref per selectedId (per cambiare panel al click su altra entità)
   const selectedIdRef = useRef(selectedId);
   // Ref per onFocusNeurone (per tracciare edificio cliccato)
@@ -487,6 +492,11 @@ export default function MapView({
   useEffect(() => {
     onSelectSinapsiRef.current = onSelectSinapsi;
   }, [onSelectSinapsi]);
+
+  // Aggiorna ref per tracking movimento mappa
+  useEffect(() => {
+    onMapMoveRef.current = onMapMove;
+  }, [onMapMove]);
 
   useEffect(() => {
     neuroniRef.current = neuroni;
@@ -745,9 +755,21 @@ export default function MapView({
       }
     });
 
-    // Salva posizione quando l'utente sposta la mappa
+    // Salva posizione quando l'utente sposta la mappa + tracking per AI (con debounce)
     map.current.on('moveend', () => {
       saveMapPositionRef.current();
+
+      // Tracking movimento per AI (debounce 1 secondo per non loggare ogni micro-movimento)
+      if (mapMoveDebounceRef.current) {
+        clearTimeout(mapMoveDebounceRef.current);
+      }
+      mapMoveDebounceRef.current = setTimeout(() => {
+        if (map.current && onMapMoveRef.current) {
+          const center = map.current.getCenter();
+          const zoom = map.current.getZoom();
+          onMapMoveRef.current({ lat: center.lat, lng: center.lng }, zoom);
+        }
+      }, 1000);
     });
 
     return () => {
@@ -755,6 +777,9 @@ export default function MapView({
       salesPopup.current?.remove();
       if (savePositionTimeout.current) {
         clearTimeout(savePositionTimeout.current);
+      }
+      if (mapMoveDebounceRef.current) {
+        clearTimeout(mapMoveDebounceRef.current);
       }
       map.current?.remove();
       map.current = null;

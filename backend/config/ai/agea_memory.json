@@ -1,0 +1,19 @@
+{
+  "versione": "1.0",
+  "descrizione": "Memoria strutturata di Agea - NON modificare manualmente",
+
+  "utente": {
+    "interessi_recenti": [],
+    "argomenti_frequenti": [],
+    "ultimo_argomento": null,
+    "preferenze_note": []
+  },
+
+  "entita_importanti": {},
+
+  "conversazioni_chiave": [],
+
+  "insights_salvati": [],
+
+  "ultimo_aggiornamento": null
+}

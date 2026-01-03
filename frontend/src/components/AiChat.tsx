@@ -1,6 +1,6 @@
-// GenAgenTa - AI Chat Component
+// GenAgenTa - Agea Chat Component (AI Assistant)
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import { api, AiPendingAction, AiChatResponse } from '../utils/api';
 import type { UserAction } from '../types';
 
@@ -9,6 +9,24 @@ interface Message {
   content: string;
   timestamp: Date;
 }
+
+// Saluti variabili per Agea (non sembrare un chatbot anni '80)
+const AGEA_GREETINGS = [
+  (name: string) => `Ciao ${name}! 👋`,
+  (name: string) => `Ben rivisto, ${name}!`,
+  (name: string) => `Eccomi ${name}!`,
+  (name: string) => `Ehi ${name}!`,
+  (name: string) => `Buongiorno ${name}!`,
+  (name: string) => `Ciao ${name}, sono qui!`,
+];
+
+// Quick actions per il welcome screen
+const QUICK_ACTIONS = [
+  { label: '📊 Analizza i dati', prompt: 'Fammi un\'analisi generale sui miei dati: clienti, vendite, trend...' },
+  { label: '🔍 Cerca qualcosa', prompt: '' }, // Placeholder per input libero
+  { label: '🗺️ Esplora la mappa', prompt: 'Mostrami una panoramica della mappa con le entità principali' },
+  { label: '💡 Dammi un consiglio', prompt: 'Guardando i miei dati, c\'è qualcosa che dovrei sapere? Clienti dormienti, opportunità, problemi?' },
+];
 
 // Tipi per le azioni frontend
 export interface AiFrontendAction {
@@ -53,11 +71,12 @@ interface AiChatProps {
   selectedEntity?: SelectedEntity | null;
   visibilityContext?: VisibilityContext;  // Per feedback visibilità
   userActions?: UserAction[];  // Ultime azioni utente per contesto
+  userName?: string;  // Nome utente per saluto personalizzato
 }
 
 const CHAT_STORAGE_KEY = 'genagenta_ai_chat_history';
 
-export function AiChat({ isOpen, onClose, onAction, selectedEntity, visibilityContext, userActions }: AiChatProps) {
+export function AiChat({ isOpen, onClose, onAction, selectedEntity, visibilityContext, userActions, userName = 'utente' }: AiChatProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -65,6 +84,12 @@ export function AiChat({ isOpen, onClose, onAction, selectedEntity, visibilityCo
   const [_contextInfo, setContextInfo] = useState({ messagesCount: 0, threshold: 25 });
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+
+  // Saluto dinamico (cambia ad ogni apertura della chat)
+  const greeting = useMemo(() => {
+    const randomGreeting = AGEA_GREETINGS[Math.floor(Math.random() * AGEA_GREETINGS.length)];
+    return randomGreeting(userName.split(' ')[0]); // Usa solo il nome, non cognome
+  }, [userName]);
 
   // Carica conversazione da localStorage al mount
   useEffect(() => {
@@ -502,7 +527,7 @@ export function AiChat({ isOpen, onClose, onAction, selectedEntity, visibilityCo
             }}
           />
           <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
-            AI Assistant
+            Agea
           </span>
           {/* Contatore messaggi */}
           {messages.length > 0 && (
@@ -593,74 +618,82 @@ export function AiChat({ isOpen, onClose, onAction, selectedEntity, visibilityCo
               fontSize: '14px',
             }}
           >
-            <p style={{ marginBottom: '12px' }}>Ciao! Sono il tuo assistente AI.</p>
-            <p style={{ fontSize: '12px', opacity: 0.7 }}>
-              Puoi chiedermi informazioni sui tuoi clienti, vendite, connessioni...
+            {/* Avatar Agea */}
+            <div style={{
+              width: '48px',
+              height: '48px',
+              borderRadius: '50%',
+              background: 'linear-gradient(135deg, #3b82f6, #8b5cf6)',
+              margin: '0 auto 16px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              boxShadow: '0 4px 20px rgba(59, 130, 246, 0.4)',
+            }}>
+              <span style={{ fontSize: '24px' }}>🤖</span>
+            </div>
+
+            {/* Saluto dinamico */}
+            <p style={{
+              marginBottom: '8px',
+              fontSize: '16px',
+              fontWeight: 600,
+              color: 'var(--text-primary)'
+            }}>
+              {greeting}
             </p>
+            <p style={{ fontSize: '13px', opacity: 0.8, marginBottom: '20px' }}>
+              Hai già qualche idea, o partiamo da un'analisi?
+            </p>
+
+            {/* Quick Actions */}
             <div
               style={{
-                marginTop: '16px',
-                display: 'flex',
-                flexDirection: 'column',
+                display: 'grid',
+                gridTemplateColumns: '1fr 1fr',
                 gap: '8px',
               }}
             >
-              <button
-                onClick={() => setInput('Chi sono i miei migliori clienti?')}
-                style={{
-                  padding: '8px 12px',
-                  background: 'var(--bg-primary)',
-                  border: '1px solid var(--border)',
-                  borderRadius: '8px',
-                  cursor: 'pointer',
-                  color: 'var(--text-primary)',
-                  fontSize: '12px',
-                }}
-              >
-                Chi sono i miei migliori clienti?
-              </button>
-              <button
-                onClick={() => setInput('Quanto ho venduto questo mese?')}
-                style={{
-                  padding: '8px 12px',
-                  background: 'var(--bg-primary)',
-                  border: '1px solid var(--border)',
-                  borderRadius: '8px',
-                  cursor: 'pointer',
-                  color: 'var(--text-primary)',
-                  fontSize: '12px',
-                }}
-              >
-                Quanto ho venduto questo mese?
-              </button>
-              <button
-                onClick={() => setInput('Mostrami lo schema del database')}
-                style={{
-                  padding: '8px 12px',
-                  background: 'var(--bg-primary)',
-                  border: '1px solid var(--border)',
-                  borderRadius: '8px',
-                  cursor: 'pointer',
-                  color: 'var(--text-primary)',
-                  fontSize: '12px',
-                }}
-              >
-                Mostrami lo schema del database
-              </button>
-              <button
-                onClick={() => setInput('Inquadrami Roma sulla mappa')}
-                style={{
-                  padding: '8px 12px',
-                  background: 'var(--bg-primary)',
-                  border: '1px solid var(--border)',
-                  borderRadius: '8px',
-                  cursor: 'pointer',
-                  color: 'var(--text-primary)',
-                  fontSize: '12px',
-                }}
-              >
-                Inquadrami Roma sulla mappa
-              </button>
+              {QUICK_ACTIONS.map((action, idx) => (
+                <button
+                  key={idx}
+                  onClick={() => {
+                    if (action.prompt) {
+                      setInput(action.prompt);
+                      // Auto-invia se ha un prompt predefinito
+                      setTimeout(() => {
+                        const event = new KeyboardEvent('keydown', { key: 'Enter' });
+                        inputRef.current?.dispatchEvent(event);
+                      }, 100);
+                    } else {
+                      // Focus sull'input per "Cerca qualcosa"
+                      inputRef.current?.focus();
+                    }
+                  }}
+                  style={{
+                    padding: '12px 10px',
+                    background: 'var(--bg-primary)',
+                    border: '1px solid var(--border)',
+                    borderRadius: '10px',
+                    cursor: 'pointer',
+                    color: 'var(--text-primary)',
+                    fontSize: '12px',
+                    fontWeight: 500,
+                    transition: 'all 0.2s ease',
+                    textAlign: 'center',
+                  }}
+                  onMouseOver={(e) => {
+                    e.currentTarget.style.background = 'var(--bg-hover)';
+                    e.currentTarget.style.borderColor = 'var(--primary)';
+                  }}
+                  onMouseOut={(e) => {
+                    e.currentTarget.style.background = 'var(--bg-primary)';
+                    e.currentTarget.style.borderColor = 'var(--border)';
+                  }}
+                >
+                  {action.label}
+                </button>
+              ))}
             </div>
           </div>
         )}

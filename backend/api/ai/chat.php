@@ -814,6 +814,61 @@ $getUserActionsTool = [
 $getUserActionsTool['parameters']['properties'] = new stdClass();
 $functionDeclarations[] = $getUserActionsTool;
 
+// TOOL MEMORIA AGEA - Memoria strutturata persistente tra sessioni
+$ageaReadMemoryTool = [
+    'name' => 'agea_read_memory',
+    'description' => 'Legge la mia memoria persistente. Contiene: interessi recenti dell\'utente, argomenti frequenti, entità importanti che ho annotato, insight da conversazioni passate. Usalo per ricordare cosa abbiamo discusso in passato.',
+    'parameters' => [
+        'type' => 'object',
+        'properties' => [],
+        'required' => []
+    ]
+];
+$ageaReadMemoryTool['parameters']['properties'] = new stdClass();
+$functionDeclarations[] = $ageaReadMemoryTool;
+
+$functionDeclarations[] = [
+    'name' => 'agea_update_memory',
+    'description' => 'Aggiorna la mia memoria. Usa per salvare: ultimo_argomento (di cosa abbiamo parlato), interesse (un interesse dell\'utente), argomento_frequente (argomento ricorrente).',
+    'parameters' => [
+        'type' => 'object',
+        'properties' => [
+            'ultimo_argomento' => ['type' => 'string', 'description' => 'Breve sintesi dell\'ultimo argomento discusso'],
+            'interesse' => ['type' => 'string', 'description' => 'Un interesse dell\'utente da ricordare'],
+            'argomento_frequente' => ['type' => 'string', 'description' => 'Un argomento che l\'utente chiede spesso']
+        ],
+        'required' => []
+    ]
+];
+
+$functionDeclarations[] = [
+    'name' => 'agea_remember_entity',
+    'description' => 'Annota un\'entità importante (cliente, fornitore, cantiere) che l\'utente segue spesso. Così la prossima volta saprò che è importante per lui.',
+    'parameters' => [
+        'type' => 'object',
+        'properties' => [
+            'entity_id' => ['type' => 'string', 'description' => 'ID dell\'entità'],
+            'entity_nome' => ['type' => 'string', 'description' => 'Nome dell\'entità'],
+            'nota' => ['type' => 'string', 'description' => 'Nota su perché è importante (es: "segue molto questo cliente", "problemi di pagamento")']
+        ],
+        'required' => ['entity_id', 'entity_nome']
+    ]
+];
+
+$functionDeclarations[] = [
+    'name' => 'agea_save_insight',
+    'description' => 'Salva un insight importante da una conversazione (es: "Calo vendite cliente Rossi - possibile cambio fornitore"). Così la prossima volta posso fare follow-up.',
+    'parameters' => [
+        'type' => 'object',
+        'properties' => [
+            'sintesi' => ['type' => 'string', 'description' => 'Sintesi dell\'insight (max 200 caratteri)'],
+            'tipo' => ['type' => 'string', 'description' => 'Tipo: analisi, problema, opportunita, seguito'],
+            'entita_collegate' => ['type' => 'array', 'items' => ['type' => 'string'], 'description' => 'ID delle entità collegate']
+        ],
+        'required' => ['sintesi']
+    ]
+];
+
 // TOOL FILE SYSTEM - Per lazy loading e memoria
 $functionDeclarations[] = [
     'name' => 'read_file',
