@@ -1360,10 +1360,10 @@ if ($useOpenRouter) {
                 $hasProposedImprovement = true;
             }
 
-            // Blocca qualsiasi tool chiamato più di 3 volte
-            if ($toolCallCounts[$funcName] > 3) {
+            // Blocca qualsiasi tool chiamato più di 10 volte (era 3, troppo basso per esplorare)
+            if ($toolCallCounts[$funcName] > 10) {
                 error_log("ANTI-LOOP: Blocco $funcName (chiamato {$toolCallCounts[$funcName]} volte)");
-                $result = ['blocked' => true, 'message' => "Tool $funcName già usato troppe volte"];
+                $result = ['blocked' => true, 'message' => "Tool $funcName già usato troppe volte (max 10)"];
                 $messages[] = [
                     'role' => 'tool',
                     'tool_call_id' => $toolCallId,
