@@ -72,11 +72,13 @@ interface AiChatProps {
   visibilityContext?: VisibilityContext;  // Per feedback visibilità
   userActions?: UserAction[];  // Ultime azioni utente per contesto
   userName?: string;  // Nome utente per saluto personalizzato
+  initialMessage?: string | null;  // Messaggio iniziale da inviare (es. da floating suggestions)
+  onInitialMessageSent?: () => void;  // Callback quando il messaggio iniziale è stato processato
 }
 
 const CHAT_STORAGE_KEY = 'genagenta_ai_chat_history';
 
-export function AiChat({ isOpen, onClose, onAction, selectedEntity, visibilityContext, userActions, userName = 'utente' }: AiChatProps) {
+export function AiChat({ isOpen, onClose, onAction, selectedEntity, visibilityContext, userActions, userName = 'utente', initialMessage, onInitialMessageSent }: AiChatProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -127,6 +129,21 @@ export function AiChat({ isOpen, onClose, onAction, selectedEntity, visibilityCo
       setTimeout(() => inputRef.current?.focus(), 100);
     }
   }, [isOpen]);
+
+  // Gestisci messaggio iniziale (es. da floating suggestions)
+  useEffect(() => {
+    if (isOpen && initialMessage && !isLoading) {
+      // Imposta il messaggio nell'input e invia
+      setInput(initialMessage);
+      // Notifica che il messaggio iniziale è stato processato
+      onInitialMessageSent?.();
+      // Invia dopo un breve delay per permettere al componente di renderizzare
+      setTimeout(() => {
+        const submitBtn = document.querySelector('[data-ai-submit]') as HTMLButtonElement;
+        submitBtn?.click();
+      }, 100);
+    }
+  }, [isOpen, initialMessage]);
 
   // Nuova sessione - cancella tutto
   const startNewSession = () => {
@@ -786,6 +803,7 @@ export function AiChat({ isOpen, onClose, onAction, selectedEntity, visibilityCo
           rows={1}
         />
         <button
+          data-ai-submit
           onClick={sendMessage}
           disabled={!input.trim() || isLoading}
           style={{

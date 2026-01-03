@@ -85,6 +85,11 @@ $routes = [
     // AI Assistant
     'POST:ai/chat' => 'ai/chat.php',
 
+    // Agea Memory
+    'GET:agea/memory' => 'agea/memory.php',
+    'PUT:agea/memory' => 'agea/memory.php',
+    'DELETE:agea/memory' => 'agea/memory.php',
+
     // Geocoding
     'GET:geocode/search' => 'geocode/search.php',
 

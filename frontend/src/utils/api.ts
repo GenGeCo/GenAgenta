@@ -596,6 +596,47 @@ class ApiClient {
     return data;
   }
 
+  // =====================================================
+  // Agea Memory - Memoria persistente dell'AI
+  // =====================================================
+
+  async getAgeaMemory(): Promise<{
+    success: boolean;
+    memory: {
+      utente: {
+        interessi_recenti: string[];
+        argomenti_frequenti: { nome: string; count: number }[];
+        ultimo_argomento: string | null;
+      };
+      entita_importanti: Record<string, {
+        nome: string;
+        note_agea: string | null;
+        ultimo_check: string;
+        volte_menzionata: number;
+      }>;
+      conversazioni_chiave: Array<{
+        data: string;
+        tipo: string;
+        sintesi: string;
+        entita_collegate: string[];
+      }>;
+      ultimo_aggiornamento: string | null;
+    };
+  }> {
+    const { data } = await this.client.get('/agea/memory');
+    return data;
+  }
+
+  async updateAgeaMemory(updates: Record<string, unknown>): Promise<{ success: boolean; message: string }> {
+    const { data } = await this.client.put('/agea/memory', updates);
+    return data;
+  }
+
+  async resetAgeaMemory(): Promise<{ success: boolean; message: string }> {
+    const { data } = await this.client.delete('/agea/memory');
+    return data;
+  }
+
   // Geocoding - ricerca indirizzi
   async geocodeSearch(
     query: string,

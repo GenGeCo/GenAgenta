@@ -14,6 +14,7 @@ import NeuroneFormModal from '../components/NeuroneFormModal';
 import SinapsiDetailPanel from '../components/SinapsiDetailPanel';
 import { QuickCreateEntity, QuickEntityActions, QuickSelectTarget, QuickConnectionType, QuickTransactionForm } from '../components/QuickActionPopup';
 import { AiChat, AiFrontendAction } from '../components/AiChat';
+import FloatingSuggestions from '../components/FloatingSuggestions';
 import type { Neurone, Sinapsi, FiltriMappa, Categoria, TipoNeuroneConfig, UserAction, UserActionType } from '../types';
 
 // Tipi per quick actions
@@ -43,6 +44,7 @@ export default function Dashboard() {
   const [showPinModal, setShowPinModal] = useState(false);
   const [showSetPinModal, setShowSetPinModal] = useState(false);
   const [showAiChat, setShowAiChat] = useState(false);
+  const [aiInitialMessage, setAiInitialMessage] = useState<string | null>(null);
 
   // Stato per selezione posizione su mappa (creazione neurone)
   const [mapPickingMode, setMapPickingMode] = useState(false);
@@ -1069,6 +1071,24 @@ export default function Dashboard() {
         />
       )}
 
+      {/* Floating Suggestions */}
+      <FloatingSuggestions
+        selectedEntity={selectedNeurone}
+        focusedEntity={focusedNeuroneId ? neuroni.find(n => n.id === focusedNeuroneId) : null}
+        activeFilters={{
+          tipiAttivi: filtri.tipiSelezionati || [],
+          categorieAttive: filtri.categorieSelezionate || [],
+          ricerca: filtri.ricerca || '',
+        }}
+        sinapsi={sinapsi}
+        neuroni={neuroni}
+        isChatOpen={showAiChat}
+        onSuggestionClick={(message) => {
+          setAiInitialMessage(message);
+          setShowAiChat(true);
+        }}
+      />
+
       {/* Agea Chat */}
       <AiChat
         isOpen={showAiChat}
@@ -1084,6 +1104,8 @@ export default function Dashboard() {
         }}
         userActions={userActions}
         userName={user?.nome}
+        initialMessage={aiInitialMessage}
+        onInitialMessageSent={() => setAiInitialMessage(null)}
       />
     </div>
   );

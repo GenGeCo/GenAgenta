@@ -22,7 +22,21 @@ interface Membro {
   is_me: boolean;
 }
 
-type Tab = 'profilo' | 'password' | 'team' | 'categorie' | 'prodotti' | 'info';
+type Tab = 'profilo' | 'password' | 'team' | 'categorie' | 'prodotti' | 'agea' | 'info';
+
+interface AgeaMemory {
+  versione?: string;
+  utente?: {
+    interessi_recenti?: string[];
+    argomenti_frequenti?: Array<{ nome: string; count: number }>;
+    ultimo_argomento?: string | null;
+    preferenze_note?: string[];
+  };
+  entita_importanti?: Record<string, { nome: string; note_agea?: string | null; ultimo_check?: string; volte_menzionata?: number }>;
+  conversazioni_chiave?: Array<{ data: string; tipo?: string; sintesi?: string; entita_collegate?: string[] }>;
+  insights_salvati?: Array<{ data: string; insight: string; entita?: string }>;
+  ultimo_aggiornamento?: string | null;
+}
 
 export default function SettingsModal({ user, onClose, onUserUpdate }: SettingsModalProps) {
   const [activeTab, setActiveTab] = useState<Tab>('profilo');
@@ -54,6 +68,12 @@ export default function SettingsModal({ user, onClose, onUserUpdate }: SettingsM
   const [inviteMessage, setInviteMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   const isAdmin = user.ruolo_azienda === 'admin';
+
+  // Agea memory state
+  const [ageaMemory, setAgeaMemory] = useState<AgeaMemory | null>(null);
+  const [loadingMemory, setLoadingMemory] = useState(false);
+  const [resettingMemory, setResettingMemory] = useState(false);
+  const [memoryMessage, setMemoryMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   // Genera link di invito
   const inviteLink = user.codice_pairing
@@ -106,6 +126,46 @@ export default function SettingsModal({ user, onClose, onUserUpdate }: SettingsM
       loadMembri();
     }
   }, [activeTab, user.azienda_id]);
+
+  // Carica memoria Agea quando si apre tab agea
+  useEffect(() => {
+    if (activeTab === 'agea') {
+      loadAgeaMemory();
+    }
+  }, [activeTab]);
+
+  const loadAgeaMemory = async () => {
+    setLoadingMemory(true);
+    setMemoryMessage(null);
+    try {
+      const response = await api.getAgeaMemory();
+      setAgeaMemory(response.memory);
+    } catch (error) {
+      console.error('Errore caricamento memoria Agea:', error);
+      setMemoryMessage({ type: 'error', text: 'Errore caricamento memoria' });
+    } finally {
+      setLoadingMemory(false);
+    }
+  };
+
+  const handleResetMemory = async () => {
+    if (!confirm('Sei sicuro di voler cancellare la memoria di Agea? Non ricorderà più le conversazioni passate.')) {
+      return;
+    }
+
+    setResettingMemory(true);
+    setMemoryMessage(null);
+    try {
+      await api.resetAgeaMemory();
+      setMemoryMessage({ type: 'success', text: 'Memoria di Agea azzerata!' });
+      await loadAgeaMemory();
+    } catch (error) {
+      console.error('Errore reset memoria:', error);
+      setMemoryMessage({ type: 'error', text: 'Errore reset memoria' });
+    } finally {
+      setResettingMemory(false);
+    }
+  };
 
   const loadMembri = async () => {
     setLoadingMembri(true);
@@ -289,6 +349,7 @@ export default function SettingsModal({ user, onClose, onUserUpdate }: SettingsM
             { id: 'categorie' as Tab, label: '📍 Entità' },
             { id: 'prodotti' as Tab, label: '📦 Prodotti' },
             ...(user.azienda_id ? [{ id: 'team' as Tab, label: '👥 Team' }] : []),
+            { id: 'agea' as Tab, label: '🤖 Agea' },
             { id: 'password' as Tab, label: '🔒 Password' },
             { id: 'info' as Tab, label: 'ℹ️ Info' },
           ].map((tab) => (
@@ -713,6 +774,206 @@ export default function SettingsModal({ user, onClose, onUserUpdate }: SettingsM
           {/* TAB: Prodotti */}
           {activeTab === 'prodotti' && (
             <FamiglieProdottoTab />
+          )}
+
+          {/* TAB: Agea */}
+          {activeTab === 'agea' && (
+            <div>
+              {/* Header con avatar */}
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '16px',
+                marginBottom: '24px',
+                padding: '16px',
+                background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.1), rgba(139, 92, 246, 0.1))',
+                borderRadius: '12px',
+              }}>
+                <div style={{
+                  width: '60px',
+                  height: '60px',
+                  borderRadius: '50%',
+                  background: 'linear-gradient(135deg, #6366f1, #8b5cf6)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: '28px',
+                }}>
+                  🤖
+                </div>
+                <div>
+                  <div style={{ fontSize: '18px', fontWeight: 600 }}>Agea</div>
+                  <div style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
+                    La tua assistente AI personale
+                  </div>
+                </div>
+              </div>
+
+              {memoryMessage && (
+                <div style={{
+                  padding: '12px',
+                  borderRadius: '8px',
+                  background: memoryMessage.type === 'success' ? 'rgba(34, 197, 94, 0.1)' : 'rgba(239, 68, 68, 0.1)',
+                  color: memoryMessage.type === 'success' ? '#22c55e' : '#ef4444',
+                  marginBottom: '16px',
+                }}>
+                  {memoryMessage.text}
+                </div>
+              )}
+
+              {loadingMemory ? (
+                <p style={{ color: 'var(--text-secondary)', textAlign: 'center', padding: '40px 0' }}>
+                  Caricamento memoria...
+                </p>
+              ) : ageaMemory ? (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                  {/* Ultimo aggiornamento */}
+                  {ageaMemory.ultimo_aggiornamento && (
+                    <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
+                      Ultimo aggiornamento: {new Date(ageaMemory.ultimo_aggiornamento).toLocaleString('it-IT')}
+                    </div>
+                  )}
+
+                  {/* Interessi recenti */}
+                  <div style={{
+                    background: 'var(--bg-primary)',
+                    borderRadius: '12px',
+                    padding: '16px',
+                  }}>
+                    <h4 style={{ fontSize: '14px', fontWeight: 600, marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span>💭</span> Argomenti recenti
+                    </h4>
+                    {ageaMemory.utente?.interessi_recenti?.length ? (
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                        {ageaMemory.utente.interessi_recenti.map((interesse, i) => (
+                          <span key={i} style={{
+                            padding: '4px 12px',
+                            background: 'rgba(99, 102, 241, 0.1)',
+                            color: 'var(--primary)',
+                            borderRadius: '20px',
+                            fontSize: '13px',
+                          }}>
+                            {interesse}
+                          </span>
+                        ))}
+                      </div>
+                    ) : (
+                      <p style={{ color: 'var(--text-secondary)', fontSize: '13px', margin: 0 }}>
+                        Nessun argomento memorizzato ancora
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Entità importanti */}
+                  <div style={{
+                    background: 'var(--bg-primary)',
+                    borderRadius: '12px',
+                    padding: '16px',
+                  }}>
+                    <h4 style={{ fontSize: '14px', fontWeight: 600, marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span>⭐</span> Entità seguite
+                    </h4>
+                    {ageaMemory.entita_importanti && Object.keys(ageaMemory.entita_importanti).length > 0 ? (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                        {Object.entries(ageaMemory.entita_importanti).slice(0, 5).map(([id, entita]) => (
+                          <div key={id} style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            padding: '8px 12px',
+                            background: 'var(--bg-secondary)',
+                            borderRadius: '8px',
+                          }}>
+                            <div>
+                              <div style={{ fontWeight: 500, fontSize: '13px' }}>{entita.nome}</div>
+                              {entita.note_agea && (
+                                <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>{entita.note_agea}</div>
+                              )}
+                            </div>
+                            {entita.volte_menzionata && (
+                              <span style={{
+                                fontSize: '11px',
+                                color: 'var(--text-secondary)',
+                                background: 'var(--bg-primary)',
+                                padding: '2px 8px',
+                                borderRadius: '10px',
+                              }}>
+                                {entita.volte_menzionata}x
+                              </span>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p style={{ color: 'var(--text-secondary)', fontSize: '13px', margin: 0 }}>
+                        Nessuna entità importante memorizzata
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Insights salvati */}
+                  <div style={{
+                    background: 'var(--bg-primary)',
+                    borderRadius: '12px',
+                    padding: '16px',
+                  }}>
+                    <h4 style={{ fontSize: '14px', fontWeight: 600, marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span>💡</span> Insights salvati
+                    </h4>
+                    {ageaMemory.insights_salvati?.length ? (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                        {ageaMemory.insights_salvati.slice(0, 3).map((item, i) => (
+                          <div key={i} style={{
+                            padding: '10px 12px',
+                            background: 'var(--bg-secondary)',
+                            borderRadius: '8px',
+                            borderLeft: '3px solid var(--primary)',
+                          }}>
+                            <div style={{ fontSize: '13px' }}>{item.insight}</div>
+                            <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '4px' }}>
+                              {item.entita && <span>{item.entita} • </span>}
+                              {new Date(item.data).toLocaleDateString('it-IT')}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p style={{ color: 'var(--text-secondary)', fontSize: '13px', margin: 0 }}>
+                        Nessun insight salvato ancora
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Reset button */}
+                  <div style={{ marginTop: '8px', paddingTop: '16px', borderTop: '1px solid var(--border-color)' }}>
+                    <button
+                      onClick={handleResetMemory}
+                      disabled={resettingMemory}
+                      style={{
+                        width: '100%',
+                        padding: '12px',
+                        background: 'rgba(239, 68, 68, 0.1)',
+                        color: '#ef4444',
+                        border: '1px solid rgba(239, 68, 68, 0.2)',
+                        borderRadius: '8px',
+                        cursor: 'pointer',
+                        fontSize: '14px',
+                        fontWeight: 500,
+                      }}
+                    >
+                      {resettingMemory ? 'Cancellazione...' : '🗑️ Cancella memoria di Agea'}
+                    </button>
+                    <p style={{ fontSize: '11px', color: 'var(--text-secondary)', textAlign: 'center', marginTop: '8px' }}>
+                      Agea non ricorderà più le conversazioni passate
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <p style={{ color: 'var(--text-secondary)', textAlign: 'center', padding: '40px 0' }}>
+                  Memoria non disponibile
+                </p>
+              )}
+            </div>
           )}
 
           {/* TAB: Info */}
