@@ -1002,6 +1002,13 @@ export default function Dashboard() {
         onClose={() => setShowAiChat(false)}
         onAction={handleAiAction}
         selectedEntity={selectedNeurone || (focusedNeuroneId ? neuroni.find(n => n.id === focusedNeuroneId) : null) || null}
+        visibilityContext={{
+          visibleNeuroniIds: neuroni.map(n => n.id),
+          activeFilters: {
+            tipoNeurone: filtri.tipoNeurone,
+            categoria: filtri.categoria
+          }
+        }}
       />
     </div>
   );

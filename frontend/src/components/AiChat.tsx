@@ -33,16 +33,29 @@ interface SelectedEntity {
   indirizzo?: string | null;
 }
 
+// Info filtri attivi per feedback AI
+interface ActiveFilters {
+  tipoNeurone: string | null;
+  categoria: string | null;
+}
+
+// Info visibilità per feedback AI
+interface VisibilityContext {
+  visibleNeuroniIds: string[];  // Lista ID neuroni attualmente visibili
+  activeFilters: ActiveFilters;
+}
+
 interface AiChatProps {
   isOpen: boolean;
   onClose: () => void;
   onAction?: (action: AiFrontendAction) => void;
   selectedEntity?: SelectedEntity | null;
+  visibilityContext?: VisibilityContext;  // Per feedback visibilità
 }
 
 const CHAT_STORAGE_KEY = 'genagenta_ai_chat_history';
 
-export function AiChat({ isOpen, onClose, onAction, selectedEntity }: AiChatProps) {
+export function AiChat({ isOpen, onClose, onAction, selectedEntity, visibilityContext }: AiChatProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -97,23 +110,64 @@ export function AiChat({ isOpen, onClose, onAction, selectedEntity }: AiChatProp
   // =====================================================
   // FRONTEND EXECUTION: Esegue pending_action dal backend
   // =====================================================
+
+  // Verifica se un'entità sarà visibile con i filtri attuali
+  const checkVisibility = (entityType?: string, entityCategoria?: string): {
+    visible: boolean;
+    filteredOutBy?: string;
+  } => {
+    if (!visibilityContext) {
+      return { visible: true }; // Senza contesto, assumiamo visibile
+    }
+
+    const { activeFilters } = visibilityContext;
+
+    // Check filtro tipo
+    if (activeFilters.tipoNeurone && entityType) {
+      if (activeFilters.tipoNeurone.toLowerCase() !== entityType.toLowerCase()) {
+        return {
+          visible: false,
+          filteredOutBy: `filtro tipo attivo: "${activeFilters.tipoNeurone}"`
+        };
+      }
+    }
+
+    // Check filtro categoria
+    if (activeFilters.categoria && entityCategoria) {
+      if (activeFilters.categoria !== entityCategoria) {
+        return {
+          visible: false,
+          filteredOutBy: `filtro categoria attivo: "${activeFilters.categoria}"`
+        };
+      }
+    }
+
+    return { visible: true };
+  };
+
   const executePendingAction = async (
     action: AiPendingAction
-  ): Promise<{ success: boolean; data?: unknown; error?: string }> => {
+  ): Promise<{ success: boolean; data?: unknown; error?: string; visibility?: { visible: boolean; filteredOutBy?: string } }> => {
     console.log('Eseguo pending_action:', action);
 
     try {
       let result: unknown;
+      let entityType: string | undefined;
+      let entityCategoria: string | undefined;
 
       switch (action.action_type) {
         case 'createNeurone':
           result = await api.createNeurone(action.payload as Parameters<typeof api.createNeurone>[0]);
+          // Estrai tipo per check visibilità
+          entityType = (action.payload as { tipo?: string })?.tipo;
+          entityCategoria = (action.payload as { categorie?: string[] })?.categorie?.[0];
           break;
 
         case 'updateNeurone':
           if (!action.entity_id) throw new Error('entity_id mancante');
           await api.updateNeurone(action.entity_id, action.payload as Parameters<typeof api.updateNeurone>[1]);
           result = { success: true, id: action.entity_id };
+          entityType = (action.payload as { tipo?: string })?.tipo;
           break;
 
         case 'deleteNeurone':
@@ -152,6 +206,11 @@ export function AiChat({ isOpen, onClose, onAction, selectedEntity }: AiChatProp
           if (action.method === 'POST') {
             const res = await api.post(action.endpoint, action.payload);
             result = res.data;
+            // Per call_api su neuroni, estrai tipo dal payload
+            if (action.endpoint?.includes('neuroni')) {
+              entityType = (action.payload as { tipo?: string })?.tipo;
+              entityCategoria = (action.payload as { categorie?: string[] })?.categorie?.[0];
+            }
           } else if (action.method === 'PUT') {
             const res = await api.put(action.endpoint, action.payload);
             result = res.data;
@@ -166,6 +225,17 @@ export function AiChat({ isOpen, onClose, onAction, selectedEntity }: AiChatProp
       }
 
       console.log('Pending action completata:', result);
+
+      // Check visibilità per azioni su neuroni
+      const isNeuroneAction = ['createNeurone', 'updateNeurone'].includes(action.action_type) ||
+        (action.action_type === 'callApi' && action.endpoint?.includes('neuroni') && action.method === 'POST');
+
+      if (isNeuroneAction) {
+        const visibility = checkVisibility(entityType, entityCategoria);
+        console.log('Visibility check:', { entityType, entityCategoria, visibility });
+        return { success: true, data: result, visibility };
+      }
+
       return { success: true, data: result };
     } catch (error) {
       console.error('Errore esecuzione pending_action:', error);
