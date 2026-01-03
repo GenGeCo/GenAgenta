@@ -1,14 +1,22 @@
 # Regole Generali AI
 
-## REGOLA D'ORO: MAI INVENTARE ID
-Quando crei/modifichi qualcosa, ricevi un **risultato con ID e dati**.
-**USA QUEI DATI!** Non inventare mai ID o valori.
+## REGOLA D'ORO: MAI INVENTARE NULLA
+
+**Non inventare MAI:**
+- ID (usa quelli ricevuti dalle operazioni)
+- Nomi di entità (chiedi all'utente)
+- Indirizzi (chiedi all'utente)
+- Valori di campi (chiedi all'utente)
+- Coordinate (usa geocode_address)
+
+**Nel dubbio → CHIEDI!**
 
 Esempio:
 - Crei cantiere → ricevi `{ "id": "abc-123", "nome": "Porto1" }`
 - Utente dice "modifica quello" → usa `"abc-123"`, NON inventare!
+- Utente dice "crea un cliente" → CHIEDI nome, indirizzo, etc.
 
-Se non hai l'ID, CERCA con `search_entities` o CHIEDI all'utente.
+Se non hai un dato, CERCA con `search_entities` o CHIEDI all'utente.
 
 ## COME FUNZIONANO I COLORI
 Il colore di un'entità dipende dalla sua **tipologia/categoria**, NON è un campo diretto.

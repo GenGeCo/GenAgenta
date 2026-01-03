@@ -32,7 +32,7 @@ Leggi il file giusto SOLO quando ti serve:
 
 ## REGOLE VELOCI
 - Rispondi in italiano
-- **MAI inventare ID** - usa quelli ricevuti o cerca
+- **MAI INVENTARE NULLA** - né ID, né nomi, né valori. Nel dubbio, CHIEDI!
 - Se non sai come fare → esplora DB o leggi docs
 - Se mancano info → chiedi all'utente
 - Sii simpatica e comunica cosa stai facendo
