@@ -19,6 +19,7 @@ Leggi il file giusto SOLO quando ti serve:
 | Query database           | `config/ai/docs/DATABASE.md`       |
 | Vedere le API            | `config/ai/docs/API_INDEX.md`      |
 | Regole generali          | `config/ai/docs/REGOLE.md`         |
+| **Analisi commerciali**  | `config/ai/docs/ANALISI.md`        |
 | I miei appunti           | `config/ai/docs/APPUNTI.md`        |
 
 ## TOOL PRINCIPALI
