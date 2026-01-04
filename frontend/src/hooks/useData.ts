@@ -230,9 +230,14 @@ export function useInvalidateData() {
   const queryClient = useQueryClient();
 
   return {
-    // Invalida tutti i neuroni
+    // Invalida tutti i neuroni (lista + singoli)
     invalidateNeuroni: () => {
-      queryClient.invalidateQueries({ queryKey: ['neuroni'] });
+      queryClient.invalidateQueries({
+        predicate: (query) => {
+          const key = query.queryKey[0];
+          return key === 'neuroni' || key === 'neurone';
+        }
+      });
     },
 
     // Invalida un neurone specifico
@@ -240,9 +245,11 @@ export function useInvalidateData() {
       queryClient.invalidateQueries({ queryKey: queryKeys.neurone(id) });
     },
 
-    // Invalida tutte le sinapsi
+    // Invalida tutte le sinapsi (lista + singole + per neurone)
     invalidateSinapsi: () => {
-      queryClient.invalidateQueries({ queryKey: ['sinapsi'] });
+      queryClient.invalidateQueries({
+        predicate: (query) => query.queryKey[0] === 'sinapsi'
+      });
     },
 
     // Invalida sinapsi di un neurone
@@ -267,16 +274,25 @@ export function useInvalidateData() {
 
     // Invalida TUTTO (dopo azioni AI che modificano più cose)
     invalidateAll: () => {
-      queryClient.invalidateQueries({ queryKey: ['neuroni'] });
-      queryClient.invalidateQueries({ queryKey: ['sinapsi'] });
-      queryClient.invalidateQueries({ queryKey: ['note'] });
-      queryClient.invalidateQueries({ queryKey: ['vendite'] });
+      // Usa predicate per invalidare TUTTE le query che contengono questi prefissi
+      queryClient.invalidateQueries({
+        predicate: (query) => {
+          const key = query.queryKey[0];
+          return key === 'neuroni' || key === 'neurone' ||
+                 key === 'sinapsi' || key === 'note' || key === 'vendite';
+        }
+      });
     },
 
     // Invalida neuroni e sinapsi (caso più comune dopo azioni AI)
+    // IMPORTANTE: invalida sia le liste che i singoli elementi!
     invalidateNeuroniESinapsi: () => {
-      queryClient.invalidateQueries({ queryKey: ['neuroni'] });
-      queryClient.invalidateQueries({ queryKey: ['sinapsi'] });
+      queryClient.invalidateQueries({
+        predicate: (query) => {
+          const key = query.queryKey[0];
+          return key === 'neuroni' || key === 'neurone' || key === 'sinapsi';
+        }
+      });
     },
   };
 }
