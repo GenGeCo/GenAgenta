@@ -1699,12 +1699,26 @@ if ($useOpenRouter) {
             $funcName = $fc['name'];
             $funcArgs = $fc['args'] ?? [];
 
+            aiDebugLog('GEMINI_TOOL_CALL', [
+                'name' => $funcName,
+                'args' => $funcArgs,
+                'iteration' => $iteration
+            ]);
+
             try {
                 $result = executeAiTool($funcName, $funcArgs, $user);
+
+                aiDebugLog('GEMINI_TOOL_RESULT', [
+                    'name' => $funcName,
+                    'success' => !isset($result['error']),
+                    'result_preview' => substr(json_encode($result), 0, 500)
+                ]);
             } catch (Exception $e) {
                 $result = ['error' => "Errore: " . $e->getMessage()];
+                aiDebugLog('GEMINI_TOOL_ERROR', ['name' => $funcName, 'error' => $e->getMessage()]);
             } catch (Error $e) {
                 $result = ['error' => "Errore fatale: " . $e->getMessage()];
+                aiDebugLog('GEMINI_TOOL_ERROR', ['name' => $funcName, 'error' => $e->getMessage()]);
             }
 
             if (isset($result['_frontend_action'])) {
