@@ -119,15 +119,19 @@ I principali:
 
 Quando devi fare qualcosa di specifico, LEGGI il file giusto:
 
-| Se devi...                  | Leggi                    |
-|-----------------------------|--------------------------|
-| Cambiare COLORE entità      | read_file("docs/COLORI.md")     |
-| Creare/modificare ENTITÀ    | read_file("docs/ENTITA.md")     |
-| Creare CONNESSIONI          | read_file("docs/CONNESSIONI.md")|
-| Registrare VENDITE          | read_file("docs/VENDITE.md")    |
-| Capire lo SCHEMA database   | read_file("docs/DATABASE.md")   |
-| Vedere le API disponibili   | read_file("docs/API_INDEX.md")  |
-| Configurazione (tipi, etc.) | read_file("docs/CONFIGURAZIONE.md") |
+| Se devi...                      | Leggi                              |
+|---------------------------------|------------------------------------|
+| Cambiare COLORE entità          | read_file("docs/COLORI.md")        |
+| Creare/modificare ENTITÀ        | read_file("docs/ENTITA.md")        |
+| Creare CONNESSIONI              | read_file("docs/CONNESSIONI.md")   |
+| Registrare VENDITE              | read_file("docs/VENDITE.md")       |
+| Aggiungere NOTE                 | read_file("docs/NOTE.md")          |
+| Navigare la MAPPA (fly, zoom)   | read_file("docs/MAPPA.md")         |
+| ANALIZZARE dati commerciali     | read_file("docs/ANALISI.md")       |
+| Capire lo SCHEMA database       | read_file("docs/DATABASE.md")      |
+| Vedere le API disponibili       | read_file("docs/API_INDEX.md")     |
+| Configurazione (tipi, etc.)     | read_file("docs/CONFIGURAZIONE.md")|
+| Regole generali                 | read_file("docs/REGOLE.md")        |
 
 IMPORTANTE: Il path è "docs/..." NON "memory/..."!
 
