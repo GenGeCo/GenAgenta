@@ -1263,6 +1263,7 @@ if ($useOpenRouter) {
     $hasProposedImprovement = false;
     $hasExecutedMapAction = false;  // Flag per azioni mappa
     $hasToolError = false;  // Flag per errori nei tool - se true, dai all'AI un'altra chance di rispondere
+    $failedEndpoints = [];  // Traccia endpoint call_api che hanno dato 404 - anti-loop
 
     // Loop per gestire tool calls - 20 iterazioni per dare libertà all'AI
     // L'AI deve poter esplorare DB, leggere file, sbagliare e correggersi
@@ -1465,9 +1466,36 @@ if ($useOpenRouter) {
                 exit; // IMPORTANTE: esce dal loop e dallo script
             }
 
+            // ====== ANTI-LOOP 404: Blocca endpoint già falliti ======
+            if ($funcName === 'call_api') {
+                $endpoint = $funcArgs['endpoint'] ?? '';
+                $endpointKey = strtoupper($funcArgs['method'] ?? 'GET') . ':' . $endpoint;
+                if (isset($failedEndpoints[$endpointKey])) {
+                    error_log("ANTI-LOOP: Blocco $endpointKey (già fallito con 404)");
+                    $result = [
+                        'blocked' => true,
+                        'error' => "Questo endpoint ha già dato errore 404. NON riprovare lo stesso endpoint! Leggi docs/API_INDEX.md per gli endpoint corretti."
+                    ];
+                    $messages[] = [
+                        'role' => 'tool',
+                        'tool_call_id' => $toolCallId,
+                        'content' => json_encode($result)
+                    ];
+                    continue;
+                }
+            }
+
             // Esegui il tool (solo READ tools arrivano qui)
             try {
                 $result = executeAiTool($funcName, $funcArgs, $user);
+
+                // ====== ANTI-LOOP 404: Traccia endpoint falliti ======
+                if ($funcName === 'call_api' && isset($result['http_code']) && $result['http_code'] === 404) {
+                    $endpoint = $funcArgs['endpoint'] ?? '';
+                    $endpointKey = strtoupper($funcArgs['method'] ?? 'GET') . ':' . $endpoint;
+                    $failedEndpoints[$endpointKey] = true;
+                    error_log("ANTI-LOOP: Tracciato $endpointKey come fallito (404)");
+                }
 
                 // Debug log - tool eseguito
                 aiDebugLog('TOOL_EXECUTED', [

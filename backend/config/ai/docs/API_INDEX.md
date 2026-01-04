@@ -1,15 +1,19 @@
 # API GenAgenta
 
 Usa `call_api(method, endpoint, body)`.
-Se sbagli, l'API ti dice cosa correggere.
+
+**IMPORTANTE: NON usare prefissi come v2/ o api/ - usa solo il nome dell'endpoint!**
+
+Esempio corretto: `call_api("GET", "tipi", {})`
+Esempio SBAGLIATO: `call_api("GET", "v2/tipi", {})` ← NON FARE!
 
 ## Entità (neuroni)
 | Metodo | Endpoint | Cosa fa |
 |--------|----------|---------|
 | GET | neuroni | Lista tutte |
 | GET | neuroni/{id} | Dettagli una |
-| POST | neuroni | Crea nuova |
-| PUT | neuroni/{id} | Modifica |
+| POST | neuroni | Crea nuova (serve: nome, tipo, lat, lng) |
+| PUT | neuroni/{id} | Modifica (serve: campo da cambiare) |
 | DELETE | neuroni/{id} | Elimina |
 | GET | neuroni/search?q=... | Cerca per nome |
 
@@ -29,13 +33,22 @@ Se sbagli, l'API ti dice cosa correggere.
 | POST | vendite | Registra vendita |
 | DELETE | vendite/{id} | Elimina vendita |
 
-## Configurazione
+## Configurazione (solo lettura)
 | Metodo | Endpoint | Cosa fa |
 |--------|----------|---------|
 | GET | tipi | Tipi di entità disponibili |
-| GET | tipologie | Categorie/sottotipi |
-| GET | tipi-connessione | Tipi di connessione |
+| GET | tipologie | Categorie/sottotipi (hanno il COLORE!) |
+| GET | tipi-sinapsi | Tipi di connessione |
 | GET | famiglie-prodotto | Famiglie prodotto |
+
+## COLORE ENTITÀ
+Il colore di un'entità NON è un campo diretto.
+Il colore dipende dalla sua **categoria** (campo `categorie`).
+Ogni categoria ha un colore definito.
+
+Per cambiare colore:
+1. `call_api("GET", "tipologie", {})` → vedi categorie e colori
+2. `call_api("PUT", "neuroni/{id}", { "categorie": "nuova_categoria" })`
 
 ## Utility
 | Metodo | Endpoint | Cosa fa |
@@ -43,7 +56,5 @@ Se sbagli, l'API ti dice cosa correggere.
 | GET | geocode/search?q=... | Coordinate da indirizzo |
 | GET | stats | Statistiche dashboard |
 
-## Note
-- Per creare entità sulla mappa: prima geocode per ottenere lat/lng
-- L'API ti dirà se mancano campi obbligatori
-- L'API ti dirà i valori validi per i campi enum
+## Se ricevi errore 404
+FERMATI e verifica l'endpoint. NON riprovare lo stesso endpoint!

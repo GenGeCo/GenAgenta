@@ -1667,21 +1667,14 @@ function tool_callApi(array $input, array $user): array {
         return ['error' => 'Metodo non valido. Usa: GET, POST, PUT, DELETE'];
     }
 
-    // Pulisci endpoint
+    // Pulisci endpoint - rimuovi qualsiasi prefisso obsoleto
     $endpoint = ltrim($endpoint, '/');
+    // NOTA: api_v2 NON ESISTE PIÙ - tutto è unificato in /api/
+    // Se l'AI usa v2/ o api_v2/, rimuovilo silenziosamente
+    $endpoint = preg_replace('/^(v2|api_v2|api)\//', '', $endpoint);
 
-    // Determina se è API v1 o v2
-    // NOTA: Le API usano index.php come router, quindi l'URL deve includere index.php
-    $isV2 = str_starts_with($endpoint, 'v2/') || str_starts_with($endpoint, 'api_v2/');
-    if ($isV2) {
-        $endpoint = preg_replace('/^(v2|api_v2)\//', '', $endpoint);
-        $apiVersion = 'v2';
-        $baseUrl = 'https://www.gruppogea.net/genagenta/backend/api_v2/index.php/';
-    } else {
-        $endpoint = preg_replace('/^api\//', '', $endpoint);
-        $apiVersion = 'v1';
-        $baseUrl = 'https://www.gruppogea.net/genagenta/backend/api/index.php/';
-    }
+    // Base URL unificata - tutte le API passano da qui
+    $baseUrl = 'https://www.gruppogea.net/genagenta/backend/api/index.php/';
 
     // Costruisci URL completo
     $url = $baseUrl . $endpoint;
