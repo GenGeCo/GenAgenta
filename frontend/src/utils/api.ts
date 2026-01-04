@@ -25,11 +25,28 @@ export interface AiPendingAction {
   description: string;
 }
 
+// Info chiave dai tool per memoria contesto
+export interface ToolKeyInfo {
+  tool: string;
+  entity_id?: string;
+  nome?: string;
+  tipo?: string;
+  indirizzo?: string;
+  lat?: number;
+  lng?: number;
+  count?: number;
+  risultati?: Array<{ id: string; nome: string; distanza_km?: number }>;
+  sinapsi_id?: string;
+  vendita_id?: string;
+  importo?: number;
+}
+
 export interface AiChatResponse {
   // Risposta normale
   response?: string;
   iterations?: number;
   actions?: unknown[];
+  tool_summary?: ToolKeyInfo[];  // Info chiave per memoria contesto
   context?: {
     messages_count: number;
     did_compaction: boolean;

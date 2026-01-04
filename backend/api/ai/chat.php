@@ -68,6 +68,99 @@ const WRITE_TOOLS = [
 ];
 
 /**
+ * Estrae info chiave da un tool result per salvarle nella history.
+ * Solo info CRITICHE per la continuità del contesto (ID, nomi).
+ * NON dump giganti.
+ */
+function extractKeyInfo(string $toolName, array $result): ?array {
+    // Se c'è un errore, non estrarre nulla
+    if (isset($result['error'])) {
+        return null;
+    }
+
+    switch ($toolName) {
+        case 'create_entity':
+            return [
+                'tool' => 'create_entity',
+                'entity_id' => $result['entity_id'] ?? null,
+                'nome' => $result['entity']['nome'] ?? null,
+                'tipo' => $result['entity']['tipo'] ?? null
+            ];
+
+        case 'update_entity':
+            return [
+                'tool' => 'update_entity',
+                'entity_id' => $result['entity_id'] ?? null,
+                'modifiche' => 'aggiornata'
+            ];
+
+        case 'delete_entity':
+            return [
+                'tool' => 'delete_entity',
+                'entity_id' => $result['entity_id'] ?? null,
+                'eliminata' => true
+            ];
+
+        case 'search_entities':
+            $entities = $result['entities'] ?? [];
+            return [
+                'tool' => 'search_entities',
+                'count' => count($entities),
+                'risultati' => array_map(function($e) {
+                    return ['id' => $e['id'], 'nome' => $e['nome']];
+                }, array_slice($entities, 0, 5)) // Max 5
+            ];
+
+        case 'search_entities_near':
+            $entities = $result['entities'] ?? [];
+            return [
+                'tool' => 'search_entities_near',
+                'count' => count($entities),
+                'risultati' => array_map(function($e) {
+                    return ['id' => $e['id'], 'nome' => $e['nome'], 'distanza_km' => $e['distance_km'] ?? null];
+                }, array_slice($entities, 0, 5))
+            ];
+
+        case 'get_entity_details':
+            return [
+                'tool' => 'get_entity_details',
+                'entity_id' => $result['entity']['id'] ?? null,
+                'nome' => $result['entity']['nome'] ?? null,
+                'tipo' => $result['entity']['tipo'] ?? null,
+                'indirizzo' => $result['entity']['indirizzo'] ?? null,
+                'lat' => $result['entity']['lat'] ?? null,
+                'lng' => $result['entity']['lng'] ?? null
+            ];
+
+        case 'create_connection':
+            return [
+                'tool' => 'create_connection',
+                'sinapsi_id' => $result['sinapsi_id'] ?? null
+            ];
+
+        case 'geocode_address':
+            $firstResult = $result['results'][0] ?? null;
+            return [
+                'tool' => 'geocode_address',
+                'indirizzo' => $result['query'] ?? null,
+                'lat' => $firstResult['lat'] ?? null,
+                'lng' => $firstResult['lng'] ?? null
+            ];
+
+        case 'create_sale':
+            return [
+                'tool' => 'create_sale',
+                'vendita_id' => $result['vendita_id'] ?? null,
+                'importo' => $result['vendita']['importo'] ?? null
+            ];
+
+        default:
+            // Per altri tool, non estrarre nulla
+            return null;
+    }
+}
+
+/**
  * Verifica se un tool è di tipo WRITE (deve essere eseguito dal frontend)
  */
 function isWriteTool(string $toolName, array $args = []): bool {
@@ -999,16 +1092,29 @@ if (file_exists($promptFile)) {
 // Array per raccogliere azioni frontend (mappa, UI)
 $frontendActions = [];
 
+// Array per raccogliere info chiave dai tool results (per memoria contesto)
+$toolSummary = [];
+
 // Prepara contenuti per Gemini
 $contents = [];
 
 // Aggiungi storia conversazione (ultimi 10 messaggi)
+// Include tool_summary per memoria contesto (ID creati, ricerche, etc.)
 $history = array_slice($conversationHistory, -10);
 foreach ($history as $msg) {
     $role = $msg['role'] === 'assistant' ? 'model' : 'user';
+
+    // Se il messaggio ha tool_summary, aggiungilo al contenuto
+    // così l'AI sa quali ID ha creato/trovato
+    $content = $msg['content'];
+    if (!empty($msg['tool_summary'])) {
+        $summaryText = "\n\n[Contesto operazioni: " . json_encode($msg['tool_summary'], JSON_UNESCAPED_UNICODE) . "]";
+        $content .= $summaryText;
+    }
+
     $contents[] = [
         'role' => $role,
-        'parts' => [['text' => $msg['content']]]
+        'parts' => [['text' => $content]]
     ];
 }
 
@@ -1166,6 +1272,7 @@ if ($useOpenRouter) {
     // FRONTEND EXECUTION: Se resume, usa messages dal context
     // =====================================================
     $frontendActions = [];  // Inizializza qui per entrambi i casi
+    $toolSummary = [];  // Per memoria contesto (ID creati, etc.)
 
     if ($isResume && $resumeContext) {
         // RESUME: Ripristina stato dal context
@@ -1183,6 +1290,7 @@ if ($useOpenRouter) {
     } else {
         // NORMALE: Costruisci messages dalla history
         // Limita a ultimi 30 messaggi (allineato con frontend)
+        // Include tool_summary per memoria contesto (ID creati, ricerche, etc.)
         $limitedHistory = array_slice($conversationHistory, -30);
 
         $messages = [];
@@ -1192,6 +1300,14 @@ if ($useOpenRouter) {
             if (strlen($content) > 3000) {
                 $content = substr($content, 0, 3000) . "\n[...messaggio troncato...]";
             }
+
+            // Se il messaggio ha tool_summary, aggiungilo al contenuto
+            // così l'AI sa quali ID ha creato/trovato
+            if (!empty($msg['tool_summary'])) {
+                $summaryText = "\n\n[Contesto operazioni: " . json_encode($msg['tool_summary'], JSON_UNESCAPED_UNICODE) . "]";
+                $content .= $summaryText;
+            }
+
             $messages[] = [
                 'role' => $msg['role'],
                 'content' => $content
@@ -1573,6 +1689,12 @@ if ($useOpenRouter) {
                 unset($result['_frontend_action']);
             }
 
+            // Estrai info chiave per la memoria contesto
+            $keyInfo = extractKeyInfo($funcName, $result);
+            if ($keyInfo !== null) {
+                $toolSummary[] = $keyInfo;
+            }
+
             // Aggiungi la risposta del tool (tronca se > 5KB)
             $resultJson = json_encode($result, JSON_UNESCAPED_UNICODE);
             if (strlen($resultJson) > 5000) {
@@ -1756,6 +1878,12 @@ if ($useOpenRouter) {
                 unset($result['_frontend_action']);
             }
 
+            // Estrai info chiave per la memoria contesto
+            $keyInfo = extractKeyInfo($funcName, $result);
+            if ($keyInfo !== null) {
+                $toolSummary[] = $keyInfo;
+            }
+
             $functionResponses[] = [
                 'functionResponse' => [
                     'name' => $funcName,
@@ -1846,6 +1974,11 @@ $responseData = [
 // Aggiungi azioni frontend se presenti
 if (!empty($frontendActions)) {
     $responseData['actions'] = $frontendActions;
+}
+
+// Aggiungi tool_summary per memoria contesto (ID creati, ricerche, etc.)
+if (!empty($toolSummary)) {
+    $responseData['tool_summary'] = $toolSummary;
 }
 
 jsonResponse($responseData);

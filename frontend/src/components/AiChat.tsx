@@ -1,13 +1,14 @@
 // GenAgenTa - Agea Chat Component (AI Assistant)
 
 import { useState, useRef, useEffect, useMemo } from 'react';
-import { api, AiPendingAction, AiChatResponse } from '../utils/api';
+import { api, AiPendingAction, AiChatResponse, ToolKeyInfo } from '../utils/api';
 import type { UserAction } from '../types';
 
 interface Message {
   role: 'user' | 'assistant';
   content: string;
   timestamp: Date;
+  tool_summary?: ToolKeyInfo[];  // Info chiave per continuità contesto
 }
 
 // Saluti variabili per Agea (non sembrare un chatbot anni '80)
@@ -316,10 +317,12 @@ export function AiChat({ isOpen, onClose, onAction, selectedEntity, visibilityCo
 
     try {
       // Prepara history per API - LIMITA A ULTIMI 30 MESSAGGI e TRONCA CONTENUTO
+      // Include tool_summary per memoria contesto (ID creati, ricerche, etc.)
       const recentMessages = messages.slice(-30);
       const history = recentMessages.map((m) => ({
         role: m.role,
         content: m.content.length > 1500 ? m.content.substring(0, 1500) + '...[troncato]' : m.content,
+        tool_summary: m.tool_summary,  // Info chiave per continuità contesto
       }));
 
       // Se stiamo per fare compaction, mostra fase "compacting" per un po'
@@ -453,11 +456,12 @@ export function AiChat({ isOpen, onClose, onAction, selectedEntity, visibilityCo
           }
         }
 
-        // Aggiungi risposta AI
+        // Aggiungi risposta AI con tool_summary per memoria contesto
         const assistantMessage: Message = {
           role: 'assistant',
           content: currentResponse.response || 'Fatto!',
           timestamp: new Date(),
+          tool_summary: currentResponse.tool_summary,  // Info chiave (ID, nomi, etc.)
         };
         setMessages((prev) => [...prev, assistantMessage]);
 
