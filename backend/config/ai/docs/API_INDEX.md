@@ -12,10 +12,12 @@ Esempio SBAGLIATO: `call_api("GET", "v2/tipi", {})` ← NON FARE!
 |--------|----------|---------|
 | GET | neuroni | Lista tutte |
 | GET | neuroni/{id} | Dettagli una |
-| POST | neuroni | Crea nuova (serve: nome, tipo, lat, lng) |
-| PUT | neuroni/{id} | Modifica (serve: campo da cambiare) |
+| POST | neuroni | Crea nuova |
+| PUT | neuroni/{id} | Modifica |
 | DELETE | neuroni/{id} | Elimina |
 | GET | neuroni/search?q=... | Cerca per nome |
+
+Campi: vedi docs/ENTITA.md
 
 ## Connessioni (sinapsi)
 | Metodo | Endpoint | Cosa fa |
@@ -26,12 +28,16 @@ Esempio SBAGLIATO: `call_api("GET", "v2/tipi", {})` ← NON FARE!
 | PUT | sinapsi/{id} | Modifica |
 | DELETE | sinapsi/{id} | Elimina |
 
+Campi: vedi docs/CONNESSIONI.md
+
 ## Transazioni (vendite)
 | Metodo | Endpoint | Cosa fa |
 |--------|----------|---------|
 | GET | vendite | Lista vendite |
 | POST | vendite | Registra vendita |
 | DELETE | vendite/{id} | Elimina vendita |
+
+Campi: vedi docs/VENDITE.md
 
 ## Configurazione (solo lettura)
 | Metodo | Endpoint | Cosa fa |
@@ -41,14 +47,8 @@ Esempio SBAGLIATO: `call_api("GET", "v2/tipi", {})` ← NON FARE!
 | GET | tipi-sinapsi | Tipi di connessione |
 | GET | famiglie-prodotto | Famiglie prodotto |
 
-## COLORE ENTITÀ
-Il colore di un'entità NON è un campo diretto.
-Il colore dipende dalla sua **categoria** (campo `categorie`).
-Ogni categoria ha un colore definito.
-
-Per cambiare colore:
-1. `call_api("GET", "tipologie", {})` → vedi categorie e colori
-2. `call_api("PUT", "neuroni/{id}", { "categorie": "nuova_categoria" })`
+Dettagli: vedi docs/CONFIGURAZIONE.md
+Colori: vedi docs/COLORI.md
 
 ## Utility
 | Metodo | Endpoint | Cosa fa |
@@ -58,3 +58,11 @@ Per cambiare colore:
 
 ## Se ricevi errore 404
 FERMATI e verifica l'endpoint. NON riprovare lo stesso endpoint!
+Leggi questo file per verificare gli endpoint corretti.
+
+---
+## Non trovi l'endpoint che cerchi?
+1. Controlla con `read_learnings()` se ho già scoperto come fare
+2. Se non c'è, prova con `explore_code(search="endpoint")`
+3. Se trovi la soluzione, salvala con `save_learning("api", "titolo", "endpoint e parametri")`
+4. Se non trovi, avvisa l'utente: "Non ho trovato l'endpoint per X, potresti aiutarmi?"
