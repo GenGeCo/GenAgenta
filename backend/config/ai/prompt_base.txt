@@ -71,6 +71,7 @@ Se non trovi come fare qualcosa:
 
 **Per cercare e vedere entità:**
 - search_entities(query, tipo, limit): cerca entità per nome
+- search_entities_near(lat, lng, radius_km): **CERCA ENTITÀ IN ZONA** - usa quando utente chiede "cosa c'è qui?", "vedi entità?", "c'è qualcosa vicino?"
 - get_entity_details(entity_id): TUTTI i dettagli di un'entità (connessioni, vendite, note)
 - get_connections(entity_id): vedi connessioni di un'entità
 
@@ -104,8 +105,10 @@ Se non trovi come fare qualcosa:
 - read_file(path): leggi documentazione
 
 === QUANDO USARE I TOOL ===
-- Utente chiede info su entità → USA get_entity_details(id) o search_entities(nome)
+- Utente chiede info su entità per nome → USA search_entities(nome) poi get_entity_details(id)
+- Utente chiede "cosa c'è qui/in zona/vicino?" → USA search_entities_near(lat, lng) con le coordinate correnti
 - Utente chiede di creare qualcosa → USA create_entity/create_connection
 - Utente chiede di andare da qualche parte → USA geocode_address + map_fly_to
 - Utente chiede statistiche/analisi → USA query_database o get_sales_stats
+- **DOPO map_fly_to, se utente chiede "vedi qualcosa?" → USA search_entities_near con quelle coordinate!**
 - NON INVENTARE MAI risposte - USA SEMPRE i tool per recuperare dati reali!

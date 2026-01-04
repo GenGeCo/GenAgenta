@@ -317,6 +317,36 @@ $functionDeclarations = [
         ]
     ],
     [
+        'name' => 'search_entities_near',
+        'description' => 'Cerca entità vicine a una posizione geografica. Usa questo quando l\'utente chiede "cosa c\'è qui?", "vedi entità in zona?", "cosa c\'è vicino a X?".',
+        'parameters' => [
+            'type' => 'object',
+            'properties' => [
+                'lat' => [
+                    'type' => 'number',
+                    'description' => 'Latitudine del centro di ricerca'
+                ],
+                'lng' => [
+                    'type' => 'number',
+                    'description' => 'Longitudine del centro di ricerca'
+                ],
+                'radius_km' => [
+                    'type' => 'number',
+                    'description' => 'Raggio di ricerca in km (default 1)'
+                ],
+                'tipo' => [
+                    'type' => 'string',
+                    'description' => 'Filtra per tipo (opzionale)'
+                ],
+                'limit' => [
+                    'type' => 'integer',
+                    'description' => 'Numero massimo risultati (default 20)'
+                ]
+            ],
+            'required' => ['lat', 'lng']
+        ]
+    ],
+    [
         'name' => 'get_entity_details',
         'description' => 'Ottiene tutti i dettagli di una specifica entità incluse le sue connessioni e transazioni.',
         'parameters' => [

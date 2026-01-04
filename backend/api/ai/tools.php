@@ -26,6 +26,9 @@ function executeAiTool(string $toolName, array $input, array $user): array {
             case 'search_entities':
                 return tool_searchEntities($db, $input, $aziendaId);
 
+            case 'search_entities_near':
+                return tool_searchEntitiesNear($db, $input, $aziendaId);
+
             case 'get_entity_details':
                 return tool_getEntityDetails($db, $input, $aziendaId);
 
@@ -242,6 +245,66 @@ function tool_searchEntities(PDO $db, array $input, ?string $aziendaId): array {
 
     return [
         'success' => true,
+        'count' => count($results),
+        'entities' => $results
+    ];
+}
+
+/**
+ * Tool: Cerca entità vicine a una posizione geografica
+ * Usa la formula di Haversine per calcolare la distanza
+ */
+function tool_searchEntitiesNear(PDO $db, array $input, ?string $aziendaId): array {
+    $lat = $input['lat'] ?? null;
+    $lng = $input['lng'] ?? null;
+    $radiusKm = $input['radius_km'] ?? 1; // Default 1 km
+    $tipo = $input['tipo'] ?? null;
+    $limit = min($input['limit'] ?? 20, 50); // Max 50
+
+    if ($lat === null || $lng === null) {
+        return ['error' => 'lat e lng sono richiesti'];
+    }
+
+    // Formula Haversine per calcolare distanza in km
+    // 6371 = raggio Terra in km
+    $sql = "
+        SELECT
+            id, nome, tipo, categorie, indirizzo, lat, lng,
+            (6371 * acos(
+                cos(radians(?)) * cos(radians(lat)) * cos(radians(lng) - radians(?)) +
+                sin(radians(?)) * sin(radians(lat))
+            )) AS distance_km
+        FROM neuroni
+        WHERE lat IS NOT NULL
+          AND lng IS NOT NULL
+          AND azienda_id = ?
+    ";
+    $params = [$lat, $lng, $lat, $aziendaId];
+
+    if ($tipo) {
+        $sql .= " AND tipo = ?";
+        $params[] = $tipo;
+    }
+
+    $sql .= " HAVING distance_km <= ? ORDER BY distance_km ASC LIMIT ?";
+    $params[] = $radiusKm;
+    $params[] = $limit;
+
+    $stmt = $db->prepare($sql);
+    $stmt->execute($params);
+    $results = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+    // Decodifica categorie e formatta distanza
+    foreach ($results as &$r) {
+        $r['categorie'] = $r['categorie'] ? json_decode($r['categorie'], true) : [];
+        $r['distance_km'] = round((float)$r['distance_km'], 2);
+        $r['distance_m'] = round((float)$r['distance_km'] * 1000);
+    }
+
+    return [
+        'success' => true,
+        'center' => ['lat' => $lat, 'lng' => $lng],
+        'radius_km' => $radiusKm,
         'count' => count($results),
         'entities' => $results
     ];

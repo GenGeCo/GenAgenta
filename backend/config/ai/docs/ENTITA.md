@@ -62,7 +62,7 @@ call_api("DELETE", "neuroni/{id}", {})
 
 Chiedi SEMPRE conferma all'utente prima di eliminare.
 
-## Cercare entità
+## Cercare entità per nome
 
 ```
 search_entities(query="testo", tipo="filtro_tipo", limit=10)
@@ -71,6 +71,32 @@ search_entities(query="testo", tipo="filtro_tipo", limit=10)
 Oppure via API:
 ```
 call_api("GET", "neuroni/search?q=testo", {})
+```
+
+## Cercare entità in zona (vicino a una posizione)
+
+**Usa questo quando l'utente chiede "cosa c'è qui?", "vedi entità in zona?", "c'è qualcosa vicino?"**
+
+```
+search_entities_near(lat=45.449, lng=9.189, radius_km=1)
+```
+
+Parametri:
+- `lat`, `lng`: coordinate del centro di ricerca (OBBLIGATORI)
+- `radius_km`: raggio di ricerca in km (default: 1)
+- `tipo`: filtra per tipo (opzionale)
+- `limit`: max risultati (default: 20)
+
+Restituisce le entità ordinate per distanza, con:
+- `distance_km`: distanza in km
+- `distance_m`: distanza in metri
+
+Esempio dopo aver navigato da qualche parte:
+```
+1. geocode_address("Bocconi, Milano") → lat=45.449, lng=9.189
+2. map_fly_to(lat=45.449, lng=9.189)
+3. search_entities_near(lat=45.449, lng=9.189, radius_km=2)
+   → trova tutte le entità nel raggio di 2km dalla Bocconi
 ```
 
 ## Dettagli completi
