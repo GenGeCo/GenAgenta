@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../hooks/useAuth';
+import { useNeuroni, useSinapsi, useTipi, useTipologie, useInvalidateData } from '../hooks/useData';
 import { api } from '../utils/api';
 import Sidebar from '../components/Sidebar';
 import MapView from '../components/MapView';
@@ -15,7 +16,7 @@ import SinapsiDetailPanel from '../components/SinapsiDetailPanel';
 import { QuickCreateEntity, QuickEntityActions, QuickSelectTarget, QuickConnectionType, QuickTransactionForm } from '../components/QuickActionPopup';
 import { AiChat, AiFrontendAction } from '../components/AiChat';
 import FloatingSuggestions from '../components/FloatingSuggestions';
-import type { Neurone, Sinapsi, FiltriMappa, Categoria, TipoNeuroneConfig, UserAction, UserActionType } from '../types';
+import type { Neurone, FiltriMappa, UserAction, UserActionType } from '../types';
 
 // Tipi per quick actions
 type QuickPopupType = 'create' | 'entityActions' | 'selectTarget' | 'connectionType' | 'transactionForm' | null;
@@ -31,15 +32,37 @@ interface PendingInvite {
 export default function Dashboard() {
   const { user, personalAccess, verifyPin, exitPersonalMode, logout, updateUser } = useAuth();
 
-  // State
-  const [neuroni, setNeuroni] = useState<Neurone[]>([]);
-  const [sinapsi, setSinapsi] = useState<Sinapsi[]>([]);
-  const [categorie, setCategorie] = useState<Categoria[]>([]);
-  const [tipiNeurone, setTipiNeurone] = useState<TipoNeuroneConfig[]>([]);
+  // Filtri (definiti prima perché usati dagli hooks)
+  const [filtri, setFiltri] = useState<FiltriMappa>({
+    dataInizio: new Date(Date.now() - 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // 1 anno fa
+    dataFine: new Date().toISOString().split('T')[0], // oggi
+    tipoNeurone: null,
+    categoria: null,
+    certezza: null,
+    valoreMin: null,
+    raggio: null,
+    centro: null,
+    mostraConnessioni: true,
+    soloConnessioniSelezionate: false,
+    tipiSelezionati: [], // Tutti i tipi se vuoto
+    categorieSelezionate: [], // Tutte le categorie se vuoto
+    ricerca: '',
+  });
+
+  // ========== TANSTACK QUERY HOOKS ==========
+  // Dati centralizzati con cache e invalidation automatica
+  const { data: neuroni = [], isLoading: neuroniLoading } = useNeuroni(filtri);
+  const { data: sinapsi = [], isLoading: sinapsiLoading } = useSinapsi(filtri);
+  const { data: tipiNeurone = [] } = useTipi();
+  const { data: categorie = [] } = useTipologie();
+  const { invalidateNeuroniESinapsi, invalidateNeuroni, invalidateSinapsi } = useInvalidateData();
+
+  const loading = neuroniLoading || sinapsiLoading;
+
+  // State UI
   const [selectedNeurone, setSelectedNeurone] = useState<Neurone | null>(null);
   const [showNeuroneForm, setShowNeuroneForm] = useState(false);
   const [editingNeurone, setEditingNeurone] = useState<Neurone | null>(null); // Per modifica
-  const [loading, setLoading] = useState(true);
   const [pendingInvite, setPendingInvite] = useState<PendingInvite | null>(null);
   const [showPinModal, setShowPinModal] = useState(false);
   const [showSetPinModal, setShowSetPinModal] = useState(false);
@@ -123,23 +146,6 @@ export default function Dashboard() {
     }
   }, [selectedNeurone]);
 
-  // Filtri
-  const [filtri, setFiltri] = useState<FiltriMappa>({
-    dataInizio: new Date(Date.now() - 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // 1 anno fa
-    dataFine: new Date().toISOString().split('T')[0], // oggi
-    tipoNeurone: null,
-    categoria: null,
-    certezza: null,
-    valoreMin: null,
-    raggio: null,
-    centro: null,
-    mostraConnessioni: true,
-    soloConnessioniSelezionate: false,
-    tipiSelezionati: [], // Tutti i tipi se vuoto
-    categorieSelezionate: [], // Tutte le categorie se vuoto
-    ricerca: '',
-  });
-
   // Wrapper per setFiltri che logga le modifiche per AI
   const handleFiltriChange = (newFiltri: FiltriMappa | ((prev: FiltriMappa) => FiltriMappa)) => {
     setFiltri(prev => {
@@ -184,86 +190,6 @@ export default function Dashboard() {
     checkInvites();
   }, []);
 
-  // Carica tipi e categorie una volta all'avvio (usa API v2)
-  useEffect(() => {
-    const loadTipiCategorie = async () => {
-      try {
-        const [tipiRes, tipologieRes] = await Promise.all([
-          api.get('/tipi'),
-          api.get('/tipologie')
-        ]);
-
-        // Mappa tipi v2 al formato TipoNeuroneConfig
-        const tipiMapped = tipiRes.data.data.map((t: { id: string; nome: string; forma: string; ordine: number }) => ({
-          id: t.id,
-          nome: t.nome,
-          forma: t.forma,
-          ordine: t.ordine
-        }));
-
-        // Mappa tipologie v2 al formato Categoria
-        const categorieMapped = tipologieRes.data.data.map((tp: { id: string; tipo_id: string; nome: string; colore: string; ordine: number }) => ({
-          id: tp.id,
-          tipo_id: tp.tipo_id,
-          nome: tp.nome,
-          colore: tp.colore,
-          ordine: tp.ordine
-        }));
-
-        setTipiNeurone(tipiMapped);
-        setCategorie(categorieMapped);
-      } catch (error) {
-        console.error('Errore caricamento tipi/categorie:', error);
-      }
-    };
-    loadTipiCategorie();
-  }, []);
-
-  // Carica dati
-  useEffect(() => {
-    const loadData = async () => {
-      setLoading(true);
-      try {
-        const [neuroniRes, sinapsiRes] = await Promise.all([
-          api.getNeuroni({
-            tipo: filtri.tipoNeurone || undefined,
-            categoria: filtri.categoria || undefined,
-            data_inizio: filtri.dataInizio || undefined,
-            data_fine: filtri.dataFine || undefined,
-            limit: 500,
-          }),
-          api.getSinapsi({
-            data_inizio: filtri.dataInizio || undefined,
-            data_fine: filtri.dataFine || undefined,
-            certezza: filtri.certezza || undefined,
-            valore_min: filtri.valoreMin || undefined,
-            limit: 1000,
-          }),
-        ]);
-
-        console.log('DEBUG loadData:', {
-          filtri: { dataInizio: filtri.dataInizio, dataFine: filtri.dataFine },
-          neuroniCaricati: neuroniRes.data.length,
-          sinapsiCaricate: sinapsiRes.data.length,
-          primiNeuroni: neuroniRes.data.slice(0, 2).map((n: { id: string; nome: string; lat: number | null; lng: number | null }) => ({
-            id: n.id,
-            nome: n.nome,
-            lat: n.lat,
-            lng: n.lng
-          }))
-        });
-        setNeuroni(neuroniRes.data);
-        setSinapsi(sinapsiRes.data);
-      } catch (error) {
-        console.error('Errore caricamento dati:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    loadData();
-  }, [filtri.tipoNeurone, filtri.categoria, filtri.dataInizio, filtri.dataFine, filtri.certezza, filtri.valoreMin]);
-
   // Handler selezione neurone
   const handleSelectNeurone = async (neurone: Neurone) => {
     try {
@@ -275,40 +201,6 @@ export default function Dashboard() {
       logUserAction('panel_open', { panelName: 'detail_panel' });
     } catch (error) {
       console.error('Errore caricamento dettaglio:', error);
-    }
-  };
-
-  // Ricarica sinapsi (per aggiornare la mappa dopo creazione/modifica)
-  const reloadSinapsi = async () => {
-    try {
-      const sinapsiRes = await api.getSinapsi({
-        data_inizio: filtri.dataInizio || undefined,
-        data_fine: filtri.dataFine || undefined,
-        certezza: filtri.certezza || undefined,
-        valore_min: filtri.valoreMin || undefined,
-        limit: 1000,
-      });
-      setSinapsi(sinapsiRes.data);
-    } catch (error) {
-      console.error('Errore ricaricamento sinapsi:', error);
-    }
-  };
-
-  // Ricarica neuroni (per aggiornare la mappa dopo creazione via AI)
-  const reloadNeuroni = async () => {
-    console.log('DEBUG reloadNeuroni chiamato');
-    try {
-      const neuroniRes = await api.getNeuroni({
-        tipo: filtri.tipoNeurone || undefined,
-        categoria: filtri.categoria || undefined,
-        data_inizio: filtri.dataInizio || undefined,
-        data_fine: filtri.dataFine || undefined,
-        limit: 500,
-      });
-      console.log('DEBUG reloadNeuroni completato, neuroni:', neuroniRes.data.length);
-      setNeuroni(neuroniRes.data);
-    } catch (error) {
-      console.error('Errore ricaricamento neuroni:', error);
     }
   };
 
@@ -404,9 +296,9 @@ export default function Dashboard() {
 
       case 'refresh_neuroni':
         // Ricarica neuroni E sinapsi (chiamato dopo che AI crea/modifica entità o connessioni)
-        console.log('AI Action: refresh_neuroni (+ sinapsi)');
-        reloadNeuroni();
-        reloadSinapsi();
+        // Usa TanStack Query invalidation - ricarica automaticamente tutti i componenti
+        console.log('AI Action: refresh_neuroni (+ sinapsi) via invalidation');
+        invalidateNeuroniESinapsi();
         break;
     }
   };
@@ -725,7 +617,7 @@ export default function Dashboard() {
                         lng: data.lng,
                       });
                       const newNeurone = await api.getNeurone(result.id);
-                      setNeuroni(prev => [newNeurone, ...prev]);
+                      invalidateNeuroni(); // TanStack Query ricarica automaticamente
                       setSelectedNeurone(newNeurone);
                       setQuickMapMode(false);
                       setQuickPopup(null);
@@ -814,13 +706,8 @@ export default function Dashboard() {
                         certezza: 'ipotesi',
                         livello: 'aziendale',
                       });
-                      // Ricarica sinapsi con filtri data attivi
-                      const sinapsiRes = await api.getSinapsi({
-                        data_inizio: filtri.dataInizio || undefined,
-                        data_fine: filtri.dataFine || undefined,
-                        limit: 1000
-                      });
-                      setSinapsi(sinapsiRes.data);
+                      // Invalida cache sinapsi per ricaricare automaticamente
+                      invalidateSinapsi();
                       // Reset
                       setQuickMapMode(false);
                       setQuickPopup(null);
@@ -895,12 +782,8 @@ export default function Dashboard() {
                         tipo_transazione: 'vendita', // Sempre vendita dal punto di vista del venditore
                       });
 
-                      // Ricarica neuroni per aggiornare venduto_totale
-                      const neuroniRes = await api.getNeuroni({ limit: 500 });
-                      setNeuroni(neuroniRes.data);
-
-                      // Ricarica sinapsi per aggiornare i dati oggettivi sulla connessione
-                      await reloadSinapsi();
+                      // Invalida cache neuroni e sinapsi per ricaricare automaticamente
+                      invalidateNeuroniESinapsi();
 
                       // Reset
                       setQuickMapMode(false);
@@ -966,7 +849,7 @@ export default function Dashboard() {
                 setConnectionTargetEntity(null);
                 setConnectionSourceNeurone(null);
               }}
-              onSinapsiCreated={reloadSinapsi}
+              onSinapsiCreated={invalidateSinapsi}
             />
           )}
 
@@ -978,7 +861,7 @@ export default function Dashboard() {
                 logUserAction('panel_close', { panelName: 'sinapsi_panel' });
                 setSelectedSinapsiId(null);
               }}
-              onSaved={reloadSinapsi}
+              onSaved={invalidateSinapsi}
             />
           )}
         </div>
@@ -1029,15 +912,9 @@ export default function Dashboard() {
           neurone={editingNeurone || undefined}
           categorie={categorie}
           onSave={(neurone) => {
-            if (editingNeurone) {
-              // Modifica: aggiorna nella lista
-              setNeuroni(neuroni.map(n => n.id === neurone.id ? neurone : n));
-              setSelectedNeurone(neurone);
-            } else {
-              // Nuovo: aggiungi alla lista
-              setNeuroni([neurone, ...neuroni]);
-              setSelectedNeurone(neurone);
-            }
+            // Invalida cache neuroni per ricaricare automaticamente
+            invalidateNeuroni();
+            setSelectedNeurone(neurone);
             setShowNeuroneForm(false);
             setEditingNeurone(null);
             setPickedPosition(null);
@@ -1055,7 +932,7 @@ export default function Dashboard() {
             // Elimina il neurone
             try {
               await api.deleteNeurone(editingNeurone.id);
-              setNeuroni(neuroni.filter(n => n.id !== editingNeurone.id));
+              invalidateNeuroniESinapsi(); // Elimina anche connessioni collegate
               setSelectedNeurone(null);
               setShowNeuroneForm(false);
               setEditingNeurone(null);

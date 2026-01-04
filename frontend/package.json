@@ -9,6 +9,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@tanstack/react-query": "^5.90.16",
     "axios": "^1.6.2",
     "cytoscape": "^3.28.1",
     "mapbox-gl": "^3.17.0",
