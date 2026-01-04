@@ -1133,6 +1133,10 @@ function tool_mapFlyTo(array $input): array {
     return [
         'success' => true,
         'message' => "Mappa spostata a ($lat, $lng) zoom=$zoom pitch=$pitch bearing=$bearing",
+        // Coordinate per memoria contesto (extractKeyInfo)
+        'lat' => (float)$lat,
+        'lng' => (float)$lng,
+        'zoom' => (float)$zoom,
         '_frontend_action' => [
             'type' => 'map_fly_to',
             'lat' => (float)$lat,
@@ -1196,6 +1200,9 @@ function tool_mapSelectEntity(PDO $db, array $input, array $user): array {
     return [
         'success' => true,
         'message' => "Selezionata entita '{$entity['nome']}'",
+        // Info per memoria contesto (extractKeyInfo)
+        'entity_id' => $entityId,
+        'entity_name' => $entity['nome'],
         '_frontend_action' => [
             'type' => 'map_select_entity',
             'entity_id' => $entityId,

@@ -154,6 +154,77 @@ function extractKeyInfo(string $toolName, array $result): ?array {
                 'importo' => $result['vendita']['importo'] ?? null
             ];
 
+        case 'delete_connection':
+            return [
+                'tool' => 'delete_connection',
+                'sinapsi_id' => $result['sinapsi_id'] ?? null,
+                'eliminata' => true
+            ];
+
+        case 'delete_sale':
+            return [
+                'tool' => 'delete_sale',
+                'vendita_id' => $result['vendita_id'] ?? null,
+                'eliminata' => true
+            ];
+
+        case 'create_note':
+            return [
+                'tool' => 'create_note',
+                'nota_id' => $result['nota_id'] ?? null,
+                'entity_id' => $result['entity_id'] ?? null
+            ];
+
+        case 'get_connections':
+            $connections = $result['connections'] ?? [];
+            return [
+                'tool' => 'get_connections',
+                'entity_id' => $result['entity_id'] ?? null,
+                'count' => count($connections),
+                'connessioni' => array_map(function($c) {
+                    return [
+                        'id' => $c['id'] ?? null,
+                        'tipo' => $c['tipo'] ?? null,
+                        'altra_entita' => $c['altra_entita']['nome'] ?? null,
+                        'altra_entita_id' => $c['altra_entita']['id'] ?? null
+                    ];
+                }, array_slice($connections, 0, 5))
+            ];
+
+        case 'get_sales_stats':
+            return [
+                'tool' => 'get_sales_stats',
+                'entity_id' => $result['entity_id'] ?? null,
+                'totale' => $result['totale'] ?? null,
+                'count' => $result['count'] ?? null,
+                'periodo' => $result['periodo'] ?? null
+            ];
+
+        case 'map_fly_to':
+            return [
+                'tool' => 'map_fly_to',
+                'lat' => $result['lat'] ?? null,
+                'lng' => $result['lng'] ?? null,
+                'zoom' => $result['zoom'] ?? null,
+                'posizione_attuale' => true
+            ];
+
+        case 'map_select_entity':
+            return [
+                'tool' => 'map_select_entity',
+                'entity_id' => $result['entity_id'] ?? null,
+                'nome' => $result['entity_name'] ?? null,
+                'selezionata' => true
+            ];
+
+        case 'query_database':
+            $data = $result['data'] ?? [];
+            return [
+                'tool' => 'query_database',
+                'count' => count($data),
+                'preview' => array_slice($data, 0, 3) // Solo prime 3 righe
+            ];
+
         default:
             // Per altri tool, non estrarre nulla
             return null;
