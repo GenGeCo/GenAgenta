@@ -397,6 +397,18 @@ $uiContext = $data['context'] ?? null; // Contesto UI (entità selezionata, etc.
 // Estrai userActions dal context e rendile disponibili globalmente per il tool get_user_actions
 $GLOBALS['ai_user_actions'] = $uiContext['userActions'] ?? [];
 
+// DEBUG: log del context ricevuto
+error_log("=== AI CHAT DEBUG ===");
+error_log("uiContext ricevuto: " . json_encode($uiContext));
+error_log("userActions count: " . count($GLOBALS['ai_user_actions']));
+error_log("userActions: " . json_encode($GLOBALS['ai_user_actions']));
+if ($uiContext && !empty($uiContext['selectedEntity'])) {
+    error_log("selectedEntity: " . json_encode($uiContext['selectedEntity']));
+} else {
+    error_log("selectedEntity: NESSUNA");
+}
+error_log("=====================");
+
 // =====================================================
 // FRONTEND EXECUTION: Gestione resume dopo pending_action
 // =====================================================

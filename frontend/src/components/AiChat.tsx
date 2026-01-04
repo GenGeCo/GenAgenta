@@ -350,6 +350,15 @@ export function AiChat({ isOpen, onClose, onAction, selectedEntity, visibilityCo
           const context: { selectedEntity?: typeof selectedEntity; userActions?: UserAction[] } = {};
           if (selectedEntity) context.selectedEntity = selectedEntity;
           if (userActions && userActions.length > 0) context.userActions = userActions;
+
+          // DEBUG: log del contesto passato all'AI
+          console.log('=== AI CHAT CONTEXT DEBUG ===');
+          console.log('selectedEntity:', selectedEntity);
+          console.log('userActions count:', userActions?.length || 0);
+          console.log('userActions:', userActions);
+          console.log('context being sent:', context);
+          console.log('=============================');
+
           currentResponse = await api.aiChat(userMessage.content, history, Object.keys(context).length > 0 ? context : undefined);
         } else {
           // Resume con il risultato dell'azione
