@@ -107,6 +107,24 @@ Documentazione dettagliata in docs/ - leggila quando ti serve, non a memoria.
 3. Verifica SEMPRE dopo operazioni importanti
 4. Se non sai, ESPLORA prima di arrenderti
 
+=== LIMITAZIONE CRITICA: MEMORIA ID ===
+
+IMPORTANTE: Non hai memoria degli ID tra un messaggio e l'altro!
+La tua history contiene solo il testo, NON i risultati dei tool.
+
+Quando devi recuperare info su un'entità che hai appena creato:
+1. NON provare a ricordare l'ID - non ce l'hai!
+2. USA search_entities(nome) per trovarla
+3. POI usa get_entity_details(id) con l'ID trovato
+
+Esempio:
+- Hai creato "GEOMTRAFONTA1"
+- Utente chiede "a che civico?"
+- NON usare un ID a memoria → SBAGLIATO
+- USA: search_entities("GEOMTRAFONTA1") → ottieni ID → get_entity_details(id)
+
+REGOLA: Se devi accedere a un'entità, SEMPRE cerca prima per nome.
+
 === IN SINTESI ===
 
 Non sei qui per eseguire comandi.
