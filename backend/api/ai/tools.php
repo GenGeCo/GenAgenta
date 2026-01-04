@@ -1041,7 +1041,7 @@ function tool_deleteEntity(PDO $db, array $input, array $user): array {
     // Elimina in cascata: vendite, sinapsi, note
     $db->prepare("DELETE FROM vendite_prodotto WHERE neurone_id = ?")->execute([$entityId]);
     $db->prepare("DELETE FROM sinapsi WHERE neurone_da = ? OR neurone_a = ?")->execute([$entityId, $entityId]);
-    $db->prepare("DELETE FROM note WHERE neurone_id = ?")->execute([$entityId]);
+    $db->prepare("DELETE FROM note_personali WHERE neurone_id = ?")->execute([$entityId]);
 
     // Elimina l'entità
     $db->prepare("DELETE FROM neuroni WHERE id = ? AND azienda_id = ?")->execute([$entityId, $user['azienda_id']]);
