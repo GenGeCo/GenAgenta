@@ -1877,11 +1877,31 @@ if ($useOpenRouter) {
     while ($iteration < $maxIterations) {
         $iteration++;
 
+        // Debug: log contents prima di chiamare Gemini
+        error_log("Gemini iteration $iteration - contents count: " . count($contents));
+        aiDebugLog('GEMINI_API_REQUEST', [
+            'iteration' => $iteration,
+            'contents_count' => count($contents),
+            'contents_size_kb' => round(strlen(json_encode($contents))/1024, 1)
+        ]);
+
         $response = callGemini($GEMINI_API_KEY, $systemInstruction, $contents, $functionDeclarations);
 
         if (isset($response['error'])) {
             error_log("Gemini error response: " . json_encode($response));
-            errorResponse($response['error'] . ' - ' . ($response['details'] ?? ''), 500);
+            aiDebugLog('GEMINI_API_ERROR', [
+                'iteration' => $iteration,
+                'error' => $response['error'],
+                'details' => $response['details'] ?? null,
+                'code' => $response['code'] ?? null,
+                'contents_last_role' => end($contents)['role'] ?? 'unknown'
+            ]);
+            // NON restituire 500! Restituisci messaggio AI con HTTP 200
+            jsonResponse([
+                'response' => "Mi dispiace, c'è stato un problema con il servizio AI. " . ($response['error'] ?? ''),
+                'iterations' => $iteration,
+                'context' => ['error_details' => $response['details'] ?? '']
+            ]);
         }
 
         // Estrai candidate
