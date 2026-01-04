@@ -237,7 +237,7 @@ function tool_searchEntities(PDO $db, array $input, ?string $aziendaId): array {
 
     // Decodifica JSON categorie
     foreach ($results as &$r) {
-        $r['categorie'] = json_decode($r['categorie'], true) ?? [];
+        $r['categorie'] = $r['categorie'] ? json_decode($r['categorie'], true) : [];
     }
 
     return [
@@ -270,8 +270,8 @@ function tool_getEntityDetails(PDO $db, array $input, ?string $aziendaId): array
         return ['error' => 'Entità non trovata'];
     }
 
-    $entity['categorie'] = json_decode($entity['categorie'], true) ?? [];
-    $entity['dati_extra'] = json_decode($entity['dati_extra'], true);
+    $entity['categorie'] = $entity['categorie'] ? json_decode($entity['categorie'], true) : [];
+    $entity['dati_extra'] = $entity['dati_extra'] ? json_decode($entity['dati_extra'], true) : null;
 
     // Recupera connessioni
     $stmt = $db->prepare("
@@ -1526,11 +1526,22 @@ function tool_readFile(array $input): array {
         return ['error' => 'Cartella AI non trovata'];
     }
 
-    // Normalizza path: rimuovi "backend/" se presente all'inizio
-    // L'AI potrebbe usare "backend/config/ai/..." o "config/ai/..."
+    // Normalizza path: l'AI può usare vari formati
     $path = ltrim($path, '/');
+
+    // Rimuovi "backend/" se presente
     if (str_starts_with($path, 'backend/')) {
-        $path = substr($path, 8); // Rimuovi "backend/"
+        $path = substr($path, 8);
+    }
+
+    // Mappa "docs/" → "config/ai/docs/" (shortcut per comodità)
+    if (str_starts_with($path, 'docs/')) {
+        $path = 'config/ai/' . $path;
+    }
+
+    // Mappa "memory/" → "config/ai/memory/" (shortcut)
+    if (str_starts_with($path, 'memory/')) {
+        $path = 'config/ai/' . $path;
     }
 
     // Costruisci path completo (relativo a backend/)
