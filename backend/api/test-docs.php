@@ -2,7 +2,7 @@
 // Test accesso ai file docs
 header('Content-Type: application/json');
 
-$docsPath = __DIR__ . '/config/ai/docs/';
+$docsPath = __DIR__ . '/../config/ai/docs/';
 
 $result = [
     'docs_path' => $docsPath,
