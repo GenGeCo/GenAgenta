@@ -176,6 +176,14 @@ while (continueLoop) {
 - `frontend/src/components/AiChat.tsx` - Loop esecuzione frontend
 - `frontend/src/utils/api.ts` - Client API con tutti i metodi
 - `backend/config/ai/prompt_base.txt` - System prompt AI
+- `frontend/src/hooks/useData.ts` - Hooks TanStack Query per dati reattivi
+
+## Architettura Gestione Dati
+
+Vedi [ARCHITETTURA_DATI.md](ARCHITETTURA_DATI.md) per la documentazione completa su:
+- TanStack Query (React Query) per cache e invalidation
+- Hooks centralizzati per fetching dati
+- Pattern di invalidation dopo modifiche AI
 
 ---
 

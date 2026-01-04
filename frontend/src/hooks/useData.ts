@@ -12,8 +12,10 @@ export const queryKeys = {
   neurone: (id: string) => ['neurone', id] as const,
   sinapsi: (filtri?: Partial<FiltriMappa>) => ['sinapsi', filtri] as const,
   sinapsiNeurone: (neuroneId: string) => ['sinapsi', 'neurone', neuroneId] as const,
+  sinapsiById: (id: string) => ['sinapsi', 'detail', id] as const,
   tipi: () => ['tipi'] as const,
   tipologie: () => ['tipologie'] as const,
+  famiglieProdotto: () => ['famiglieProdotto'] as const,
   note: (neuroneId: string) => ['note', neuroneId] as const,
   vendite: (neuroneId: string) => ['vendite', neuroneId] as const,
 };
@@ -77,6 +79,25 @@ export function useSinapsiNeurone(neuroneId: string | null) {
   });
 }
 
+// Sinapsi singola per ID (usato in SinapsiDetailPanel)
+export function useSinapsiById(id: string | null) {
+  return useQuery({
+    queryKey: queryKeys.sinapsiById(id || ''),
+    queryFn: async () => {
+      if (!id) return null;
+      return await api.getSinapsiById(id) as Sinapsi & {
+        dati_oggettivi?: {
+          volume_totale: number;
+          numero_transazioni: number;
+          ultima_transazione: string | null;
+          prima_transazione: string | null;
+        };
+      };
+    },
+    enabled: !!id,
+  });
+}
+
 // ========== TIPI E CATEGORIE ==========
 
 export function useTipi() {
@@ -112,6 +133,51 @@ export function useTipologie() {
   });
 }
 
+// ========== FAMIGLIE PRODOTTO ==========
+
+export interface FamigliaProdottoFlat {
+  id: string;
+  nome: string;
+  colore?: string | null;
+  parent_id?: string;
+}
+
+// Tipo per la risposta API (con children)
+interface FamigliaProdottoAPI {
+  id: string;
+  nome: string;
+  colore?: string | null;
+  parent_id?: string;
+  children?: FamigliaProdottoAPI[];
+}
+
+export function useFamiglieProdotto() {
+  return useQuery({
+    queryKey: queryKeys.famiglieProdotto(),
+    queryFn: async () => {
+      const res = await api.getFamiglieProdotto({ flat: true });
+      // Flatten della struttura ad albero
+      const flatFamiglie: FamigliaProdottoFlat[] = [];
+      const flatten = (items: FamigliaProdottoAPI[], level = 0) => {
+        items.forEach(item => {
+          flatFamiglie.push({
+            id: item.id,
+            nome: '  '.repeat(level) + item.nome,
+            colore: item.colore,
+            parent_id: item.parent_id,
+          });
+          if (item.children) {
+            flatten(item.children, level + 1);
+          }
+        });
+      };
+      flatten(res.data as FamigliaProdottoAPI[]);
+      return flatFamiglie;
+    },
+    staleTime: 1000 * 60 * 30, // 30 minuti - cambiano raramente
+  });
+}
+
 // ========== NOTE ==========
 
 export function useNote(neuroneId: string | null) {
@@ -128,7 +194,7 @@ export function useNote(neuroneId: string | null) {
 
 // ========== VENDITE ==========
 
-interface VenditeData {
+export interface VenditeData {
   data: Array<{
     id: string;
     neurone_id: string;
@@ -138,6 +204,8 @@ interface VenditeData {
     famiglia_nome?: string;
     colore?: string;
     controparte_nome?: string;
+    controparte_id?: string;
+    tipo_transazione?: 'acquisto' | 'vendita';
   }>;
   potenziale: number;
   totale_venduto: number;
@@ -180,6 +248,11 @@ export function useInvalidateData() {
     // Invalida sinapsi di un neurone
     invalidateSinapsiNeurone: (neuroneId: string) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.sinapsiNeurone(neuroneId) });
+    },
+
+    // Invalida una sinapsi specifica
+    invalidateSinapsiById: (id: string) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.sinapsiById(id) });
     },
 
     // Invalida note di un neurone

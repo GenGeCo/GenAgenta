@@ -2,8 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { api } from '../utils/api';
-import { useSinapsiNeurone, useNote, useInvalidateData } from '../hooks/useData';
-import type { Neurone, Sinapsi, NotaPersonale, VenditaProdotto, FamigliaProdotto } from '../types';
+import { useSinapsiNeurone, useNote, useVendite, useFamiglieProdotto, useNeurone, useInvalidateData, type FamigliaProdottoFlat } from '../hooks/useData';
+import type { Neurone, Sinapsi, NotaPersonale } from '../types';
 import SinapsiFormModal from './SinapsiFormModal';
 
 interface CategoriaConfig {
@@ -29,7 +29,7 @@ interface DetailPanelProps {
 }
 
 export default function DetailPanel({
-  neurone,
+  neurone: neuroneProp,
   personalAccess,
   categorie,
   onClose,
@@ -45,9 +45,14 @@ export default function DetailPanel({
 
   // ========== TANSTACK QUERY HOOKS ==========
   // Dati reattivi: si aggiornano automaticamente quando l'AI modifica qualcosa
-  const { data: sinapsi = [], isLoading: sinapsiLoading } = useSinapsiNeurone(neurone.id);
-  const { data: note = [], isLoading: noteLoading } = useNote(personalAccess ? neurone.id : null);
+  // useNeurone per dati freschi dell'entità (nome, tipo, is_acquirente, etc.)
+  const { data: neuroneFresh } = useNeurone(neuroneProp.id);
+  const { data: sinapsi = [], isLoading: sinapsiLoading } = useSinapsiNeurone(neuroneProp.id);
+  const { data: note = [], isLoading: noteLoading } = useNote(personalAccess ? neuroneProp.id : null);
   const { invalidateSinapsiNeurone, invalidateNote } = useInvalidateData();
+
+  // Usa dati freschi dal hook, fallback alla prop se non ancora caricati
+  const neurone = neuroneFresh || neuroneProp;
 
   const [activeTab, setActiveTab] = useState<'info' | 'vendite' | 'connessioni' | 'note'>('info');
   const loading = sinapsiLoading || noteLoading;
@@ -185,12 +190,7 @@ export default function DetailPanel({
           <>
             {activeTab === 'info' && <InfoTab neurone={neurone} />}
             {activeTab === 'vendite' && (
-              <VenditeTab
-                neurone={neurone}
-                onUpdate={() => {
-                  // Potrebbe essere necessario ricaricare il neurone per il rendering 3D
-                }}
-              />
+              <VenditeTab neurone={neurone} />
             )}
             {activeTab === 'connessioni' && (
               <ConnessioniTab
@@ -225,6 +225,7 @@ export default function DetailPanel({
 
 // Tab Info
 function InfoTab({ neurone }: { neurone: Neurone }) {
+  const { invalidateNeurone } = useInvalidateData();
   const [saving, setSaving] = useState(false);
   const [naturaLocale, setNaturaLocale] = useState({
     is_acquirente: neurone.is_acquirente,
@@ -233,12 +234,24 @@ function InfoTab({ neurone }: { neurone: Neurone }) {
     is_influencer: neurone.is_influencer,
   });
 
+  // Sincronizza stato locale quando cambiano i dati dal server (es. dopo modifica AI)
+  useEffect(() => {
+    setNaturaLocale({
+      is_acquirente: neurone.is_acquirente,
+      is_venditore: neurone.is_venditore,
+      is_intermediario: neurone.is_intermediario,
+      is_influencer: neurone.is_influencer,
+    });
+  }, [neurone.is_acquirente, neurone.is_venditore, neurone.is_intermediario, neurone.is_influencer]);
+
   const toggleNatura = async (campo: 'is_acquirente' | 'is_venditore' | 'is_intermediario' | 'is_influencer') => {
     setSaving(true);
     const nuovoValore = !naturaLocale[campo];
     try {
       await api.updateNeurone(neurone.id, { [campo]: nuovoValore });
       setNaturaLocale(prev => ({ ...prev, [campo]: nuovoValore }));
+      // TanStack Query ricarica automaticamente
+      invalidateNeurone(neurone.id);
     } catch (error) {
       console.error('Errore aggiornamento natura:', error);
     } finally {
@@ -652,23 +665,36 @@ interface Controparte {
   sinapsi_id: string;
 }
 
-// Tab Vendite
+// Tab Vendite - usa TanStack Query per dati reattivi
 function VenditeTab({
   neurone,
-  onUpdate,
 }: {
   neurone: Neurone;
-  onUpdate?: () => void;
 }) {
-  const [vendite, setVendite] = useState<VenditaProdotto[]>([]);
-  const [famiglie, setFamiglie] = useState<FamigliaProdotto[]>([]);
-  const [controparti, setControparti] = useState<Controparte[]>([]);
-  const [potenziale, setPotenziale] = useState<number>(neurone.potenziale || 0);
-  const [totaleVenduto, setTotaleVenduto] = useState<number>(0);
-  const [loading, setLoading] = useState(true);
+  // ========== TANSTACK QUERY HOOKS ==========
+  const { data: venditeData, isLoading: venditeLoading } = useVendite(neurone.id);
+  const { data: famiglie = [] } = useFamiglieProdotto();
+  const { data: sinapsiList = [] } = useSinapsiNeurone(neurone.id);
+  const { invalidateVendite, invalidateNeuroniESinapsi } = useInvalidateData();
+
   const [saving, setSaving] = useState(false);
   const [editingPotenziale, setEditingPotenziale] = useState(false);
   const [tempPotenziale, setTempPotenziale] = useState<string>('');
+
+  // Estrai dati dal hook
+  const vendite = venditeData?.data || [];
+  const potenziale = venditeData?.potenziale || 0;
+  const totaleVenduto = venditeData?.totale_venduto || 0;
+
+  // Estrai controparti dalle sinapsi
+  const controparti: Controparte[] = sinapsiList.map((s: Sinapsi) => {
+    const isOutgoing = s.neurone_da === neurone.id;
+    return {
+      id: isOutgoing ? s.neurone_a : s.neurone_da,
+      nome: isOutgoing ? (s.nome_a || 'Sconosciuto') : (s.nome_da || 'Sconosciuto'),
+      sinapsi_id: s.id,
+    };
+  }).filter((c, index, self) => index === self.findIndex(t => t.id === c.id));
 
   // Etichetta dinamica in base alla natura commerciale
   const getEtichettaPotenziale = () => {
@@ -690,60 +716,7 @@ function VenditeTab({
     '#3b82f6', '#8b5cf6', '#ec4899', '#6366f1', '#84cc16'
   ];
 
-  useEffect(() => {
-    loadData();
-  }, [neurone.id]);
-
-  const loadData = async () => {
-    setLoading(true);
-    try {
-      // Carica famiglie prodotto, vendite e sinapsi in parallelo
-      const [famiglieRes, venditeRes, sinapsiRes] = await Promise.all([
-        api.getFamiglieProdotto({ flat: true }),
-        api.get(`/vendite?neurone_id=${neurone.id}`),
-        api.getNeuroneSinapsi(neurone.id),
-      ]);
-
-      // Flatten famiglie per select
-      const flatFamiglie: FamigliaProdotto[] = [];
-      const flatten = (items: FamigliaProdotto[], level = 0) => {
-        items.forEach(item => {
-          flatFamiglie.push({ ...item, nome: '  '.repeat(level) + item.nome });
-          if (item.children) flatten(item.children, level + 1);
-        });
-      };
-      flatten(famiglieRes.data);
-      setFamiglie(flatFamiglie);
-
-      // Estrai controparti dalle sinapsi (entità connesse)
-      const listaControparti: Controparte[] = sinapsiRes.data.map((s: Sinapsi) => {
-        const isOutgoing = s.neurone_da === neurone.id;
-        return {
-          id: isOutgoing ? s.neurone_a : s.neurone_da,
-          nome: isOutgoing ? (s.nome_a || 'Sconosciuto') : (s.nome_da || 'Sconosciuto'),
-          sinapsi_id: s.id,
-        };
-      });
-      // Rimuovi duplicati (stessa entità può avere multiple connessioni)
-      const uniqueControparti = listaControparti.filter(
-        (c, index, self) => index === self.findIndex(t => t.id === c.id)
-      );
-      setControparti(uniqueControparti);
-
-      console.log('=== DEBUG GET VENDITE ===');
-      console.log('Neurone ID:', neurone.id);
-      console.log('Risposta GET:', venditeRes.data);
-      console.log('Controparti disponibili:', uniqueControparti);
-
-      setVendite(venditeRes.data.data || []);
-      setPotenziale(venditeRes.data.potenziale || 0);
-      setTotaleVenduto(venditeRes.data.totale_venduto || 0);
-    } catch (error) {
-      console.error('Errore caricamento vendite:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const loading = venditeLoading;
 
   const savePotenziale = async () => {
     setSaving(true);
@@ -752,9 +725,9 @@ function VenditeTab({
         neurone_id: neurone.id,
         potenziale: parseFloat(tempPotenziale) || 0,
       });
-      setPotenziale(parseFloat(tempPotenziale) || 0);
       setEditingPotenziale(false);
-      onUpdate?.();
+      // TanStack Query ricarica automaticamente
+      invalidateVendite(neurone.id);
     } catch (error) {
       console.error('Errore salvataggio potenziale:', error);
     } finally {
@@ -772,23 +745,21 @@ function VenditeTab({
   ) => {
     setSaving(true);
     try {
-      const postResponse = await api.post('/vendite', {
+      await api.post('/vendite', {
         neurone_id: neurone.id,
         famiglia_id: famigliaId,
         importo,
         data_vendita: dataVendita || new Date().toISOString().split('T')[0],
-        // Parametri transazione bilaterale
         controparte_id: controparteId || null,
         sinapsi_id: sinapsiId || null,
         tipo_transazione: tipoTransazione,
       });
-      console.log('=== DEBUG POST VENDITA ===');
-      console.log('Neurone ID:', neurone.id);
-      console.log('Bilaterale:', !!controparteId);
-      console.log('Risposta POST:', postResponse.data);
-
-      await loadData();
-      onUpdate?.();
+      // TanStack Query ricarica automaticamente
+      invalidateVendite(neurone.id);
+      // Se bilaterale, ricarica anche sinapsi per dati oggettivi
+      if (controparteId) {
+        invalidateNeuroniESinapsi();
+      }
     } catch (error) {
       console.error('Errore salvataggio vendita:', error);
     } finally {
@@ -797,16 +768,15 @@ function VenditeTab({
   };
 
   const deleteVendita = async (venditaId: string) => {
-    // Conferma prima di eliminare
     if (!window.confirm('Sei sicuro di voler eliminare questa vendita?')) {
       return;
     }
-
     setSaving(true);
     try {
       await api.delete(`/vendite/${venditaId}`);
-      await loadData();
-      onUpdate?.();
+      // TanStack Query ricarica automaticamente
+      invalidateVendite(neurone.id);
+      invalidateNeuroniESinapsi();
     } catch (error) {
       console.error('Errore eliminazione vendita:', error);
     } finally {
@@ -890,7 +860,6 @@ function VenditeTab({
       {/* Nuova vendita */}
       <NuovaVenditaForm
         famiglie={famiglie}
-        coloriDefault={coloriDefault}
         controparti={controparti}
         neurone={neurone}
         onSave={saveVendita}
@@ -1048,8 +1017,7 @@ function NuovaVenditaForm({
   onSave,
   saving,
 }: {
-  famiglie: FamigliaProdotto[];
-  coloriDefault: string[];
+  famiglie: FamigliaProdottoFlat[];
   controparti: Controparte[];
   neurone: Neurone;
   onSave: (

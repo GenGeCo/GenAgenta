@@ -1,15 +1,9 @@
 // GenAgenTa - Pannello Dettagli Connessione (Sinapsi)
 
 import { useState, useEffect } from 'react';
-import type { Sinapsi, Certezza } from '../types';
+import type { Certezza } from '../types';
 import { api } from '../utils/api';
-
-interface DatiOggettivi {
-  volume_totale: number;
-  numero_transazioni: number;
-  ultima_transazione: string | null;
-  prima_transazione: string | null;
-}
+import { useSinapsiById, useInvalidateData } from '../hooks/useData';
 
 interface SinapsiDetailPanelProps {
   sinapsiId: string;
@@ -73,9 +67,10 @@ const TIPI_CONNESSIONE = [
 ];
 
 export default function SinapsiDetailPanel({ sinapsiId, onClose, onSaved }: SinapsiDetailPanelProps) {
-  const [sinapsi, setSinapsi] = useState<Sinapsi | null>(null);
-  const [datiOggettivi, setDatiOggettivi] = useState<DatiOggettivi | null>(null);
-  const [loading, setLoading] = useState(true);
+  // ========== TANSTACK QUERY HOOKS ==========
+  const { data: sinapsi, isLoading: loading } = useSinapsiById(sinapsiId);
+  const { invalidateSinapsiById, invalidateSinapsi } = useInvalidateData();
+
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
@@ -91,36 +86,23 @@ export default function SinapsiDetailPanel({ sinapsiId, onClose, onSaved }: Sina
   const [potenziale, setPotenziale] = useState(0);
   const [noteRelazione, setNoteRelazione] = useState('');
 
-  // Carica dati sinapsi
+  // Dati oggettivi dalla sinapsi
+  const datiOggettivi = sinapsi?.dati_oggettivi || null;
+
+  // Sincronizza stato locale quando arrivano i dati dal server
   useEffect(() => {
-    const load = async () => {
-      setLoading(true);
-      try {
-        const data = await api.getSinapsiById(sinapsiId);
-        setSinapsi(data);
-        setDatiOggettivi(data.dati_oggettivi || null);
-
-        // Imposta tipo e certezza
-        const tipi = Array.isArray(data.tipo_connessione) ? data.tipo_connessione : [];
-        setTipoConnessione(tipi);
-        setCertezza(data.certezza || 'ipotesi');
-
-        // Imposta valori soggettivi
-        setInfluenza(data.influenza || 0);
-        setQualitaRelazione(data.qualita_relazione || 0);
-        setImportanzaStrategica(data.importanza_strategica || 0);
-        setAffidabilita(data.affidabilita || 0);
-        setPotenziale(data.potenziale || 0);
-        setNoteRelazione(data.note_relazione || '');
-      } catch (err) {
-        console.error('Errore caricamento sinapsi:', err);
-        setError('Errore caricamento dati');
-      } finally {
-        setLoading(false);
-      }
-    };
-    load();
-  }, [sinapsiId]);
+    if (sinapsi) {
+      const tipi = Array.isArray(sinapsi.tipo_connessione) ? sinapsi.tipo_connessione : [];
+      setTipoConnessione(tipi);
+      setCertezza(sinapsi.certezza || 'ipotesi');
+      setInfluenza(sinapsi.influenza || 0);
+      setQualitaRelazione(sinapsi.qualita_relazione || 0);
+      setImportanzaStrategica(sinapsi.importanza_strategica || 0);
+      setAffidabilita(sinapsi.affidabilita || 0);
+      setPotenziale(sinapsi.potenziale || 0);
+      setNoteRelazione(sinapsi.note_relazione || '');
+    }
+  }, [sinapsi]);
 
   // Salva valutazione
   const handleSave = async () => {
@@ -137,10 +119,11 @@ export default function SinapsiDetailPanel({ sinapsiId, onClose, onSaved }: Sina
         potenziale: potenziale || undefined,
         note_relazione: noteRelazione || undefined,
       });
-      // Chiama callback per aggiornare la mappa
-      if (onSaved) {
-        onSaved();
-      }
+      // TanStack Query ricarica automaticamente
+      invalidateSinapsiById(sinapsiId);
+      invalidateSinapsi(); // Aggiorna anche la mappa
+      // Chiama callback per aggiornare la mappa (per retrocompatibilità)
+      onSaved?.();
       // Chiudi il pannello dopo il salvataggio
       onClose();
     } catch (err) {
