@@ -162,7 +162,7 @@ function mapToolToFrontendAction(string $toolName, array $args): array {
             return [
                 'action_type' => 'createVendita',
                 'method' => 'POST',
-                'endpoint' => '/v2/vendite',
+                'endpoint' => '/vendite',
                 'payload' => [
                     'neurone_id' => $args['entity_id'] ?? $args['neurone_id'] ?? '',
                     'importo' => $args['importo'] ?? 0,
@@ -179,7 +179,7 @@ function mapToolToFrontendAction(string $toolName, array $args): array {
             return [
                 'action_type' => 'deleteSale',
                 'method' => 'DELETE',
-                'endpoint' => '/v2/vendite/' . ($args['sale_id'] ?? ''),
+                'endpoint' => '/vendite/' . ($args['sale_id'] ?? ''),
                 'sale_id' => $args['sale_id'] ?? '',
                 'description' => "Eliminare vendita"
             ];
@@ -915,7 +915,7 @@ $functionDeclarations[] = [
         'type' => 'object',
         'properties' => [
             'method' => ['type' => 'string', 'description' => 'HTTP method: GET, POST, PUT, DELETE'],
-            'endpoint' => ['type' => 'string', 'description' => 'API endpoint (es: neuroni, sinapsi/123, v2/tipi, v2/tipologie)'],
+            'endpoint' => ['type' => 'string', 'description' => 'API endpoint (es: neuroni, sinapsi/123, tipi, tipologie)'],
             'body' => ['type' => 'object', 'description' => 'Request body per POST/PUT (oggetto JSON)']
         ],
         'required' => ['method', 'endpoint']

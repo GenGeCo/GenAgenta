@@ -1730,8 +1730,7 @@ function tool_callApi(array $input, array $user): array {
     // Aggiungi info sulla chiamata
     $result['_api_call'] = [
         'method' => $method,
-        'endpoint' => ($isV2 ? 'v2/' : '') . $endpoint,
-        'version' => $apiVersion,
+        'endpoint' => $endpoint,
         'http_code' => $httpCode
     ];
 
