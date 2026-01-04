@@ -1037,22 +1037,31 @@ function callOpenRouter($apiKey, $systemInstruction, $messages, $tools) {
     if ($httpCode !== 200) {
         error_log("OpenRouter API error: $httpCode - $response");
 
+        // Decodifica risposta per estrarre errore reale
+        $errorData = json_decode($response, true);
+        $errorMessage = $errorData['error']['message'] ?? $response;
+        $errorCode = $errorData['error']['code'] ?? $httpCode;
+
         if ($httpCode === 429) {
-            return ['error' => 'Troppe richieste - riprova tra qualche secondo', 'code' => 429];
+            return ['error' => 'Troppe richieste - riprova tra qualche secondo', 'details' => $errorMessage, 'code' => 429];
         }
         if ($httpCode === 402) {
-            return ['error' => 'Credito OpenRouter esaurito - ricarica su openrouter.ai', 'code' => 402];
+            // Mostra errore reale, non messaggio generico
+            return ['error' => "Errore pagamento OpenRouter: $errorMessage", 'details' => $errorData, 'code' => 402];
+        }
+        if ($httpCode === 401) {
+            return ['error' => 'API Key OpenRouter non valida o scaduta', 'details' => $errorMessage, 'code' => 401];
         }
 
-        return ['error' => 'Errore comunicazione AI', 'details' => $response, 'code' => $httpCode];
+        return ['error' => "Errore AI ($httpCode): $errorMessage", 'details' => $errorData, 'code' => $httpCode];
     }
 
     return json_decode($response, true);
 }
 
-// Funzione chiamata Gemini API (fallback)
+// Funzione chiamata Gemini API (principale)
 function callGemini($apiKey, $systemInstruction, $contents, $functionDeclarations) {
-    $model = 'gemini-2.5-flash-lite';
+    $model = 'gemini-2.5-flash';
     $url = "https://generativelanguage.googleapis.com/v1beta/models/{$model}:generateContent?key={$apiKey}";
 
     $payload = [
