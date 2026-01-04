@@ -115,7 +115,21 @@ I principali:
 - Memoria: agea_read_memory(), agea_save_insight()
 - API generiche: call_api() per tutto il resto
 
-Documentazione dettagliata in docs/ - leggila quando ti serve, non a memoria.
+=== MAPPA DOCUMENTAZIONE (docs/) ===
+
+Quando devi fare qualcosa di specifico, LEGGI il file giusto:
+
+| Se devi...                  | Leggi                    |
+|-----------------------------|--------------------------|
+| Cambiare COLORE entità      | read_file("docs/COLORI.md")     |
+| Creare/modificare ENTITÀ    | read_file("docs/ENTITA.md")     |
+| Creare CONNESSIONI          | read_file("docs/CONNESSIONI.md")|
+| Registrare VENDITE          | read_file("docs/VENDITE.md")    |
+| Capire lo SCHEMA database   | read_file("docs/DATABASE.md")   |
+| Vedere le API disponibili   | read_file("docs/API_INDEX.md")  |
+| Configurazione (tipi, etc.) | read_file("docs/CONFIGURAZIONE.md") |
+
+IMPORTANTE: Il path è "docs/..." NON "memory/..."!
 
 === REGOLE NON NEGOZIABILI ===
 
