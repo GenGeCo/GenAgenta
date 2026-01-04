@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { api } from '../utils/api';
+import { useSinapsiNeurone, useNote, useInvalidateData } from '../hooks/useData';
 import type { Neurone, Sinapsi, NotaPersonale, VenditaProdotto, FamigliaProdotto } from '../types';
 import SinapsiFormModal from './SinapsiFormModal';
 
@@ -42,10 +43,14 @@ export default function DetailPanel({
   // Debug connectionTargetEntity
   console.log('DEBUG DetailPanel render, connectionTargetEntity:', connectionTargetEntity);
 
-  const [sinapsi, setSinapsi] = useState<Sinapsi[]>([]);
-  const [note, setNote] = useState<NotaPersonale[]>([]);
+  // ========== TANSTACK QUERY HOOKS ==========
+  // Dati reattivi: si aggiornano automaticamente quando l'AI modifica qualcosa
+  const { data: sinapsi = [], isLoading: sinapsiLoading } = useSinapsiNeurone(neurone.id);
+  const { data: note = [], isLoading: noteLoading } = useNote(personalAccess ? neurone.id : null);
+  const { invalidateSinapsiNeurone, invalidateNote } = useInvalidateData();
+
   const [activeTab, setActiveTab] = useState<'info' | 'vendite' | 'connessioni' | 'note'>('info');
-  const [loading, setLoading] = useState(true);
+  const loading = sinapsiLoading || noteLoading;
 
   // Ottieni il colore della prima categoria del neurone
   const getHeaderColor = () => {
@@ -74,27 +79,6 @@ export default function DetailPanel({
       setActiveTab('connessioni');
     }
   }, [connectionTargetEntity]);
-
-  // Carica sinapsi e note
-  useEffect(() => {
-    const loadData = async () => {
-      setLoading(true);
-      try {
-        const [sinapsiRes, noteRes] = await Promise.all([
-          api.getNeuroneSinapsi(neurone.id),
-          personalAccess ? api.getNote(neurone.id) : Promise.resolve({ data: [] }),
-        ]);
-        setSinapsi(sinapsiRes.data);
-        setNote(noteRes.data);
-      } catch (error) {
-        console.error('Errore caricamento dettagli:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    loadData();
-  }, [neurone.id, personalAccess]);
 
   // Badge tipo
   const getBadgeClass = () => {
@@ -215,7 +199,8 @@ export default function DetailPanel({
                 personalAccess={personalAccess}
                 onSelectNeurone={onSelectNeurone}
                 onSinapsiChange={() => {
-                  api.getNeuroneSinapsi(neurone.id).then((res) => setSinapsi(res.data));
+                  // Usa TanStack Query invalidation invece di ricaricare manualmente
+                  invalidateSinapsiNeurone(neurone.id);
                   onSinapsiCreated?.(); // Ricarica sinapsi globali per la mappa
                 }}
                 onRequestMapPick={onRequestConnectionMapPick}
@@ -228,7 +213,7 @@ export default function DetailPanel({
                 note={note}
                 personalAccess={personalAccess}
                 neuroneId={neurone.id}
-                onNoteChange={setNote}
+                onNoteChange={() => invalidateNote(neurone.id)}
               />
             )}
           </>
@@ -588,7 +573,7 @@ function NoteTab({
   note: NotaPersonale[];
   personalAccess: boolean;
   neuroneId: string;
-  onNoteChange: (note: NotaPersonale[]) => void;
+  onNoteChange: () => void; // Ora è una funzione di invalidation
 }) {
   const [newNota, setNewNota] = useState('');
   const [saving, setSaving] = useState(false);
@@ -607,18 +592,8 @@ function NoteTab({
 
     setSaving(true);
     try {
-      const { id } = await api.createNota(neuroneId, newNota);
-      onNoteChange([
-        ...note,
-        {
-          id,
-          utente_id: '',
-          neurone_id: neuroneId,
-          testo: newNota,
-          data_creazione: new Date().toISOString(),
-          data_modifica: new Date().toISOString(),
-        },
-      ]);
+      await api.createNota(neuroneId, newNota);
+      onNoteChange(); // Invalida cache, TanStack Query ricarica automaticamente
       setNewNota('');
     } catch (error) {
       console.error('Errore salvataggio nota:', error);
