@@ -88,6 +88,48 @@ export function AiChat({ isOpen, onClose, onAction, selectedEntity, visibilityCo
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
+  // Drag & drop per spostare la finestra
+  const [position, setPosition] = useState({ x: 20, y: 20 }); // bottom-right offset
+  const [isDragging, setIsDragging] = useState(false);
+  const dragStartRef = useRef({ x: 0, y: 0, posX: 0, posY: 0 });
+
+  const handleDragStart = (e: React.MouseEvent) => {
+    // Solo se clicchi sull'header (non sui bottoni)
+    if ((e.target as HTMLElement).closest('button')) return;
+    setIsDragging(true);
+    dragStartRef.current = {
+      x: e.clientX,
+      y: e.clientY,
+      posX: position.x,
+      posY: position.y
+    };
+    e.preventDefault();
+  };
+
+  useEffect(() => {
+    if (!isDragging) return;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      const deltaX = dragStartRef.current.x - e.clientX;
+      const deltaY = dragStartRef.current.y - e.clientY;
+      setPosition({
+        x: Math.max(0, dragStartRef.current.posX + deltaX),
+        y: Math.max(0, dragStartRef.current.posY + deltaY)
+      });
+    };
+
+    const handleMouseUp = () => {
+      setIsDragging(false);
+    };
+
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [isDragging]);
+
   // Saluto dinamico (cambia ad ogni apertura della chat)
   const greeting = useMemo(() => {
     const randomGreeting = AGEA_GREETINGS[Math.floor(Math.random() * AGEA_GREETINGS.length)];
@@ -505,6 +547,8 @@ export function AiChat({ isOpen, onClose, onAction, selectedEntity, visibilityCo
     } finally {
       setIsLoading(false);
       setLoadingPhase('thinking');
+      // Rimetti focus sull'input dopo risposta AI
+      setTimeout(() => inputRef.current?.focus(), 100);
     }
   };
 
@@ -521,8 +565,8 @@ export function AiChat({ isOpen, onClose, onAction, selectedEntity, visibilityCo
     <div
       style={{
         position: 'fixed',
-        bottom: '20px',
-        right: '20px',
+        bottom: `${position.y}px`,
+        right: `${position.x}px`,
         width: '400px',
         height: '500px',
         backgroundColor: 'var(--bg-secondary)',
@@ -534,8 +578,9 @@ export function AiChat({ isOpen, onClose, onAction, selectedEntity, visibilityCo
         border: '1px solid var(--border)',
       }}
     >
-      {/* Header */}
+      {/* Header - trascinabile */}
       <div
+        onMouseDown={handleDragStart}
         style={{
           padding: '12px 16px',
           borderBottom: '1px solid var(--border)',
@@ -544,6 +589,8 @@ export function AiChat({ isOpen, onClose, onAction, selectedEntity, visibilityCo
           alignItems: 'center',
           backgroundColor: 'var(--bg-primary)',
           borderRadius: '12px 12px 0 0',
+          cursor: isDragging ? 'grabbing' : 'grab',
+          userSelect: 'none',
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
