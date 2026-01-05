@@ -1996,9 +1996,24 @@ if ($useOpenRouter) {
         }
 
         // Aggiungi la risposta del model con function calls
+        // IMPORTANTE: Sanitizza $parts per assicurarsi che 'args' sia sempre un oggetto, non un array
+        // Gemini rifiuta args: [] ma accetta args: {}
+        $sanitizedParts = [];
+        foreach ($parts as $part) {
+            if (isset($part['functionCall'])) {
+                $fc = $part['functionCall'];
+                // Se args è un array vuoto, convertilo in oggetto vuoto
+                if (isset($fc['args']) && is_array($fc['args']) && empty($fc['args'])) {
+                    $fc['args'] = new stdClass();
+                }
+                $sanitizedParts[] = ['functionCall' => $fc];
+            } else {
+                $sanitizedParts[] = $part;
+            }
+        }
         $contents[] = [
             'role' => 'model',
-            'parts' => $parts
+            'parts' => $sanitizedParts
         ];
 
         // Aggiungi i risultati delle funzioni
