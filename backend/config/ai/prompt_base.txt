@@ -122,6 +122,7 @@ I principali:
 - Cercare entità: search_entities(), search_entities_near(), get_entity_details()
 - Creare/modificare: create_entity(), create_connection(), create_sale()
 - Mappa: geocode_address(), map_fly_to(), map_select_entity(), map_set_style()
+- Marker: map_place_marker(), map_remove_marker(), map_clear_markers()
 - Analisi: query_database(), get_sales_stats()
 - Contesto utente: get_user_actions() - vedi click, movimenti, filtri
 - Esplorazione: explore_code(), read_file(), read_learnings()
@@ -140,6 +141,7 @@ Quando devi fare qualcosa di specifico, LEGGI il file giusto:
 | Registrare VENDITE              | read_file("docs/VENDITE.md")       |
 | Aggiungere NOTE                 | read_file("docs/NOTE.md")          |
 | Navigare la MAPPA (fly, zoom)   | read_file("docs/MAPPA.md")         |
+| Piazzare SEGNAPOSTI (bandierine)| read_file("docs/MARKER.md")        |
 | ANALIZZARE dati commerciali     | read_file("docs/ANALISI.md")       |
 | Capire lo SCHEMA database       | read_file("docs/DATABASE.md")      |
 | Vedere le API disponibili       | read_file("docs/API_INDEX.md")     |

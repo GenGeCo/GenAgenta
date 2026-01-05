@@ -620,7 +620,7 @@ $functionDeclarations = [
     ],
     [
         'name' => 'map_place_marker',
-        'description' => 'Piazza un marker/segnaposto temporaneo sulla mappa per mostrare un punto all\'utente. Il marker scompare al prossimo refresh.',
+        'description' => 'Piazza un marker/segnaposto (bandierina) temporaneo sulla mappa. Max 20 marker. Leggi docs/MARKER.md per istruzioni dettagliate.',
         'parameters' => [
             'type' => 'object',
             'properties' => [
@@ -634,14 +634,40 @@ $functionDeclarations = [
                 ],
                 'label' => [
                     'type' => 'string',
-                    'description' => 'Etichetta/nome da mostrare sul marker (es. "Qui!", "Punto di interesse")'
+                    'description' => 'Etichetta/nome da mostrare (es. "Inizio Via Roma")'
                 ],
                 'color' => [
                     'type' => 'string',
-                    'description' => 'Colore del marker: red, blue, green, orange, purple (default: red)'
+                    'description' => 'Colore: red, blue, green, orange, purple (default: red)'
+                ],
+                'fly_to' => [
+                    'type' => 'boolean',
+                    'description' => 'Se true, vola alla posizione del marker (default: false - piazza senza volare)'
                 ]
             ],
-            'required' => ['lat', 'lng']
+            'required' => ['lat', 'lng', 'label']
+        ]
+    ],
+    [
+        'name' => 'map_remove_marker',
+        'description' => 'Rimuove un marker specifico dalla mappa. Usa l\'ID dal contesto marker.',
+        'parameters' => [
+            'type' => 'object',
+            'properties' => [
+                'marker_id' => [
+                    'type' => 'string',
+                    'description' => 'ID del marker da rimuovere (visibile nel contesto)'
+                ]
+            ],
+            'required' => ['marker_id']
+        ]
+    ],
+    [
+        'name' => 'map_clear_markers',
+        'description' => 'Rimuove TUTTI i marker dalla mappa.',
+        'parameters' => [
+            'type' => 'object',
+            'properties' => []
         ]
     ],
     [
@@ -1210,6 +1236,19 @@ if (file_exists($promptFile)) {
         error_log("AI CONTEXT: aggiunto contesto selezione: " . $selInfo);
     } else {
         error_log("AI CONTEXT: nessuna selezione");
+    }
+
+    // Aggiungi contesto marker AI se presenti
+    if ($uiContext && !empty($uiContext['aiMarkers']) && is_array($uiContext['aiMarkers'])) {
+        $markers = $uiContext['aiMarkers'];
+        $markerCount = count($markers);
+        $markerInfo = "\n\nMARKER SULLA MAPPA ({$markerCount}):\n";
+        foreach ($markers as $m) {
+            $markerInfo .= "- [{$m['id']}] \"{$m['label']}\" ({$m['color']}) a ({$m['lat']}, {$m['lng']})\n";
+        }
+        $markerInfo .= "Usa map_remove_marker(marker_id) per rimuoverne uno, map_clear_markers() per rimuoverli tutti.";
+        $systemInstruction .= $markerInfo;
+        error_log("AI CONTEXT: aggiunto contesto marker: " . $markerInfo);
     }
 } else {
     // Fallback minimo

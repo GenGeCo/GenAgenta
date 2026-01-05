@@ -86,6 +86,12 @@ function executeAiTool(string $toolName, array $input, array $user): array {
             case 'map_place_marker':
                 return tool_mapPlaceMarker($input);
 
+            case 'map_remove_marker':
+                return tool_mapRemoveMarker($input);
+
+            case 'map_clear_markers':
+                return tool_mapClearMarkers($input);
+
             // Tool UI - Azioni frontend
             case 'ui_open_panel':
                 return tool_uiOpenPanel($input);
@@ -1232,6 +1238,7 @@ function tool_mapPlaceMarker(array $input): array {
     $lng = $input['lng'] ?? null;
     $label = $input['label'] ?? 'Segnaposto';
     $color = $input['color'] ?? 'red';
+    $flyTo = $input['fly_to'] ?? false;  // Default: NON volare
 
     if ($lat === null || $lng === null) {
         return ['error' => 'lat e lng sono richiesti'];
@@ -1244,13 +1251,47 @@ function tool_mapPlaceMarker(array $input): array {
 
     return [
         'success' => true,
-        'message' => "Marker '$label' piazzato a ($lat, $lng)",
+        'message' => "Marker '$label' piazzato a ($lat, $lng)" . ($flyTo ? " (volo alla posizione)" : ""),
         '_frontend_action' => [
             'type' => 'map_place_marker',
             'lat' => (float)$lat,
             'lng' => (float)$lng,
             'label' => $label,
-            'color' => $color
+            'color' => $color,
+            'fly_to' => (bool)$flyTo
+        ]
+    ];
+}
+
+/**
+ * Tool: Rimuove un marker specifico dalla mappa
+ */
+function tool_mapRemoveMarker(array $input): array {
+    $markerId = $input['marker_id'] ?? null;
+
+    if (!$markerId) {
+        return ['error' => 'marker_id è richiesto'];
+    }
+
+    return [
+        'success' => true,
+        'message' => "Richiesta rimozione marker $markerId",
+        '_frontend_action' => [
+            'type' => 'map_remove_marker',
+            'marker_id' => $markerId
+        ]
+    ];
+}
+
+/**
+ * Tool: Rimuove tutti i marker dalla mappa
+ */
+function tool_mapClearMarkers(array $input): array {
+    return [
+        'success' => true,
+        'message' => "Rimozione di tutti i marker dalla mappa",
+        '_frontend_action' => [
+            'type' => 'map_clear_markers'
         ]
     ];
 }

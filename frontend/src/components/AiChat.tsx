@@ -31,7 +31,7 @@ const QUICK_ACTIONS = [
 
 // Tipi per le azioni frontend
 export interface AiFrontendAction {
-  type: 'map_fly_to' | 'map_select_entity' | 'map_show_connections' | 'map_set_style' | 'map_place_marker' | 'ui_open_panel' | 'ui_notification' | 'refresh_neuroni';
+  type: 'map_fly_to' | 'map_select_entity' | 'map_show_connections' | 'map_set_style' | 'map_place_marker' | 'map_remove_marker' | 'map_clear_markers' | 'ui_open_panel' | 'ui_notification' | 'refresh_neuroni';
   lat?: number;
   lng?: number;
   zoom?: number;
@@ -45,6 +45,8 @@ export interface AiFrontendAction {
   notification_type?: 'success' | 'error' | 'warning' | 'info';
   label?: string;  // Per map_place_marker
   color?: string;  // Per map_place_marker
+  fly_to?: boolean;  // Per map_place_marker - se volare alla posizione
+  marker_id?: string;  // Per map_remove_marker
 }
 
 // Tipo minimo per l'entità selezionata (evita dipendenza circolare)
@@ -67,6 +69,16 @@ interface VisibilityContext {
   activeFilters: ActiveFilters;
 }
 
+// Marker AI per il contesto (importa tipo da types)
+interface AiMarkerContext {
+  id: string;
+  lat: number;
+  lng: number;
+  label: string;
+  color: string;
+  timestamp: string;
+}
+
 interface AiChatProps {
   isOpen: boolean;
   onClose: () => void;
@@ -77,13 +89,13 @@ interface AiChatProps {
   userName?: string;  // Nome utente per saluto personalizzato
   initialMessage?: string | null;  // Messaggio iniziale da inviare (es. da floating suggestions)
   onInitialMessageSent?: () => void;  // Callback quando il messaggio iniziale è stato processato
-  aiMarkersCount?: number;  // Numero di marker AI sulla mappa
+  aiMarkers?: AiMarkerContext[];  // Lista marker AI sulla mappa (per contesto AI)
   onClearAiMarkers?: () => void;  // Callback per pulire tutti i marker
 }
 
 const CHAT_STORAGE_KEY = 'genagenta_ai_chat_history';
 
-export function AiChat({ isOpen, onClose, onAction, selectedEntity, visibilityContext, userActions, userName = 'utente', initialMessage, onInitialMessageSent, aiMarkersCount = 0, onClearAiMarkers }: AiChatProps) {
+export function AiChat({ isOpen, onClose, onAction, selectedEntity, visibilityContext, userActions, userName = 'utente', initialMessage, onInitialMessageSent, aiMarkers = [], onClearAiMarkers }: AiChatProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -393,16 +405,18 @@ export function AiChat({ isOpen, onClose, onAction, selectedEntity, visibilityCo
 
         // Prima chiamata o resume?
         if (!resumeContext) {
-          // Passa contesto (selezione + azioni utente)
-          const context: { selectedEntity?: typeof selectedEntity; userActions?: UserAction[] } = {};
+          // Passa contesto (selezione + azioni utente + marker AI)
+          const context: { selectedEntity?: typeof selectedEntity; userActions?: UserAction[]; aiMarkers?: AiMarkerContext[] } = {};
           if (selectedEntity) context.selectedEntity = selectedEntity;
           if (userActions && userActions.length > 0) context.userActions = userActions;
+          if (aiMarkers && aiMarkers.length > 0) context.aiMarkers = aiMarkers;
 
           // DEBUG: log del contesto passato all'AI
           console.log('=== AI CHAT CONTEXT DEBUG ===');
           console.log('selectedEntity:', selectedEntity);
           console.log('userActions count:', userActions?.length || 0);
           console.log('userActions:', userActions);
+          console.log('aiMarkers count:', aiMarkers?.length || 0);
           console.log('context being sent:', context);
           console.log('=============================');
 
@@ -647,10 +661,10 @@ export function AiChat({ isOpen, onClose, onAction, selectedEntity, visibilityCo
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           {/* Bottone Pulisci Marker (visibile solo se ci sono marker) */}
-          {aiMarkersCount > 0 && (
+          {aiMarkers.length > 0 && (
             <button
               onClick={onClearAiMarkers}
-              title={`Rimuovi ${aiMarkersCount} segnaposto`}
+              title={`Rimuovi ${aiMarkers.length} segnaposto`}
               style={{
                 background: 'none',
                 border: '1px solid #f97316',
@@ -664,7 +678,7 @@ export function AiChat({ isOpen, onClose, onAction, selectedEntity, visibilityCo
                 gap: '4px',
               }}
             >
-              🚩 {aiMarkersCount}
+              🚩 {aiMarkers.length}
             </button>
           )}
           {/* Bottone Nuova Sessione */}

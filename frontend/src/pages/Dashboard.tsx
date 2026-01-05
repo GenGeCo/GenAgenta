@@ -320,20 +320,40 @@ export default function Dashboard() {
         break;
 
       case 'map_place_marker':
-        // Piazza un marker temporaneo sulla mappa (aggiunge all'array)
+        // Piazza un marker temporaneo sulla mappa (aggiunge all'array, max 20)
         if (action.lat !== undefined && action.lng !== undefined) {
-          const newMarker: AiMarker = {
-            id: crypto.randomUUID(),
-            lat: action.lat,
-            lng: action.lng,
-            label: action.label || 'Segnaposto',
-            color: action.color || 'red',
-            timestamp: new Date().toISOString()
-          };
-          setAiMarkers(prev => [...prev, newMarker]);
-          // Vola anche alla posizione del marker
-          setFlyToPosition({ lat: action.lat, lng: action.lng, zoom: 16 });
+          setAiMarkers(prev => {
+            if (prev.length >= 20) {
+              console.warn('Limite di 20 marker raggiunto');
+              return prev;  // Non aggiungere se già 20
+            }
+            const newMarker: AiMarker = {
+              id: crypto.randomUUID(),
+              lat: action.lat!,
+              lng: action.lng!,
+              label: action.label || 'Segnaposto',
+              color: action.color || 'red',
+              timestamp: new Date().toISOString()
+            };
+            return [...prev, newMarker];
+          });
+          // Vola alla posizione SOLO se fly_to è true
+          if (action.fly_to) {
+            setFlyToPosition({ lat: action.lat, lng: action.lng, zoom: 16 });
+          }
         }
+        break;
+
+      case 'map_remove_marker':
+        // Rimuove un marker specifico
+        if (action.marker_id) {
+          setAiMarkers(prev => prev.filter(m => m.id !== action.marker_id));
+        }
+        break;
+
+      case 'map_clear_markers':
+        // Rimuove tutti i marker
+        setAiMarkers([]);
         break;
     }
   };
@@ -1021,7 +1041,7 @@ export default function Dashboard() {
         userName={user?.nome}
         initialMessage={aiInitialMessage}
         onInitialMessageSent={() => setAiInitialMessage(null)}
-        aiMarkersCount={aiMarkers.length}
+        aiMarkers={aiMarkers}
         onClearAiMarkers={clearAiMarkers}
       />
     </div>
