@@ -667,7 +667,7 @@ $functionDeclarations = [
         'description' => 'Rimuove TUTTI i marker dalla mappa.',
         'parameters' => [
             'type' => 'object',
-            'properties' => []
+            'properties' => new stdClass()  // Oggetto vuoto, non array!
         ]
     ],
     [
