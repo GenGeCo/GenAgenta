@@ -95,7 +95,7 @@ export default function Dashboard() {
   // Usato per il filtro "Solo del selezionato"
   const [focusedNeuroneId, setFocusedNeuroneId] = useState<string | null>(null);
 
-  // Log azioni utente per contesto AI (ultime 5 azioni)
+  // Log azioni utente per contesto AI (ultime 10 azioni, map_move non spinge fuori click)
   const [userActions, setUserActions] = useState<UserAction[]>([]);
 
   // Funzione per loggare un'azione utente
@@ -105,7 +105,14 @@ export default function Dashboard() {
       timestamp: new Date().toISOString(),
       data
     };
-    setUserActions(prev => [...prev.slice(-4), action]); // Mantieni ultime 5
+    setUserActions(prev => {
+      // Per map_move: tieni solo l'ultimo (evita che spingano fuori azioni importanti)
+      if (type === 'map_move') {
+        const withoutOldMoves = prev.filter(a => a.type !== 'map_move');
+        return [...withoutOldMoves.slice(-9), action]; // Mantieni ultime 10
+      }
+      return [...prev.slice(-9), action]; // Mantieni ultime 10
+    });
     console.log('User action logged:', action);
   };
 
