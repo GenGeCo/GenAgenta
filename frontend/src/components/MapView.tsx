@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, useCallback } from 'react';
 import mapboxgl from 'mapbox-gl';
-import type { Neurone, Sinapsi, FiltriMappa, Categoria, TipoNeuroneConfig, VenditaProdotto } from '../types';
+import type { Neurone, Sinapsi, FiltriMappa, Categoria, TipoNeuroneConfig, VenditaProdotto, AiMarker } from '../types';
 import { api } from '../utils/api';
 import { AddressSearch } from './AddressSearch';
 
@@ -37,6 +37,9 @@ interface MapViewProps {
   onQuickEntityClick?: (neurone: Neurone, screenX: number, screenY: number) => void;
   // Props per dettagli connessione
   onSelectSinapsi?: (sinapsiId: string) => void;
+  // Props per AI markers (segnaposto temporanei)
+  aiMarkers?: AiMarker[];
+  onRemoveAiMarker?: (markerId: string) => void;
 }
 
 // Colore di default se la categoria non viene trovata
@@ -409,6 +412,8 @@ export default function MapView({
   onQuickMapClick,
   onQuickEntityClick,
   onSelectSinapsi,
+  aiMarkers = [],
+  onRemoveAiMarker,
 }: MapViewProps) {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
@@ -450,6 +455,8 @@ export default function MapView({
   // Ref per onFocusNeurone (per tracciare edificio cliccato)
   const onFocusNeuroneRef = useRef(onFocusNeurone);
   const onClearFocusRef = useRef(onClearFocus);
+  // Ref per AI markers (segnaposto temporanei piazzati dall'AI)
+  const aiMarkersMapRef = useRef<Map<string, mapboxgl.Marker>>(new Map());
 
   // Colori default per le famiglie prodotto nel popup
   const coloriProdotti = ['#ef4444', '#f97316', '#eab308', '#22c55e', '#14b8a6', '#3b82f6', '#8b5cf6', '#ec4899'];
@@ -1971,6 +1978,103 @@ export default function MapView({
     }
 
   }, [neuroni, sinapsi, categorie, tipiNeurone, selectedId, filterSelectedId, mapReady, filtri, getSinapsiCount, styleLoaded]);
+
+  // Gestione AI Markers (segnaposto temporanei piazzati dall'AI)
+  useEffect(() => {
+    if (!map.current || !mapReady) return;
+
+    const currentMarkerIds = new Set(aiMarkers.map(m => m.id));
+    const existingMarkerIds = new Set(aiMarkersMapRef.current.keys());
+
+    // Rimuovi marker che non esistono più
+    existingMarkerIds.forEach(id => {
+      if (!currentMarkerIds.has(id)) {
+        const marker = aiMarkersMapRef.current.get(id);
+        if (marker) {
+          marker.remove();
+          aiMarkersMapRef.current.delete(id);
+        }
+      }
+    });
+
+    // Aggiungi nuovi marker
+    aiMarkers.forEach(aiMarker => {
+      if (!aiMarkersMapRef.current.has(aiMarker.id)) {
+        // Crea elemento custom per il marker (bandierina)
+        const el = document.createElement('div');
+        el.className = 'ai-marker';
+        el.style.cssText = `
+          width: 30px;
+          height: 40px;
+          cursor: pointer;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+        `;
+
+        // Icona bandierina SVG
+        el.innerHTML = `
+          <svg width="30" height="40" viewBox="0 0 30 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M4 40V2" stroke="${aiMarker.color}" stroke-width="3" stroke-linecap="round"/>
+            <path d="M4 2L26 8L4 16" fill="${aiMarker.color}"/>
+          </svg>
+        `;
+
+        // Crea popup per il marker
+        const popupEl = document.createElement('div');
+        popupEl.style.cssText = 'padding: 8px; min-width: 120px;';
+        popupEl.innerHTML = `
+          <div style="font-weight: 600; margin-bottom: 4px;">${aiMarker.label}</div>
+          <div style="font-size: 11px; color: #666; margin-bottom: 8px;">
+            Piazzato da Agea
+          </div>
+          <button id="remove-marker-${aiMarker.id}" style="
+            background: #ef4444;
+            color: white;
+            border: none;
+            padding: 4px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            width: 100%;
+          ">
+            Rimuovi
+          </button>
+        `;
+
+        const markerPopup = new mapboxgl.Popup({
+          offset: [0, -35],
+          closeButton: true,
+          closeOnClick: false
+        }).setDOMContent(popupEl);
+
+        // Crea il marker Mapbox
+        const marker = new mapboxgl.Marker({ element: el, anchor: 'bottom' })
+          .setLngLat([aiMarker.lng, aiMarker.lat])
+          .setPopup(markerPopup)
+          .addTo(map.current!);
+
+        // Handler click per mostrare popup
+        el.addEventListener('click', () => {
+          marker.togglePopup();
+        });
+
+        // Handler per il bottone rimuovi (aggiungi quando il popup si apre)
+        markerPopup.on('open', () => {
+          const removeBtn = document.getElementById(`remove-marker-${aiMarker.id}`);
+          if (removeBtn) {
+            removeBtn.onclick = () => {
+              onRemoveAiMarker?.(aiMarker.id);
+              marker.remove();
+            };
+          }
+        });
+
+        aiMarkersMapRef.current.set(aiMarker.id, marker);
+      }
+    });
+
+  }, [aiMarkers, mapReady, onRemoveAiMarker]);
 
   // Non fare più zoom automatico sulla selezione
   // Lo zoom si fa solo con doppio click

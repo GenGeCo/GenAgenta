@@ -16,7 +16,7 @@ import SinapsiDetailPanel from '../components/SinapsiDetailPanel';
 import { QuickCreateEntity, QuickEntityActions, QuickSelectTarget, QuickConnectionType, QuickTransactionForm } from '../components/QuickActionPopup';
 import { AiChat, AiFrontendAction } from '../components/AiChat';
 import FloatingSuggestions from '../components/FloatingSuggestions';
-import type { Neurone, FiltriMappa, UserAction, UserActionType } from '../types';
+import type { Neurone, FiltriMappa, UserAction, UserActionType, AiMarker } from '../types';
 
 // Tipi per quick actions
 type QuickPopupType = 'create' | 'entityActions' | 'selectTarget' | 'connectionType' | 'transactionForm' | null;
@@ -74,6 +74,8 @@ export default function Dashboard() {
   const [pickedPosition, setPickedPosition] = useState<{ lat: number; lng: number } | null>(null);
   const [flyToPosition, setFlyToPosition] = useState<{ lat: number; lng: number; zoom?: number; pitch?: number; bearing?: number } | null>(null);
   const [mapStyleFromAi, setMapStyleFromAi] = useState<string | null>(null);
+  // Marker temporanei piazzati dall'AI (array per supportare più marker)
+  const [aiMarkers, setAiMarkers] = useState<AiMarker[]>([]);
 
   // Stato per connessione su mappa (selezione entità target)
   const [connectionPickingMode, setConnectionPickingMode] = useState(false);
@@ -231,6 +233,15 @@ export default function Dashboard() {
     }
   };
 
+  // Handler per AI markers
+  const clearAiMarkers = () => {
+    setAiMarkers([]);
+  };
+
+  const removeAiMarker = (markerId: string) => {
+    setAiMarkers(prev => prev.filter(m => m.id !== markerId));
+  };
+
   // Handler azioni AI (comandi dalla chat)
   const handleAiAction = (action: AiFrontendAction) => {
     console.log('AI Action ricevuta:', action);
@@ -306,6 +317,23 @@ export default function Dashboard() {
         // Usa TanStack Query invalidation - ricarica automaticamente tutti i componenti
         console.log('AI Action: refresh_neuroni (+ sinapsi) via invalidation');
         invalidateNeuroniESinapsi();
+        break;
+
+      case 'map_place_marker':
+        // Piazza un marker temporaneo sulla mappa (aggiunge all'array)
+        if (action.lat !== undefined && action.lng !== undefined) {
+          const newMarker: AiMarker = {
+            id: crypto.randomUUID(),
+            lat: action.lat,
+            lng: action.lng,
+            label: action.label || 'Segnaposto',
+            color: action.color || 'red',
+            timestamp: new Date().toISOString()
+          };
+          setAiMarkers(prev => [...prev, newMarker]);
+          // Vola anche alla posizione del marker
+          setFlyToPosition({ lat: action.lat, lng: action.lng, zoom: 16 });
+        }
         break;
     }
   };
@@ -503,6 +531,9 @@ export default function Dashboard() {
               setSelectedSinapsiId(sinapsiId);
               setSelectedNeurone(null); // Chiudi eventuale pannello entità
             }}
+            // Props per AI markers
+            aiMarkers={aiMarkers}
+            onRemoveAiMarker={removeAiMarker}
           />
 
           {/* Indicatore modalità selezione connessione */}
@@ -990,6 +1021,8 @@ export default function Dashboard() {
         userName={user?.nome}
         initialMessage={aiInitialMessage}
         onInitialMessageSent={() => setAiInitialMessage(null)}
+        aiMarkersCount={aiMarkers.length}
+        onClearAiMarkers={clearAiMarkers}
       />
     </div>
   );

@@ -601,6 +601,50 @@ $functionDeclarations = [
         ]
     ],
     [
+        'name' => 'reverse_geocode',
+        'description' => 'Converte coordinate GPS in indirizzo. Usa questo quando hai coordinate (es. da un click sulla mappa) e vuoi sapere che via/posto è.',
+        'parameters' => [
+            'type' => 'object',
+            'properties' => [
+                'lat' => [
+                    'type' => 'number',
+                    'description' => 'Latitudine'
+                ],
+                'lng' => [
+                    'type' => 'number',
+                    'description' => 'Longitudine'
+                ]
+            ],
+            'required' => ['lat', 'lng']
+        ]
+    ],
+    [
+        'name' => 'map_place_marker',
+        'description' => 'Piazza un marker/segnaposto temporaneo sulla mappa per mostrare un punto all\'utente. Il marker scompare al prossimo refresh.',
+        'parameters' => [
+            'type' => 'object',
+            'properties' => [
+                'lat' => [
+                    'type' => 'number',
+                    'description' => 'Latitudine del marker'
+                ],
+                'lng' => [
+                    'type' => 'number',
+                    'description' => 'Longitudine del marker'
+                ],
+                'label' => [
+                    'type' => 'string',
+                    'description' => 'Etichetta/nome da mostrare sul marker (es. "Qui!", "Punto di interesse")'
+                ],
+                'color' => [
+                    'type' => 'string',
+                    'description' => 'Colore del marker: red, blue, green, orange, purple (default: red)'
+                ]
+            ],
+            'required' => ['lat', 'lng']
+        ]
+    ],
+    [
         'name' => 'create_entity',
         'description' => 'Crea una nuova entità (neurone) nel sistema. Se il tipo non è valido, restituisce i tipi disponibili.',
         'parameters' => [

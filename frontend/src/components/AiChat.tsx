@@ -31,7 +31,7 @@ const QUICK_ACTIONS = [
 
 // Tipi per le azioni frontend
 export interface AiFrontendAction {
-  type: 'map_fly_to' | 'map_select_entity' | 'map_show_connections' | 'map_set_style' | 'ui_open_panel' | 'ui_notification' | 'refresh_neuroni';
+  type: 'map_fly_to' | 'map_select_entity' | 'map_show_connections' | 'map_set_style' | 'map_place_marker' | 'ui_open_panel' | 'ui_notification' | 'refresh_neuroni';
   lat?: number;
   lng?: number;
   zoom?: number;
@@ -43,6 +43,8 @@ export interface AiFrontendAction {
   panel?: string;
   notification_message?: string;
   notification_type?: 'success' | 'error' | 'warning' | 'info';
+  label?: string;  // Per map_place_marker
+  color?: string;  // Per map_place_marker
 }
 
 // Tipo minimo per l'entità selezionata (evita dipendenza circolare)
@@ -75,11 +77,13 @@ interface AiChatProps {
   userName?: string;  // Nome utente per saluto personalizzato
   initialMessage?: string | null;  // Messaggio iniziale da inviare (es. da floating suggestions)
   onInitialMessageSent?: () => void;  // Callback quando il messaggio iniziale è stato processato
+  aiMarkersCount?: number;  // Numero di marker AI sulla mappa
+  onClearAiMarkers?: () => void;  // Callback per pulire tutti i marker
 }
 
 const CHAT_STORAGE_KEY = 'genagenta_ai_chat_history';
 
-export function AiChat({ isOpen, onClose, onAction, selectedEntity, visibilityContext, userActions, userName = 'utente', initialMessage, onInitialMessageSent }: AiChatProps) {
+export function AiChat({ isOpen, onClose, onAction, selectedEntity, visibilityContext, userActions, userName = 'utente', initialMessage, onInitialMessageSent, aiMarkersCount = 0, onClearAiMarkers }: AiChatProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -188,10 +192,11 @@ export function AiChat({ isOpen, onClose, onAction, selectedEntity, visibilityCo
     }
   }, [isOpen, initialMessage]);
 
-  // Nuova sessione - cancella tutto
+  // Nuova sessione - cancella tutto (inclusi marker AI)
   const startNewSession = () => {
     setMessages([]);
     localStorage.removeItem(CHAT_STORAGE_KEY);
+    onClearAiMarkers?.();  // Pulisci anche i marker piazzati dall'AI
   };
 
   // =====================================================
@@ -641,6 +646,27 @@ export function AiChat({ isOpen, onClose, onAction, selectedEntity, visibilityCo
           )}
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          {/* Bottone Pulisci Marker (visibile solo se ci sono marker) */}
+          {aiMarkersCount > 0 && (
+            <button
+              onClick={onClearAiMarkers}
+              title={`Rimuovi ${aiMarkersCount} segnaposto`}
+              style={{
+                background: 'none',
+                border: '1px solid #f97316',
+                borderRadius: '6px',
+                fontSize: '11px',
+                cursor: 'pointer',
+                color: '#f97316',
+                padding: '4px 8px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px',
+              }}
+            >
+              🚩 {aiMarkersCount}
+            </button>
+          )}
           {/* Bottone Nuova Sessione */}
           {messages.length > 0 && (
             <button

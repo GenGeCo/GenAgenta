@@ -42,6 +42,9 @@ function executeAiTool(string $toolName, array $input, array $user): array {
             case 'geocode_address':
                 return tool_geocodeAddress($input);
 
+            case 'reverse_geocode':
+                return tool_reverseGeocode($input);
+
             case 'create_entity':
                 return tool_createEntity($db, $input, $user);
 
@@ -79,6 +82,9 @@ function executeAiTool(string $toolName, array $input, array $user): array {
 
             case 'map_show_connections':
                 return tool_mapShowConnections($db, $input, $user);
+
+            case 'map_place_marker':
+                return tool_mapPlaceMarker($input);
 
             // Tool UI - Azioni frontend
             case 'ui_open_panel':
@@ -571,6 +577,76 @@ function tool_geocodeAddress(array $input): array {
         'success' => true,
         'query' => $address,
         'results' => $results
+    ];
+}
+
+/**
+ * Tool: Reverse Geocoding - converte coordinate GPS in indirizzo
+ */
+function tool_reverseGeocode(array $input): array {
+    $lat = $input['lat'] ?? null;
+    $lng = $input['lng'] ?? null;
+
+    if ($lat === null || $lng === null) {
+        return ['error' => 'Parametri lat e lng richiesti'];
+    }
+
+    $lat = (float)$lat;
+    $lng = (float)$lng;
+
+    // Validazione coordinate
+    if ($lat < -90 || $lat > 90 || $lng < -180 || $lng > 180) {
+        return ['error' => 'Coordinate non valide'];
+    }
+
+    // Usa Nominatim (gratuito) per il reverse geocoding
+    $url = 'https://nominatim.openstreetmap.org/reverse?' . http_build_query([
+        'lat' => $lat,
+        'lon' => $lng,
+        'format' => 'json',
+        'addressdetails' => 1,
+        'accept-language' => 'it'
+    ]);
+
+    $context = stream_context_create([
+        'http' => [
+            'header' => 'User-Agent: GenAgenta/1.0',
+            'timeout' => 10
+        ]
+    ]);
+
+    try {
+        $response = @file_get_contents($url, false, $context);
+        if ($response === false) {
+            error_log("Reverse geocoding failed for: $lat, $lng");
+            return ['error' => 'Errore nella richiesta di geocoding inverso. Riprova.'];
+        }
+    } catch (Exception $e) {
+        error_log("Reverse geocoding exception: " . $e->getMessage());
+        return ['error' => 'Errore durante il geocoding inverso: ' . $e->getMessage()];
+    }
+
+    $data = json_decode($response, true);
+    if (!is_array($data) || isset($data['error'])) {
+        return [
+            'success' => true,
+            'address' => null,
+            'message' => 'Nessun risultato trovato per le coordinate'
+        ];
+    }
+
+    $addr = $data['address'] ?? [];
+
+    return [
+        'success' => true,
+        'lat' => $lat,
+        'lng' => $lng,
+        'address' => $data['display_name'] ?? null,
+        'street' => $addr['road'] ?? null,
+        'number' => $addr['house_number'] ?? null,
+        'city' => $addr['city'] ?? $addr['town'] ?? $addr['municipality'] ?? null,
+        'postcode' => $addr['postcode'] ?? null,
+        'country' => $addr['country'] ?? null
     ];
 }
 
@@ -1144,6 +1220,37 @@ function tool_mapFlyTo(array $input): array {
             'zoom' => (float)$zoom,
             'pitch' => (float)$pitch,
             'bearing' => (float)$bearing
+        ]
+    ];
+}
+
+/**
+ * Tool: Piazza un marker temporaneo sulla mappa
+ */
+function tool_mapPlaceMarker(array $input): array {
+    $lat = $input['lat'] ?? null;
+    $lng = $input['lng'] ?? null;
+    $label = $input['label'] ?? 'Segnaposto';
+    $color = $input['color'] ?? 'red';
+
+    if ($lat === null || $lng === null) {
+        return ['error' => 'lat e lng sono richiesti'];
+    }
+
+    $validColors = ['red', 'blue', 'green', 'orange', 'purple', 'yellow'];
+    if (!in_array($color, $validColors)) {
+        $color = 'red';
+    }
+
+    return [
+        'success' => true,
+        'message' => "Marker '$label' piazzato a ($lat, $lng)",
+        '_frontend_action' => [
+            'type' => 'map_place_marker',
+            'lat' => (float)$lat,
+            'lng' => (float)$lng,
+            'label' => $label,
+            'color' => $color
         ]
     ];
 }

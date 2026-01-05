@@ -273,3 +273,13 @@ export interface UserAction {
     panelName?: string;
   };
 }
+
+// Marker temporaneo piazzato dall'AI sulla mappa
+export interface AiMarker {
+  id: string;           // UUID per identificare/rimuovere
+  lat: number;
+  lng: number;
+  label: string;        // Etichetta da mostrare
+  color: string;        // Colore marker (red, blue, green, etc.)
+  timestamp: string;    // Quando è stato piazzato (ISO string)
+}
