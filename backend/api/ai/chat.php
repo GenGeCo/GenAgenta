@@ -813,11 +813,27 @@ $functionDeclarations = [
                 'categorie' => [
                     'type' => 'array',
                     'items' => ['type' => 'string'],
-                    'description' => 'Nuove categorie (colori)'
+                    'description' => 'Categorie/tipologie che determinano il COLORE sulla mappa (es: villa, palazzina). SOLO valori da get_team_structure.'
                 ],
                 'dati_extra' => [
                     'type' => 'object',
                     'description' => 'Campi personalizzati configurati in Setup per questo tipo di entità. Es: {"comune_di": "Roma", "permesso": "n° 123"}. Usa get_team_structure per vedere i campi disponibili.'
+                ],
+                'is_acquirente' => [
+                    'type' => 'boolean',
+                    'description' => 'Flag natura commerciale: è un acquirente? Appare come SPUNTA nel pannello.'
+                ],
+                'is_venditore' => [
+                    'type' => 'boolean',
+                    'description' => 'Flag natura commerciale: è un venditore? Appare come SPUNTA nel pannello.'
+                ],
+                'is_intermediario' => [
+                    'type' => 'boolean',
+                    'description' => 'Flag natura commerciale: è un intermediario? Appare come SPUNTA nel pannello.'
+                ],
+                'is_influencer' => [
+                    'type' => 'boolean',
+                    'description' => 'Flag natura commerciale: è un influencer? Appare come SPUNTA nel pannello.'
                 ]
             ],
             'required' => ['entity_id']

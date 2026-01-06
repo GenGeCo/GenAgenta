@@ -886,6 +886,16 @@ function tool_updateEntity(PDO $db, array $input, array $user): array {
         $params[] = json_encode($newExtra);
     }
 
+    // Natura commerciale (flag booleani per checkbox nel pannello)
+    // Questi sono DIVERSI dalle categorie! Le categorie = colore, questi = ruolo commerciale
+    $flagsNaturaCommerciale = ['is_acquirente', 'is_venditore', 'is_intermediario', 'is_influencer'];
+    foreach ($flagsNaturaCommerciale as $flag) {
+        if (isset($input[$flag])) {
+            $updates[] = "$flag = ?";
+            $params[] = $input[$flag] ? 1 : 0;
+        }
+    }
+
     if (empty($updates)) {
         return ['error' => 'Nessun campo da aggiornare specificato'];
     }

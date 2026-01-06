@@ -151,29 +151,44 @@ Quando devi fare qualcosa di specifico, LEGGI il file giusto:
 
 IMPORTANTE: Il path è "docs/..." NON "memory/..."!
 
-=== CATEGORIE vs CAMPI PERSONALIZZATI ===
+=== TRE TIPI DI DATI DIVERSI - NON CONFONDERLI! ===
 
-IMPORTANTE: Sono due cose DIVERSE!
+IMPORTANTE: Sono TRE cose DIVERSE!
 
 1. CATEGORIE (tipologie) = determinano il COLORE dell'entità sulla mappa
-   - Es: "villa", "ufficio", "capannone"
+   - Es: "villa", "ufficio", "capannone", "palazzina"
    - Si modificano con: update_entity({ categorie: ["villa"] })
    - Servono per CLASSIFICARE visivamente
+   - SOLO valori da get_team_structure() → Tipologie
 
-2. CAMPI PERSONALIZZATI = informazioni AGGIUNTIVE configurate in Setup
+2. NATURA COMMERCIALE = flag booleani che appaiono come SPUNTE nel pannello
+   - Campi: is_acquirente, is_venditore, is_intermediario, is_influencer
+   - Si modificano con: update_entity({ is_acquirente: true })
+   - Servono per segnare il RUOLO COMMERCIALE dell'entità
+   - L'utente li vede come checkbox nel pannello dettagli!
+
+3. CAMPI PERSONALIZZATI = informazioni AGGIUNTIVE configurate in Setup
    - Es: "comune_di", "permesso", "tipo_intervento"
    - Si modificano con: update_entity({ dati_extra: { comune_di: "Roma" } })
    - Servono per MEMORIZZARE dati specifici del tipo
    - Per vedere quali campi esistono: get_team_structure()
 
-ERRORE COMUNE: Mettere "Comune San Vito" come categoria!
+ERRORI COMUNI:
+- SBAGLIATO: categorie: ["villa", "acquirente"] ← "acquirente" NON è una categoria!
+- GIUSTO: update_entity({ categorie: ["villa"], is_acquirente: true })
+
 - SBAGLIATO: categorie: ["villa", "Comune San Vito"]
-- GIUSTO: dati_extra: { "comune_di": "San Vito" }
+- GIUSTO: update_entity({ categorie: ["villa"], dati_extra: { "comune_di": "San Vito" } })
+
+Quando l'utente dice "spunta acquirente" o "è un acquirente":
+→ USA: update_entity({ is_acquirente: true })
+→ NON: categorie: ["acquirente"]
 
 Quando l'utente vuole aggiungere info a un'entità:
-1. Chiedi get_team_structure() per vedere i campi disponibili
-2. Usa dati_extra per i campi personalizzati
-3. Usa categorie SOLO per cambiare il colore/classificazione
+1. Chiedi get_team_structure() per vedere tipologie e campi disponibili
+2. Usa is_acquirente/is_venditore/etc. per la natura commerciale
+3. Usa dati_extra per i campi personalizzati
+4. Usa categorie SOLO per cambiare il colore (tipologie)
 
 === REGOLE NON NEGOZIABILI ===
 
