@@ -1042,28 +1042,44 @@ function tool_createSale(PDO $db, array $input, array $user): array {
  */
 function tool_createNote(PDO $db, array $input, array $user): array {
     $neuroneId = $input['entity_id'] ?? $input['neurone_id'] ?? '';
-    $contenuto = $input['contenuto'] ?? $input['content'] ?? '';
-    $tipo = $input['tipo'] ?? 'nota';
-    $personale = $input['personale'] ?? true;
+    $testo = $input['testo'] ?? $input['contenuto'] ?? $input['content'] ?? '';
 
     if (empty($neuroneId)) {
         return ['error' => 'entity_id richiesto'];
     }
 
-    if (empty($contenuto)) {
-        return ['error' => 'Contenuto della nota richiesto'];
+    if (empty($testo)) {
+        return ['error' => 'Testo della nota richiesto'];
     }
 
     // Verifica entità
-    $stmt = $db->prepare("SELECT id, nome FROM neuroni WHERE id = ? AND azienda_id = ?");
-    $stmt->execute([$neuroneId, $user['azienda_id']]);
+    $stmt = $db->prepare("SELECT id, nome FROM neuroni WHERE id = ?");
+    $stmt->execute([$neuroneId]);
     $entity = $stmt->fetch(PDO::FETCH_ASSOC);
 
     if (!$entity) {
-        return ['error' => 'Entità non trovata o non accessibile'];
+        return ['error' => 'Entità non trovata'];
     }
 
-    // Genera UUID
+    // Controlla se esiste già una nota per questo utente/neurone
+    $stmt = $db->prepare('SELECT id FROM note_personali WHERE utente_id = ? AND neurone_id = ?');
+    $stmt->execute([$user['user_id'], $neuroneId]);
+    $existing = $stmt->fetch(PDO::FETCH_ASSOC);
+
+    if ($existing) {
+        // Aggiorna nota esistente
+        $stmt = $db->prepare('UPDATE note_personali SET testo = ? WHERE id = ?');
+        $stmt->execute([$testo, $existing['id']]);
+
+        return [
+            'success' => true,
+            'message' => "Nota aggiornata per '{$entity['nome']}'",
+            'note_id' => $existing['id'],
+            'action' => 'updated'
+        ];
+    }
+
+    // Crea nuova nota
     $id = sprintf('%04x%04x-%04x-%04x-%04x-%04x%04x%04x',
         mt_rand(0, 0xffff), mt_rand(0, 0xffff),
         mt_rand(0, 0xffff),
@@ -1072,26 +1088,14 @@ function tool_createNote(PDO $db, array $input, array $user): array {
         mt_rand(0, 0xffff), mt_rand(0, 0xffff), mt_rand(0, 0xffff)
     );
 
-    $sql = "INSERT INTO note (
-                id, azienda_id, neurone_id, tipo, contenuto,
-                personale, creato_da, creato_il
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, NOW())";
-
-    $stmt = $db->prepare($sql);
-    $stmt->execute([
-        $id,
-        $user['azienda_id'],
-        $neuroneId,
-        $tipo,
-        $contenuto,
-        $personale ? 1 : 0,
-        $user['user_id']
-    ]);
+    $stmt = $db->prepare('INSERT INTO note_personali (id, utente_id, neurone_id, testo) VALUES (?, ?, ?, ?)');
+    $stmt->execute([$id, $user['user_id'], $neuroneId, $testo]);
 
     return [
         'success' => true,
         'message' => "Nota aggiunta a '{$entity['nome']}'",
-        'note_id' => $id
+        'note_id' => $id,
+        'action' => 'created'
     ];
 }
 
