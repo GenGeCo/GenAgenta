@@ -1136,21 +1136,8 @@ $readLearningsTool = [
 $readLearningsTool['parameters']['properties'] = new stdClass();
 $functionDeclarations[] = $readLearningsTool;
 
-$functionDeclarations[] = [
-    'name' => 'propose_improvement',
-    'description' => 'Proponi un miglioramento al software.',
-    'parameters' => [
-        'type' => 'object',
-        'properties' => [
-            'title' => ['type' => 'string', 'description' => 'Titolo della proposta'],
-            'description' => ['type' => 'string', 'description' => 'Descrizione del problema e soluzione'],
-            'files_to_modify' => ['type' => 'array', 'items' => ['type' => 'string'], 'description' => 'File da modificare'],
-            'code_changes' => ['type' => 'string', 'description' => 'Modifiche al codice'],
-            'priority' => ['type' => 'string', 'description' => 'Priorità: low, normal, high']
-        ],
-        'required' => ['title', 'description']
-    ]
-];
+// RIMOSSO: propose_improvement - L'AI lo usava male, invece di analizzare il codice
+// creava "proposte" senza senso. Se serve analisi, deve usare explore_code.
 
 // TOOL CONTESTO UTENTE - Lazy loading delle azioni utente
 $getUserActionsTool = [
@@ -1668,7 +1655,6 @@ if ($useOpenRouter) {
         $iteration = 0;
         $lastTextContent = null;
     }
-    $hasProposedImprovement = false;
     $hasExecutedMapAction = false;  // Flag per azioni mappa
     $hasToolError = false;  // Flag per errori nei tool - se true, dai all'AI un'altra chance di rispondere
     $failedEndpoints = [];  // Traccia endpoint call_api che hanno dato 404 - anti-loop
@@ -1808,21 +1794,6 @@ if ($useOpenRouter) {
             // ====== ANTI-LOOP: Blocca tool ripetitivi ======
             // Traccia quante volte viene chiamato ogni tool
             $toolCallCounts[$funcName] = ($toolCallCounts[$funcName] ?? 0) + 1;
-
-            // Blocca propose_improvement dopo la prima volta
-            if ($funcName === 'propose_improvement') {
-                if ($hasProposedImprovement) {
-                    error_log("ANTI-LOOP: Blocco propose_improvement ripetuto");
-                    $result = ['blocked' => true, 'message' => 'Hai già fatto una proposta in questa conversazione'];
-                    $messages[] = [
-                        'role' => 'tool',
-                        'tool_call_id' => $toolCallId,
-                        'content' => json_encode($result)
-                    ];
-                    continue;
-                }
-                $hasProposedImprovement = true;
-            }
 
             // Blocca qualsiasi tool chiamato più di 10 volte (era 3, troppo basso per esplorare)
             if ($toolCallCounts[$funcName] > 10) {
