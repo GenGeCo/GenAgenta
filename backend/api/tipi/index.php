@@ -7,6 +7,8 @@
  * DELETE /tipi/:id     - Elimina tipo
  */
 
+require_once __DIR__ . '/../../includes/ai-docs-generator.php';
+
 $user = requireAuth();
 $db = getDB();
 $id = $_REQUEST['id'] ?? null;
@@ -68,6 +70,7 @@ switch ($method) {
         ');
         $stmt->execute([$id, $teamId, $data['nome'], $forma, $ordine, $isAcquirente, $isVenditore, $isIntermediario, $isInfluencer]);
 
+        regenerateAiDocsForUser($db, $user);
         jsonResponse(['id' => $id, 'message' => 'Tipo creato'], 201);
         break;
 
@@ -127,6 +130,7 @@ switch ($method) {
         $stmt = $db->prepare($sql);
         $stmt->execute($params);
 
+        regenerateAiDocsForUser($db, $user);
         jsonResponse(['message' => 'Tipo aggiornato']);
         break;
 
@@ -153,6 +157,7 @@ switch ($method) {
         $stmt = $db->prepare('DELETE FROM tipi WHERE id = ?');
         $stmt->execute([$id]);
 
+        regenerateAiDocsForUser($db, $user);
         jsonResponse(['message' => 'Tipo eliminato']);
         break;
 

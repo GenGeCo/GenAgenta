@@ -1145,6 +1145,18 @@ $functionDeclarations[] = [
     ]
 ];
 
+// TOOL STRUTTURA TEAM - Configurazione entità e prodotti
+$getTeamStructureTool = [
+    'name' => 'get_team_structure',
+    'description' => 'Legge la struttura configurata dall\'utente: tipi di entità, tipologie (colori), campi personalizzati, famiglie prodotto. Chiamalo PRIMA di creare entità per sapere quali tipi e campi esistono.',
+    'parameters' => [
+        'type' => 'object',
+        'properties' => new stdClass()  // Nessun parametro richiesto
+    ]
+];
+$getTeamStructureTool['parameters']['properties'] = new stdClass();
+$functionDeclarations[] = $getTeamStructureTool;
+
 // TOOL FILE SYSTEM - Per lazy loading e memoria
 $functionDeclarations[] = [
     'name' => 'read_file',

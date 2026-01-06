@@ -8,6 +8,8 @@
  * DELETE /tipologie/:id     - Elimina tipologia
  */
 
+require_once __DIR__ . '/../../includes/ai-docs-generator.php';
+
 $user = requireAuth();
 $db = getDB();
 $id = $_REQUEST['id'] ?? null;
@@ -71,6 +73,7 @@ switch ($method) {
         ');
         $stmt->execute([$id, $data['tipo_id'], $data['nome'], $colore, $ordine]);
 
+        regenerateAiDocsForUser($db, $user);
         jsonResponse(['id' => $id, 'message' => 'Tipologia creata'], 201);
         break;
 
@@ -117,6 +120,7 @@ switch ($method) {
         $stmt = $db->prepare($sql);
         $stmt->execute($params);
 
+        regenerateAiDocsForUser($db, $user);
         jsonResponse(['message' => 'Tipologia aggiornata']);
         break;
 
@@ -139,6 +143,7 @@ switch ($method) {
         $stmt = $db->prepare('DELETE FROM tipologie WHERE id = ?');
         $stmt->execute([$id]);
 
+        regenerateAiDocsForUser($db, $user);
         jsonResponse(['message' => 'Tipologia eliminata']);
         break;
 

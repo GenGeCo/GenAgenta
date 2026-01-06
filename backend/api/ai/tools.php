@@ -139,6 +139,10 @@ function executeAiTool(string $toolName, array $input, array $user): array {
             case 'agea_save_insight':
                 return tool_ageaSaveInsight($input);
 
+            // Tool STRUTTURA TEAM - Tipi, tipologie, campi, famiglie prodotto
+            case 'get_team_structure':
+                return tool_getTeamStructure($user);
+
             default:
                 return ['error' => "Tool sconosciuto: $toolName"];
         }
@@ -2281,3 +2285,35 @@ function tool_ageaSaveInsight(array $input): array {
     ];
 }
 
+
+
+/**
+ * Tool: Legge la struttura configurata dal team
+ * Restituisce tipi, tipologie, campi personalizzati e famiglie prodotto
+ */
+function tool_getTeamStructure(array $user): array {
+    $teamId = $user['team_id'] ?? $user['azienda_id'] ?? null;
+    if (!$teamId) {
+        return ['error' => 'Team non identificato'];
+    }
+
+    $filePath = __DIR__ . '/../../config/ai/teams/' . $teamId . '_struttura.md';
+
+    if (!file_exists($filePath)) {
+        // Prova a rigenerare
+        require_once __DIR__ . '/../../includes/ai-docs-generator.php';
+        $db = getDB();
+        regenerateAiStructureDocs($db, $teamId);
+    }
+
+    if (file_exists($filePath)) {
+        $content = file_get_contents($filePath);
+        return [
+            'success' => true,
+            'message' => 'Struttura team caricata',
+            'content' => $content
+        ];
+    }
+
+    return ['error' => 'File struttura non trovato. Configura tipi e tipologie in Setup.'];
+}

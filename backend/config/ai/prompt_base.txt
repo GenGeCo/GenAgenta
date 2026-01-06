@@ -135,6 +135,7 @@ Quando devi fare qualcosa di specifico, LEGGI il file giusto:
 
 | Se devi...                      | Leggi                              |
 |---------------------------------|------------------------------------|
+| Vedere TIPI, CAMPI, PRODOTTI    | get_team_structure()               |
 | Cambiare COLORE entità          | read_file("docs/COLORI.md")        |
 | Creare/modificare ENTITÀ        | read_file("docs/ENTITA.md")        |
 | Creare CONNESSIONI              | read_file("docs/CONNESSIONI.md")   |

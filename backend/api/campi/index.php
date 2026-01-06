@@ -7,6 +7,8 @@
  * DELETE /campi/:id            - Elimina campo
  */
 
+require_once __DIR__ . '/../../includes/ai-docs-generator.php';
+
 $user = requireAuth();
 $db = getDB();
 $id = $_REQUEST['id'] ?? null;
@@ -96,6 +98,7 @@ switch ($method) {
                 $data['ordine'] ?? 0
             ]);
 
+            regenerateAiDocsForUser($db, $user);  // Aggiorna docs AI
             jsonResponse(['id' => $id, 'message' => 'Campo creato'], 201);
         } catch (PDOException $e) {
             // Se la tabella non esiste, la creiamo al volo
@@ -132,6 +135,7 @@ switch ($method) {
                     $data['ordine'] ?? 0
                 ]);
 
+                regenerateAiDocsForUser($db, $user);  // Aggiorna docs AI
                 jsonResponse(['id' => $id, 'message' => 'Campo creato (tabella creata)'], 201);
             } else {
                 errorResponse('Errore database: ' . $e->getMessage(), 500);
@@ -194,6 +198,7 @@ switch ($method) {
         $stmt = $db->prepare($sql);
         $stmt->execute($params);
 
+        regenerateAiDocsForUser($db, $user);  // Aggiorna docs AI
         jsonResponse(['message' => 'Campo aggiornato']);
         break;
 
@@ -228,6 +233,7 @@ switch ($method) {
             $stmt->execute([$id]);
 
             $db->commit();
+            regenerateAiDocsForUser($db, $user);  // Aggiorna docs AI
             jsonResponse(['message' => 'Campo eliminato']);
         } catch (Exception $e) {
             $db->rollBack();

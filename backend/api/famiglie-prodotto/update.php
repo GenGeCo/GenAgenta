@@ -4,6 +4,8 @@
  * Aggiorna famiglia prodotto
  */
 
+require_once __DIR__ . '/../../includes/ai-docs-generator.php';
+
 $user = requireAuth();
 $id = $_REQUEST['id'] ?? '';
 $data = getJsonBody();

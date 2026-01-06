@@ -4,6 +4,8 @@
  * Crea nuova famiglia prodotto
  */
 
+require_once __DIR__ . '/../../includes/ai-docs-generator.php';
+
 $user = requireAuth();
 $data = getJsonBody();
 
@@ -67,4 +69,5 @@ $stmt->execute([
     $data['colore'] ?? null
 ]);
 
+regenerateAiDocsForUser($db, $user);
 jsonResponse(['id' => $id, 'message' => 'Famiglia prodotto creata'], 201);

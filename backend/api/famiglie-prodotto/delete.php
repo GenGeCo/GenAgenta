@@ -4,6 +4,8 @@
  * Elimina famiglia prodotto (e tutti i figli)
  */
 
+require_once __DIR__ . '/../../includes/ai-docs-generator.php';
+
 $user = requireAuth();
 $id = $_REQUEST['id'] ?? '';
 
