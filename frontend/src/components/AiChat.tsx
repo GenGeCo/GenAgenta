@@ -557,9 +557,30 @@ export function AiChat({ isOpen, onClose, onAction, selectedEntity, visibilityCo
 
     } catch (error) {
       console.error('Errore AI:', error);
+
+      // Estrai il VERO messaggio di errore invece di mostrare messaggio generico
+      let errorDetail = '';
+      if (error && typeof error === 'object') {
+        const axiosError = error as {
+          response?: { data?: { error?: string; message?: string }; status?: number };
+          message?: string;
+        };
+        if (axiosError.response?.data?.error) {
+          errorDetail = axiosError.response.data.error;
+        } else if (axiosError.response?.data?.message) {
+          errorDetail = axiosError.response.data.message;
+        } else if (axiosError.response?.status) {
+          errorDetail = `Errore HTTP ${axiosError.response.status}`;
+        } else if (axiosError.message) {
+          errorDetail = axiosError.message;
+        }
+      }
+
       const errorMessage: Message = {
         role: 'assistant',
-        content: 'Ahia! 😅 Mi sa che ho fatto un pasticcio... Forse dovremmo dare un\'occhiata lato software, da qui non riesco proprio! Prova a riformulare in modo diverso oppure chiedi al supporto tecnico.',
+        content: errorDetail
+          ? `Ops! 😅 Ho ricevuto un errore:\n\n**${errorDetail}**\n\nPotrebbe essere un problema temporaneo - riprova tra poco. Se persiste, potrebbe servire un'occhiata al codice.`
+          : 'Ahia! 😅 Mi sa che ho fatto un pasticcio... Forse dovremmo dare un\'occhiata lato software, da qui non riesco proprio!',
         timestamp: new Date(),
       };
       setMessages((prev) => [...prev, errorMessage]);
