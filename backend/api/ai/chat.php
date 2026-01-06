@@ -1344,11 +1344,12 @@ $history = array_slice($conversationHistory, -10);
 foreach ($history as $msg) {
     $role = $msg['role'] === 'assistant' ? 'model' : 'user';
 
-    // Se il messaggio ha tool_summary, aggiungilo al contenuto
-    // così l'AI sa quali ID ha creato/trovato
+    // Se il messaggio ha tool_summary, aggiungilo come nota di sistema
+    // IMPORTANTE: Usa formato che l'AI non deve imitare
     $content = $msg['content'];
     if (!empty($msg['tool_summary'])) {
-        $summaryText = "\n\n[Contesto operazioni: " . json_encode($msg['tool_summary'], JSON_UNESCAPED_UNICODE) . "]";
+        // Formato che indica chiaramente che è generato dal SISTEMA, non dall'AI
+        $summaryText = "\n\n---SYSTEM_TOOL_RESULTS_DO_NOT_COPY_THIS_FORMAT---\n" . json_encode($msg['tool_summary'], JSON_UNESCAPED_UNICODE) . "\n---END_SYSTEM---";
         $content .= $summaryText;
     }
 
@@ -1541,10 +1542,10 @@ if ($useOpenRouter) {
                 $content = substr($content, 0, 3000) . "\n[...messaggio troncato...]";
             }
 
-            // Se il messaggio ha tool_summary, aggiungilo al contenuto
-            // così l'AI sa quali ID ha creato/trovato
+            // Se il messaggio ha tool_summary, aggiungilo come nota di sistema
+            // IMPORTANTE: Usa formato che l'AI non deve imitare
             if (!empty($msg['tool_summary'])) {
-                $summaryText = "\n\n[Contesto operazioni: " . json_encode($msg['tool_summary'], JSON_UNESCAPED_UNICODE) . "]";
+                $summaryText = "\n\n---SYSTEM_TOOL_RESULTS_DO_NOT_COPY_THIS_FORMAT---\n" . json_encode($msg['tool_summary'], JSON_UNESCAPED_UNICODE) . "\n---END_SYSTEM---";
                 $content .= $summaryText;
             }
 
