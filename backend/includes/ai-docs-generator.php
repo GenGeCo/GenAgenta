@@ -21,7 +21,7 @@ function regenerateAiStructureDocs(PDO $db, string $teamId): bool {
 
     // Recupera tutti i tipi del team
     $stmt = $db->prepare('
-        SELECT t.id, t.nome, t.icona, t.forma
+        SELECT t.id, t.nome, t.forma
         FROM tipi t
         WHERE t.team_id = ?
         ORDER BY t.nome
@@ -43,9 +43,6 @@ function regenerateAiStructureDocs(PDO $db, string $teamId): bool {
         $content .= "## {$tipo['nome']}\n\n";
         $content .= "- **ID**: `{$tipo['id']}`\n";
         $content .= "- **Forma mappa**: {$tipo['forma']}\n";
-        if ($tipo['icona']) {
-            $content .= "- **Icona**: {$tipo['icona']}\n";
-        }
         $content .= "\n";
 
         // Recupera tipologie (categorie) per questo tipo
