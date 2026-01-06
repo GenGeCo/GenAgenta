@@ -417,6 +417,25 @@ class ApiClient {
   }
 
   // =====================================================
+  // Campi Personalizzati per Tipo
+  // =====================================================
+  async getCampi(tipoId: string): Promise<{
+    data: Array<{
+      id: string;
+      tipo_id: string;
+      nome: string;
+      etichetta: string;
+      tipo_dato: 'testo' | 'textarea' | 'numero' | 'data' | 'select' | 'email' | 'telefono' | 'url';
+      opzioni: string[] | null;
+      obbligatorio: boolean;
+      ordine: number;
+    }>;
+  }> {
+    const { data } = await this.client.get('/campi', { params: { tipo: tipoId } });
+    return data;
+  }
+
+  // =====================================================
   // Tipi Sinapsi (colori connessioni)
   // =====================================================
   async getTipiSinapsi(): Promise<{

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { api } from '../utils/api';
-import { useSinapsiNeurone, useNote, useVendite, useFamiglieProdotto, useNeurone, useInvalidateData, type FamigliaProdottoFlat } from '../hooks/useData';
+import { useSinapsiNeurone, useNote, useVendite, useFamiglieProdotto, useNeurone, useInvalidateData, useTipi, useCampiTipo, type FamigliaProdottoFlat, type CampoTipo } from '../hooks/useData';
 import type { Neurone, Sinapsi, NotaPersonale } from '../types';
 import SinapsiFormModal from './SinapsiFormModal';
 
@@ -234,6 +234,16 @@ function InfoTab({ neurone }: { neurone: Neurone }) {
     is_influencer: neurone.is_influencer,
   });
 
+  // Carica tipi per trovare l'ID dal nome
+  const { data: tipi = [] } = useTipi();
+
+  // Trova tipo_id dal nome del tipo
+  const tipoConfig = tipi.find(t => t.nome.toLowerCase() === neurone.tipo.toLowerCase());
+  const tipoId = tipoConfig?.id || null;
+
+  // Carica campi personalizzati per questo tipo
+  const { data: campiConfigurati = [], isLoading: campiLoading } = useCampiTipo(tipoId);
+
   // Sincronizza stato locale quando cambiano i dati dal server (es. dopo modifica AI)
   useEffect(() => {
     setNaturaLocale({
@@ -257,6 +267,14 @@ function InfoTab({ neurone }: { neurone: Neurone }) {
     } finally {
       setSaving(false);
     }
+  };
+
+  // Funzione per ottenere il valore di un campo
+  const getValoreCampo = (campo: CampoTipo): string | null => {
+    if (!neurone.dati_extra) return null;
+    const valore = neurone.dati_extra[campo.nome];
+    if (valore === undefined || valore === null || valore === '') return null;
+    return String(valore);
   };
 
   return (
@@ -329,8 +347,50 @@ function InfoTab({ neurone }: { neurone: Neurone }) {
         <InfoRow label="Coordinate" value={`${neurone.lat}, ${neurone.lng}`} />
       )}
 
-      {/* Dati extra */}
-      {neurone.dati_extra && Object.keys(neurone.dati_extra).length > 0 && (
+      {/* Campi personalizzati - MOSTRA TUTTI, anche vuoti */}
+      {campiLoading ? (
+        <div style={{ marginTop: '16px', color: 'var(--text-secondary)', fontSize: '13px' }}>
+          Caricamento campi...
+        </div>
+      ) : campiConfigurati.length > 0 ? (
+        <div style={{ marginTop: '16px' }}>
+          <h4 style={{ fontSize: '14px', fontWeight: 600, marginBottom: '8px' }}>
+            Dettagli aggiuntivi
+          </h4>
+          {campiConfigurati.map((campo) => {
+            const valore = getValoreCampo(campo);
+            return (
+              <div key={campo.id} style={{ marginBottom: '12px' }}>
+                <div style={{
+                  fontSize: '12px',
+                  color: 'var(--text-secondary)',
+                  marginBottom: '2px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px'
+                }}>
+                  {campo.etichetta}
+                  {campo.obbligatorio && (
+                    <span style={{ color: '#ef4444', fontSize: '10px' }}>*</span>
+                  )}
+                </div>
+                <div style={{
+                  fontSize: '14px',
+                  color: valore ? 'var(--text-primary)' : 'var(--text-secondary)',
+                  fontStyle: valore ? 'normal' : 'italic',
+                  padding: valore ? '0' : '4px 8px',
+                  background: valore ? 'transparent' : 'var(--bg-secondary)',
+                  borderRadius: '4px',
+                  border: valore ? 'none' : '1px dashed var(--border-color)',
+                }}>
+                  {valore || 'Non compilato'}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      ) : neurone.dati_extra && Object.keys(neurone.dati_extra).length > 0 ? (
+        // Fallback: mostra dati_extra non configurati (es. da AI o import)
         <div style={{ marginTop: '16px' }}>
           <h4 style={{ fontSize: '14px', fontWeight: 600, marginBottom: '8px' }}>
             Dettagli aggiuntivi
@@ -343,7 +403,7 @@ function InfoTab({ neurone }: { neurone: Neurone }) {
             />
           ))}
         </div>
-      )}
+      ) : null}
     </div>
   );
 }

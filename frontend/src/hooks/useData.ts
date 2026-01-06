@@ -15,6 +15,7 @@ export const queryKeys = {
   sinapsiById: (id: string) => ['sinapsi', 'detail', id] as const,
   tipi: () => ['tipi'] as const,
   tipologie: () => ['tipologie'] as const,
+  campiTipo: (tipoId: string) => ['campi', 'tipo', tipoId] as const,
   famiglieProdotto: () => ['famiglieProdotto'] as const,
   note: (neuroneId: string) => ['note', neuroneId] as const,
   vendite: (neuroneId: string) => ['vendite', neuroneId] as const,
@@ -130,6 +131,32 @@ export function useTipologie() {
       })) as Categoria[];
     },
     staleTime: 1000 * 60 * 30, // 30 minuti
+  });
+}
+
+// ========== CAMPI PERSONALIZZATI ==========
+
+export interface CampoTipo {
+  id: string;
+  tipo_id: string;
+  nome: string;
+  etichetta: string;
+  tipo_dato: 'testo' | 'textarea' | 'numero' | 'data' | 'select' | 'email' | 'telefono' | 'url';
+  opzioni: string[] | null;
+  obbligatorio: boolean;
+  ordine: number;
+}
+
+export function useCampiTipo(tipoId: string | null) {
+  return useQuery({
+    queryKey: queryKeys.campiTipo(tipoId || ''),
+    queryFn: async () => {
+      if (!tipoId) return [];
+      const res = await api.getCampi(tipoId);
+      return res.data as CampoTipo[];
+    },
+    enabled: !!tipoId,
+    staleTime: 1000 * 60 * 30, // 30 minuti - cambiano raramente
   });
 }
 
