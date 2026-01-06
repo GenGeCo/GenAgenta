@@ -558,7 +558,7 @@ export function AiChat({ isOpen, onClose, onAction, selectedEntity, visibilityCo
     } catch (error) {
       console.error('Errore AI:', error);
 
-      // Estrai il VERO messaggio di errore invece di mostrare messaggio generico
+      // Estrai il VERO messaggio di errore
       let errorDetail = '';
       if (error && typeof error === 'object') {
         const axiosError = error as {
@@ -576,10 +576,36 @@ export function AiChat({ isOpen, onClose, onAction, selectedEntity, visibilityCo
         }
       }
 
+      // Se abbiamo un errore dettagliato, proviamo a farlo interpretare all'AI
+      if (errorDetail) {
+        try {
+          setLoadingPhase('thinking');
+          const errorPrompt = `[ERRORE SISTEMA] Ho ricevuto questo errore tecnico mentre provavo a eseguire la tua richiesta:\n\n"${errorDetail}"\n\nSpiega all'utente cosa è successo in modo semplice e, se possibile, suggerisci come risolvere o cosa provare.`;
+
+          const errorResponse = await api.aiChat(errorPrompt, messages.slice(-5), {
+            selectedEntity: selectedEntity || undefined,
+          });
+
+          if (errorResponse.response) {
+            const aiErrorMessage: Message = {
+              role: 'assistant',
+              content: errorResponse.response,
+              timestamp: new Date(),
+            };
+            setMessages((prev) => [...prev, aiErrorMessage]);
+            return; // L'AI ha risposto, usciamo
+          }
+        } catch {
+          // Se anche questa chiamata fallisce, mostriamo l'errore direttamente
+          console.error('Anche la chiamata di interpretazione errore è fallita');
+        }
+      }
+
+      // Fallback: mostra errore direttamente all'utente
       const errorMessage: Message = {
         role: 'assistant',
         content: errorDetail
-          ? `Ops! 😅 Ho ricevuto un errore:\n\n**${errorDetail}**\n\nPotrebbe essere un problema temporaneo - riprova tra poco. Se persiste, potrebbe servire un'occhiata al codice.`
+          ? `Ops! 😅 C'è stato un problema tecnico:\n\n**${errorDetail}**\n\nPotrebbe essere un problema temporaneo - riprova tra poco.`
           : 'Ahia! 😅 Mi sa che ho fatto un pasticcio... Forse dovremmo dare un\'occhiata lato software, da qui non riesco proprio!',
         timestamp: new Date(),
       };
