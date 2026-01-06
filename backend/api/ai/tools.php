@@ -875,6 +875,17 @@ function tool_updateEntity(PDO $db, array $input, array $user): array {
         $params[] = json_encode($input['categorie']);
     }
 
+    // Dati extra (campi personalizzati configurati in Setup)
+    // L'AI può passare dati_extra come oggetto con i campi da aggiornare
+    // Es: dati_extra: { "comune_di": "Roma", "permesso": "n° 123" }
+    if (isset($input['dati_extra']) && is_array($input['dati_extra'])) {
+        // Merge con dati_extra esistenti
+        $existingExtra = $existing['dati_extra'] ? json_decode($existing['dati_extra'], true) : [];
+        $newExtra = array_merge($existingExtra ?? [], $input['dati_extra']);
+        $updates[] = "dati_extra = ?";
+        $params[] = json_encode($newExtra);
+    }
+
     if (empty($updates)) {
         return ['error' => 'Nessun campo da aggiornare specificato'];
     }

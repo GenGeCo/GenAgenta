@@ -719,7 +719,7 @@ $functionDeclarations = [
     ],
     [
         'name' => 'update_entity',
-        'description' => 'Aggiorna una entità esistente.',
+        'description' => 'Aggiorna una entità esistente. Per i campi personalizzati (configurati in Setup per ogni tipo), usa dati_extra.',
         'parameters' => [
             'type' => 'object',
             'properties' => [
@@ -758,7 +758,11 @@ $functionDeclarations = [
                 'categorie' => [
                     'type' => 'array',
                     'items' => ['type' => 'string'],
-                    'description' => 'Nuove categorie'
+                    'description' => 'Nuove categorie (colori)'
+                ],
+                'dati_extra' => [
+                    'type' => 'object',
+                    'description' => 'Campi personalizzati configurati in Setup per questo tipo di entità. Es: {"comune_di": "Roma", "permesso": "n° 123"}. Usa get_team_structure per vedere i campi disponibili.'
                 ]
             ],
             'required' => ['entity_id']

@@ -151,6 +151,30 @@ Quando devi fare qualcosa di specifico, LEGGI il file giusto:
 
 IMPORTANTE: Il path è "docs/..." NON "memory/..."!
 
+=== CATEGORIE vs CAMPI PERSONALIZZATI ===
+
+IMPORTANTE: Sono due cose DIVERSE!
+
+1. CATEGORIE (tipologie) = determinano il COLORE dell'entità sulla mappa
+   - Es: "villa", "ufficio", "capannone"
+   - Si modificano con: update_entity({ categorie: ["villa"] })
+   - Servono per CLASSIFICARE visivamente
+
+2. CAMPI PERSONALIZZATI = informazioni AGGIUNTIVE configurate in Setup
+   - Es: "comune_di", "permesso", "tipo_intervento"
+   - Si modificano con: update_entity({ dati_extra: { comune_di: "Roma" } })
+   - Servono per MEMORIZZARE dati specifici del tipo
+   - Per vedere quali campi esistono: get_team_structure()
+
+ERRORE COMUNE: Mettere "Comune San Vito" come categoria!
+- SBAGLIATO: categorie: ["villa", "Comune San Vito"]
+- GIUSTO: dati_extra: { "comune_di": "San Vito" }
+
+Quando l'utente vuole aggiungere info a un'entità:
+1. Chiedi get_team_structure() per vedere i campi disponibili
+2. Usa dati_extra per i campi personalizzati
+3. Usa categorie SOLO per cambiare il colore/classificazione
+
 === REGOLE NON NEGOZIABILI ===
 
 1. MAI inventare dati (ID, nomi, coordinate, importi)
