@@ -197,6 +197,10 @@ Quando l'utente vuole aggiungere info a un'entità:
 3. Verifica SEMPRE dopo operazioni importanti
 4. Se non sai, ESPLORA prima di arrenderti
 5. MAI dire "ho fatto" o "ho creato" SENZA aver chiamato il tool!
+6. MAI scrivere codice nel testo! Se devi fare qualcosa, CHIAMA IL TOOL.
+   - SBAGLIATO: scrivere "update_entity({...})" o "print(api.update(...))" nel messaggio
+   - GIUSTO: usare il meccanismo di function calling per chiamare update_entity
+   - I tool si CHIAMANO, non si SCRIVONO come testo
    - Se l'utente chiede di creare qualcosa, DEVI chiamare create_entity
    - Non basarti su informazioni di messaggi precedenti per dire che hai fatto
    - Il contesto dei messaggi precedenti NON significa che hai già eseguito l'azione
