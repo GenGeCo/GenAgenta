@@ -2084,8 +2084,25 @@ if ($useOpenRouter) {
         $candidate = $candidates[0];
         $finishReason = $candidate['finishReason'] ?? 'STOP';
 
+        // DEBUG: Log dettagliato del candidate per diagnosticare risposte vuote
+        aiDebugLog('GEMINI_CANDIDATE_DEBUG', [
+            'iteration' => $iteration,
+            'finishReason' => $finishReason,
+            'has_content' => isset($candidate['content']),
+            'has_parts' => isset($candidate['content']['parts']),
+            'parts_count' => isset($candidate['content']['parts']) ? count($candidate['content']['parts']) : 0,
+            'candidate_keys' => array_keys($candidate),
+            'content_preview' => isset($candidate['content']) ? json_encode($candidate['content']) : 'NULL'
+        ]);
+
         // Gestisci casi in cui content potrebbe essere null
         if (!isset($candidate['content']) || !isset($candidate['content']['parts'])) {
+            error_log("GEMINI EMPTY RESPONSE - finishReason: $finishReason, candidate: " . json_encode($candidate));
+            aiDebugLog('GEMINI_EMPTY_RESPONSE', [
+                'finishReason' => $finishReason,
+                'candidate' => $candidate,
+                'frontendActions_count' => count($frontendActions)
+            ]);
             if ($finishReason === 'SAFETY' || $finishReason === 'RECITATION') {
                 errorResponse("Risposta bloccata per sicurezza ($finishReason)", 400);
             }
