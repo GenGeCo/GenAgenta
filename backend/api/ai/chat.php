@@ -11,6 +11,65 @@ set_error_handler(function($severity, $message, $file, $line) {
     throw new ErrorException($message, 0, $severity, $file, $line);
 });
 
+/**
+ * Chiama l'AI per interpretare un errore tecnico in modo user-friendly.
+ * Usa Gemini SENZA tool per una chiamata leggera e veloce.
+ * Ritorna null se fallisce (per usare fallback).
+ */
+function interpretErrorWithAI(string $errorMessage): ?string {
+    // Evita loop infiniti: se l'errore è dell'AI stessa, non richiamare l'AI
+    $aiErrorKeywords = ['Gemini', 'OpenRouter', 'cURL', 'API', 'timeout', '429', '503'];
+    foreach ($aiErrorKeywords as $keyword) {
+        if (stripos($errorMessage, $keyword) !== false) {
+            return null; // Usa fallback
+        }
+    }
+
+    // Carica API key
+    $config = require __DIR__ . '/../../config/config.php';
+    $apiKey = $config['gemini_api_key'] ?? getenv('GEMINI_API_KEY');
+    if (!$apiKey) {
+        return null;
+    }
+
+    $model = 'gemini-2.5-flash';
+    $url = "https://generativelanguage.googleapis.com/v1beta/models/{$model}:generateContent?key={$apiKey}";
+
+    $prompt = "Sei Agea, un'assistente AI simpatica. L'utente ha incontrato questo errore tecnico:\n\n\"$errorMessage\"\n\nSpiega IN ITALIANO cosa è successo in modo semplice e amichevole (max 2 frasi). Se è un errore di database (SQL, colonna mancante), suggerisci che potrebbe servire un aggiornamento. NON dire 'contatta il supporto'.";
+
+    $payload = [
+        'contents' => [
+            ['role' => 'user', 'parts' => [['text' => $prompt]]]
+        ],
+        'generationConfig' => [
+            'temperature' => 0.7,
+            'maxOutputTokens' => 200
+        ]
+    ];
+
+    $ch = curl_init($url);
+    curl_setopt_array($ch, [
+        CURLOPT_POST => true,
+        CURLOPT_POSTFIELDS => json_encode($payload),
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_HTTPHEADER => ['Content-Type: application/json'],
+        CURLOPT_TIMEOUT => 10 // Timeout corto per non bloccare troppo
+    ]);
+
+    $response = curl_exec($ch);
+    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    curl_close($ch);
+
+    if ($httpCode !== 200) {
+        return null;
+    }
+
+    $data = json_decode($response, true);
+    $text = $data['candidates'][0]['content']['parts'][0]['text'] ?? null;
+
+    return $text;
+}
+
 // Exception handler globale - RESTITUISCE SEMPRE UNA RISPOSTA AI VALIDA
 // Mai crashare con 500, sempre dare un messaggio che l'utente può capire
 set_exception_handler(function($e) {
@@ -21,16 +80,12 @@ set_exception_handler(function($e) {
     $errorMessage = $e->getMessage();
     error_log("AI Chat Exception: $errorMessage in " . $e->getFile() . ":" . $e->getLine());
 
-    // Messaggio user-friendly basato sul tipo di errore
-    $userMessage = "Mi dispiace, ho incontrato un problema tecnico. ";
-    if (strpos($errorMessage, 'Column not found') !== false) {
-        $userMessage .= "C'è un problema con la struttura del database. Contatta l'amministratore.";
-    } elseif (strpos($errorMessage, 'SQLSTATE') !== false) {
-        $userMessage .= "C'è un problema con il database. Riprova tra poco.";
-    } elseif (strpos($errorMessage, 'timeout') !== false || strpos($errorMessage, 'cURL') !== false) {
-        $userMessage .= "Il servizio AI non risponde. Riprova tra qualche secondo.";
-    } else {
-        $userMessage .= "Riprova o formula la richiesta in modo diverso.";
+    // Prova a far interpretare l'errore dall'AI
+    $userMessage = interpretErrorWithAI($errorMessage);
+
+    // Fallback se l'AI non risponde
+    if (!$userMessage) {
+        $userMessage = "Ops! 😅 Ho incontrato un problema tecnico: \"$errorMessage\". Potrebbe essere un errore temporaneo - riprova tra poco!";
     }
 
     echo json_encode([
@@ -39,7 +94,7 @@ set_exception_handler(function($e) {
         'context' => [
             'messages_count' => 0,
             'did_compaction' => false,
-            'error_details' => $errorMessage  // Per debug, può essere nascosto in prod
+            'error_details' => $errorMessage  // Per debug
         ]
     ]);
     exit;
