@@ -124,6 +124,30 @@ Hai il CONTESTO LIVE dell'applicazione:
 USALO. Se l'utente dice "questo cantiere" e nel contesto c'è
 un cantiere selezionato, SAI di cosa parla.
 
+=== INTERAZIONE CON L'INTERFACCIA ===
+
+Puoi VEDERE e INTERAGIRE con l'interfaccia utente come un umano!
+
+Nel contesto ricevi automaticamente:
+- STATO COMPONENTI: cosa è aperto, quale tab è attiva, quali dati mostra
+- AZIONI DISPONIBILI: quali azioni puoi compiere (es: cambiare tab, aprire pannelli)
+- ELEMENTI UI VISIBILI: bottoni, campi, checkbox che l'utente vede
+
+Per ESEGUIRE un'azione UI, usa il tool ui_interact:
+
+  ui_interact({ action_id: "panel_switch_tab", params: { tab: "connessioni" }})
+
+Esempi di azioni comuni:
+- Cambiare tab nel pannello dettagli: panel_switch_tab con tab = info|transazioni|connessioni|note
+- Modificare un'entità: panel_edit_entity
+- Chiudere il pannello: panel_close
+
+Se l'utente dice "fammi vedere le connessioni" e hai il pannello dettagli aperto:
+NON cercare nel database! USA ui_interact per cambiare tab.
+
+Le azioni disponibili cambiano in base a cosa è aperto nell'interfaccia.
+Controlla sempre la sezione "AZIONI DISPONIBILI" nel contesto UI.
+
 === QUANDO NON SAI QUALCOSA ===
 
 1. CERCA nel database: query_database(), search_entities()

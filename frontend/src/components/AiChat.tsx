@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect, useMemo } from 'react';
 import { api, AiPendingAction, AiChatResponse, ToolKeyInfo } from '../utils/api';
 import type { UserAction } from '../types';
+import { useAiUi } from '../contexts/AiUiContext';
 
 interface Message {
   role: 'user' | 'assistant';
@@ -31,7 +32,7 @@ const QUICK_ACTIONS = [
 
 // Tipi per le azioni frontend
 export interface AiFrontendAction {
-  type: 'map_fly_to' | 'map_select_entity' | 'map_show_connections' | 'map_set_style' | 'map_place_marker' | 'map_remove_marker' | 'map_clear_markers' | 'ui_open_panel' | 'ui_notification' | 'refresh_neuroni';
+  type: 'map_fly_to' | 'map_select_entity' | 'map_show_connections' | 'map_set_style' | 'map_place_marker' | 'map_remove_marker' | 'map_clear_markers' | 'ui_open_panel' | 'ui_notification' | 'refresh_neuroni' | 'ui_action';
   lat?: number;
   lng?: number;
   zoom?: number;
@@ -47,6 +48,8 @@ export interface AiFrontendAction {
   color?: string;  // Per map_place_marker
   fly_to?: boolean;  // Per map_place_marker - se volare alla posizione
   marker_id?: string;  // Per map_remove_marker
+  action_id?: string;  // Per ui_action - ID dell'azione UI da eseguire
+  action_params?: Record<string, unknown>;  // Per ui_action - parametri
 }
 
 // Tipo minimo per l'entità selezionata (evita dipendenza circolare)
@@ -104,6 +107,9 @@ export function AiChat({ isOpen, onClose, onAction, selectedEntity, visibilityCo
   const [_contextInfo, setContextInfo] = useState({ messagesCount: 0, threshold: 25 });
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+
+  // AI UI Context - permette all'AI di vedere e interagire con l'interfaccia
+  const { exportForAi, executeAction } = useAiUi();
 
   // Drag & drop per spostare la finestra
   const [position, setPosition] = useState({ x: 20, y: 20 }); // bottom-right offset
@@ -406,17 +412,20 @@ export function AiChat({ isOpen, onClose, onAction, selectedEntity, visibilityCo
 
         // Prima chiamata o resume?
         if (!resumeContext) {
-          // Passa contesto (selezione + azioni utente + marker AI + copilot context)
+          // Passa contesto (selezione + azioni utente + marker AI + copilot context + UI state)
+          const uiState = exportForAi();  // Stato UI dall'AiUiContext
           const context: {
             selectedEntity?: typeof selectedEntity;
             userActions?: UserAction[];
             aiMarkers?: AiMarkerContext[];
             copilotContext?: string;  // Contesto live stile CopilotKit
+            uiState?: string;  // Stato interfaccia (accessibility tree + azioni disponibili)
           } = {};
           if (selectedEntity) context.selectedEntity = selectedEntity;
           if (userActions && userActions.length > 0) context.userActions = userActions;
           if (aiMarkers && aiMarkers.length > 0) context.aiMarkers = aiMarkers;
           if (copilotContext) context.copilotContext = copilotContext;  // Contesto live!
+          if (uiState) context.uiState = uiState;  // Stato UI con azioni disponibili
 
           // DEBUG: log del contesto passato all'AI
           console.log('=== AI CHAT CONTEXT DEBUG ===');
@@ -424,6 +433,7 @@ export function AiChat({ isOpen, onClose, onAction, selectedEntity, visibilityCo
           console.log('userActions count:', userActions?.length || 0);
           console.log('aiMarkers count:', aiMarkers?.length || 0);
           console.log('copilotContext length:', copilotContext?.length || 0);
+          console.log('uiState length:', uiState?.length || 0);
           console.log('=============================');
 
           currentResponse = await api.aiChat(userMessage.content, history, Object.keys(context).length > 0 ? context : undefined);
@@ -522,10 +532,17 @@ export function AiChat({ isOpen, onClose, onAction, selectedEntity, visibilityCo
             localStorage.setItem(CHAT_STORAGE_KEY, JSON.stringify(newMessages));
 
             // Esegui azioni frontend
-            if (currentResponse.actions && Array.isArray(currentResponse.actions) && onAction) {
+            if (currentResponse.actions && Array.isArray(currentResponse.actions)) {
               for (const action of currentResponse.actions) {
-                console.log('Eseguo azione AI (post-compaction):', action);
-                onAction(action as AiFrontendAction);
+                const frontendAction = action as AiFrontendAction;
+                console.log('Eseguo azione AI (post-compaction):', frontendAction);
+
+                // Gestisci ui_action localmente
+                if (frontendAction.type === 'ui_action' && frontendAction.action_id) {
+                  await executeAction(frontendAction.action_id, frontendAction.action_params || {});
+                } else if (onAction) {
+                  onAction(frontendAction);
+                }
               }
             }
             return;
@@ -542,10 +559,20 @@ export function AiChat({ isOpen, onClose, onAction, selectedEntity, visibilityCo
         setMessages((prev) => [...prev, assistantMessage]);
 
         // Esegui azioni frontend se presenti
-        if (currentResponse.actions && Array.isArray(currentResponse.actions) && onAction) {
+        if (currentResponse.actions && Array.isArray(currentResponse.actions)) {
           for (const action of currentResponse.actions) {
-            console.log('Eseguo azione AI:', action);
-            onAction(action as AiFrontendAction);
+            const frontendAction = action as AiFrontendAction;
+            console.log('Eseguo azione AI:', frontendAction);
+
+            // Gestisci ui_action localmente (esegue azioni UI registrate)
+            if (frontendAction.type === 'ui_action' && frontendAction.action_id) {
+              console.log('Eseguo UI action:', frontendAction.action_id, frontendAction.action_params);
+              const result = await executeAction(frontendAction.action_id, frontendAction.action_params || {});
+              console.log('UI action result:', result);
+            } else if (onAction) {
+              // Altre azioni vanno a Dashboard
+              onAction(frontendAction);
+            }
           }
         }
       }

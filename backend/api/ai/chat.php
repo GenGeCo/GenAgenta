@@ -1035,6 +1035,27 @@ $getUserActionsTool = [
 $getUserActionsTool['parameters']['properties'] = new stdClass();
 $functionDeclarations[] = $getUserActionsTool;
 
+// TOOL UI INTERACT - Permette all'AI di interagire con l'interfaccia utente
+$functionDeclarations[] = [
+    'name' => 'ui_interact',
+    'description' => 'Esegue un\'azione sull\'interfaccia utente. Le azioni disponibili sono elencate nel contesto UI passato con ogni richiesta (campo uiState). Esempi: cambiare tab nel pannello dettagli, aprire form di modifica, chiudere pannelli. Usa questo tool per FARE cose sull\'interfaccia, non solo per vedere.',
+    'parameters' => [
+        'type' => 'object',
+        'properties' => [
+            'action_id' => [
+                'type' => 'string',
+                'description' => 'ID dell\'azione da eseguire (es: panel_switch_tab, panel_edit_entity, panel_close)'
+            ],
+            'params' => [
+                'type' => 'object',
+                'description' => 'Parametri dell\'azione come oggetto chiave-valore. Esempio: {"tab": "transazioni"}',
+                'additionalProperties' => true
+            ]
+        ],
+        'required' => ['action_id']
+    ]
+];
+
 // TOOL MEMORIA AGEA - Memoria strutturata persistente tra sessioni
 $ageaReadMemoryTool = [
     'name' => 'agea_read_memory',

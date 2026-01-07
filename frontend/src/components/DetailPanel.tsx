@@ -5,6 +5,7 @@ import { api } from '../utils/api';
 import { useSinapsiNeurone, useNote, useVendite, useFamiglieProdotto, useNeurone, useInvalidateData, useTipi, useCampiTipo, type FamigliaProdottoFlat, type CampoTipo } from '../hooks/useData';
 import type { Neurone, Sinapsi, NotaPersonale } from '../types';
 import SinapsiFormModal from './SinapsiFormModal';
+import { useAiReadable, useAiAction } from '../contexts/AiUiContext';
 
 interface CategoriaConfig {
   id: string;
@@ -77,6 +78,82 @@ export default function DetailPanel({
   };
 
   const headerColor = getHeaderColor();
+
+  // ========== AI UI INTEGRATION ==========
+  // Espone lo stato del pannello all'AI
+  useAiReadable(
+    'detail-panel-state',
+    'panel',
+    'Pannello Dettaglio Entità',
+    {
+      entita: neurone.nome,
+      tipo: neurone.tipo,
+      tabAttiva: activeTab === 'vendite' ? 'transazioni' : activeTab,
+      tabDisponibili: ['info', 'transazioni', 'connessioni', 'note'],
+      numeroConnessioni: sinapsi.length,
+      numeroNote: note.length,
+      haAccessoPersonale: personalAccess
+    },
+    'Il pannello laterale destro che mostra i dettagli dell\'entità selezionata'
+  );
+
+  // Azione: Cambia tab
+  useAiAction({
+    id: 'panel_switch_tab',
+    name: 'Cambia Tab Pannello',
+    description: 'Cambia la tab attiva nel pannello dettagli. Tab disponibili: info, transazioni, connessioni, note',
+    parameters: [{
+      name: 'tab',
+      type: 'select',
+      options: ['info', 'transazioni', 'connessioni', 'note'],
+      description: 'La tab da attivare',
+      required: true
+    }],
+    handler: async ({ tab }) => {
+      const tabMap: Record<string, 'info' | 'vendite' | 'connessioni' | 'note'> = {
+        'info': 'info',
+        'transazioni': 'vendite',
+        'connessioni': 'connessioni',
+        'note': 'note'
+      };
+      const internalTab = tabMap[tab as string];
+      if (!internalTab) {
+        return { success: false, message: `Tab "${tab}" non valida. Usa: info, transazioni, connessioni, note` };
+      }
+      if (tab === 'note' && !personalAccess) {
+        return { success: false, message: 'Tab Note richiede accesso personale (PIN)' };
+      }
+      setActiveTab(internalTab);
+      return { success: true, message: `Tab cambiata in "${tab}"` };
+    }
+  });
+
+  // Azione: Apri modifica entità
+  useAiAction({
+    id: 'panel_edit_entity',
+    name: 'Modifica Entità',
+    description: 'Apre il form di modifica per l\'entità correntemente visualizzata',
+    parameters: [],
+    handler: async () => {
+      if (onEdit) {
+        onEdit();
+        return { success: true, message: `Aperto form modifica per "${neurone.nome}"` };
+      }
+      return { success: false, message: 'Modifica non disponibile per questa entità' };
+    }
+  });
+
+  // Azione: Chiudi pannello
+  useAiAction({
+    id: 'panel_close',
+    name: 'Chiudi Pannello',
+    description: 'Chiude il pannello dettagli',
+    parameters: [],
+    handler: async () => {
+      onClose();
+      return { success: true, message: 'Pannello chiuso' };
+    }
+  });
 
   // Quando viene selezionata un'entità dalla mappa, passa automaticamente al tab connessioni
   useEffect(() => {
@@ -154,32 +231,45 @@ export default function DetailPanel({
       </div>
 
       {/* Tabs */}
-      <div style={{
-        display: 'flex',
-        borderBottom: '1px solid var(--border-color)',
-      }}>
-        {['info', 'vendite', 'connessioni', 'note'].map((tab) => (
-          <button
-            key={tab}
-            onClick={() => setActiveTab(tab as 'info' | 'vendite' | 'connessioni' | 'note')}
-            style={{
-              flex: 1,
-              padding: '12px',
-              border: 'none',
-              background: activeTab === tab ? 'var(--bg-secondary)' : 'transparent',
-              borderBottom: activeTab === tab ? '2px solid var(--color-primary)' : '2px solid transparent',
-              cursor: 'pointer',
-              fontWeight: activeTab === tab ? 600 : 400,
-              textTransform: 'capitalize',
-              fontSize: '13px',
-            }}
-          >
-            {tab === 'vendite' ? 'transazioni' : tab}
-            {tab === 'connessioni' && ` (${sinapsi.length})`}
-            {tab === 'note' && personalAccess && ` (${note.length})`}
-            {tab === 'note' && !personalAccess && neurone.has_note && ' 🔒'}
-          </button>
-        ))}
+      <div
+        role="tablist"
+        aria-label="Sezioni dettaglio entità"
+        data-ai-container="tabs"
+        style={{
+          display: 'flex',
+          borderBottom: '1px solid var(--border-color)',
+        }}
+      >
+        {['info', 'vendite', 'connessioni', 'note'].map((tab) => {
+          const displayName = tab === 'vendite' ? 'transazioni' : tab;
+          const isSelected = activeTab === tab;
+          return (
+            <button
+              key={tab}
+              role="tab"
+              aria-selected={isSelected}
+              aria-controls={`tabpanel-${tab}`}
+              data-ai-name={`Tab ${displayName}`}
+              onClick={() => setActiveTab(tab as 'info' | 'vendite' | 'connessioni' | 'note')}
+              style={{
+                flex: 1,
+                padding: '12px',
+                border: 'none',
+                background: isSelected ? 'var(--bg-secondary)' : 'transparent',
+                borderBottom: isSelected ? '2px solid var(--color-primary)' : '2px solid transparent',
+                cursor: 'pointer',
+                fontWeight: isSelected ? 600 : 400,
+                textTransform: 'capitalize',
+                fontSize: '13px',
+              }}
+            >
+              {displayName}
+              {tab === 'connessioni' && ` (${sinapsi.length})`}
+              {tab === 'note' && personalAccess && ` (${note.length})`}
+              {tab === 'note' && !personalAccess && neurone.has_note && ' 🔒'}
+            </button>
+          );
+        })}
       </div>
 
       {/* Content */}

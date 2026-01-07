@@ -104,6 +104,10 @@ function executeAiTool(string $toolName, array $input, array $user): array {
             case 'ui_show_notification':
                 return tool_uiShowNotification($input);
 
+            // Tool UI INTERACT - Esegue azioni registrate dai componenti React
+            case 'ui_interact':
+                return tool_uiInteract($input);
+
             // Tool AUTONOMIA - L'AI esplora e impara
             case 'explore_code':
                 return tool_exploreCode($input);
@@ -1498,6 +1502,36 @@ function tool_uiShowNotification(array $input): array {
             'type' => 'ui_notification',
             'notification_message' => $message,
             'notification_type' => $type
+        ]
+    ];
+}
+
+/**
+ * Tool: Esegue un'azione UI registrata dai componenti React
+ *
+ * Le azioni disponibili sono registrate dinamicamente dai componenti usando
+ * useAiAction() e vengono passate nel contesto come parte di uiState.
+ *
+ * L'AI vede le azioni disponibili nel contesto e può eseguirle chiamando questo tool.
+ * Il frontend (AiChat.tsx) riceve l'azione e la esegue chiamando executeAction().
+ */
+function tool_uiInteract(array $input): array {
+    $actionId = $input['action_id'] ?? null;
+    $params = $input['params'] ?? [];
+
+    if (empty($actionId)) {
+        return ['error' => 'action_id richiesto. Controlla la sezione AZIONI DISPONIBILI nel contesto UI.'];
+    }
+
+    // L'azione viene eseguita dal frontend (non dal backend)
+    // Ritorniamo un _frontend_action che AiChat.tsx gestirà
+    return [
+        'success' => true,
+        'message' => "Eseguo azione UI: $actionId",
+        '_frontend_action' => [
+            'type' => 'ui_action',
+            'action_id' => $actionId,
+            'action_params' => $params
         ]
     ];
 }
