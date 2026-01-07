@@ -91,11 +91,12 @@ interface AiChatProps {
   onInitialMessageSent?: () => void;  // Callback quando il messaggio iniziale è stato processato
   aiMarkers?: AiMarkerContext[];  // Lista marker AI sulla mappa (per contesto AI)
   onClearAiMarkers?: () => void;  // Callback per pulire tutti i marker
+  copilotContext?: string;  // Contesto formattato stile CopilotKit (stato app live)
 }
 
 const CHAT_STORAGE_KEY = 'genagenta_ai_chat_history';
 
-export function AiChat({ isOpen, onClose, onAction, selectedEntity, visibilityContext, userActions, userName = 'utente', initialMessage, onInitialMessageSent, aiMarkers = [], onClearAiMarkers }: AiChatProps) {
+export function AiChat({ isOpen, onClose, onAction, selectedEntity, visibilityContext, userActions, userName = 'utente', initialMessage, onInitialMessageSent, aiMarkers = [], onClearAiMarkers, copilotContext }: AiChatProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -405,19 +406,24 @@ export function AiChat({ isOpen, onClose, onAction, selectedEntity, visibilityCo
 
         // Prima chiamata o resume?
         if (!resumeContext) {
-          // Passa contesto (selezione + azioni utente + marker AI)
-          const context: { selectedEntity?: typeof selectedEntity; userActions?: UserAction[]; aiMarkers?: AiMarkerContext[] } = {};
+          // Passa contesto (selezione + azioni utente + marker AI + copilot context)
+          const context: {
+            selectedEntity?: typeof selectedEntity;
+            userActions?: UserAction[];
+            aiMarkers?: AiMarkerContext[];
+            copilotContext?: string;  // Contesto live stile CopilotKit
+          } = {};
           if (selectedEntity) context.selectedEntity = selectedEntity;
           if (userActions && userActions.length > 0) context.userActions = userActions;
           if (aiMarkers && aiMarkers.length > 0) context.aiMarkers = aiMarkers;
+          if (copilotContext) context.copilotContext = copilotContext;  // Contesto live!
 
           // DEBUG: log del contesto passato all'AI
           console.log('=== AI CHAT CONTEXT DEBUG ===');
           console.log('selectedEntity:', selectedEntity);
           console.log('userActions count:', userActions?.length || 0);
-          console.log('userActions:', userActions);
           console.log('aiMarkers count:', aiMarkers?.length || 0);
-          console.log('context being sent:', context);
+          console.log('copilotContext length:', copilotContext?.length || 0);
           console.log('=============================');
 
           currentResponse = await api.aiChat(userMessage.content, history, Object.keys(context).length > 0 ? context : undefined);

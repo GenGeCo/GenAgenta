@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import { useNeuroni, useSinapsi, useTipi, useTipologie, useInvalidateData } from '../hooks/useData';
+import { useCopilotContext, formatCopilotContextForPrompt } from '../hooks/useCopilotContext';
 import { api } from '../utils/api';
 import Sidebar from '../components/Sidebar';
 import MapView from '../components/MapView';
@@ -182,6 +183,23 @@ export default function Dashboard() {
       return nextFiltri;
     });
   };
+
+  // ========== CONTESTO LIVE PER AI (stile CopilotKit) ==========
+  // Hook custom che raccoglie tutto il contesto dell'app per l'AI
+  const copilotContext = useCopilotContext({
+    neuroni,
+    sinapsi,
+    filtri,
+    selectedNeurone,
+    selectedSinapsiId,
+    aiMarkers,
+    userActions,
+    tipiNeurone,
+    categorie
+  });
+
+  // Il contesto formattato viene passato ad AiChat che lo manda al backend
+  const copilotContextForAi = formatCopilotContextForPrompt(copilotContext);
 
   // Controlla inviti pendenti al caricamento
   useEffect(() => {
@@ -1043,6 +1061,7 @@ export default function Dashboard() {
         onInitialMessageSent={() => setAiInitialMessage(null)}
         aiMarkers={aiMarkers}
         onClearAiMarkers={clearAiMarkers}
+        copilotContext={copilotContextForAi}
       />
     </div>
   );

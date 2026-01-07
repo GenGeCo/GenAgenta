@@ -9,6 +9,9 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@copilotkit/react-core": "^1.50.1",
+    "@copilotkit/react-ui": "^1.50.1",
+    "@copilotkit/runtime-client-gql": "^1.50.1",
     "@tanstack/react-query": "^5.90.16",
     "axios": "^1.6.2",
     "cytoscape": "^3.28.1",

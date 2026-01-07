@@ -1207,6 +1207,15 @@ if (file_exists($promptFile)) {
         $systemInstruction .= $markerInfo;
         error_log("AI CONTEXT: aggiunto contesto marker: " . $markerInfo);
     }
+
+    // ========== COPILOT CONTEXT (stile CopilotKit) ==========
+    // Contesto live dell'applicazione: mappa, selezione, filtri, azioni recenti
+    // Questo sostituisce/integra il contesto selectedEntity sopra
+    if ($uiContext && !empty($uiContext['copilotContext'])) {
+        $copilotCtx = $uiContext['copilotContext'];
+        $systemInstruction .= "\n\n" . $copilotCtx;
+        error_log("AI CONTEXT: aggiunto copilotContext (lunghezza: " . strlen($copilotCtx) . " caratteri)");
+    }
 } else {
     // Fallback minimo
     $systemInstruction = "Sei l'AI di GenAgenta. Utente: {$user['nome']}. Rispondi in italiano.";
