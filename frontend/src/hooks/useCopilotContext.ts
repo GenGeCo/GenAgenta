@@ -14,12 +14,23 @@
 import { useMemo } from 'react';
 import type { Neurone, FiltriMappa, UserAction, AiMarker } from '../types';
 
+// Viewport corrente della mappa
+interface MapViewport {
+  center: { lat: number; lng: number };
+  zoom: number;
+}
+
 interface CopilotMapContext {
-  entitaVisibili: Array<{
+  viewport: {
+    centro: { lat: number; lng: number };
+    zoom: number;
+    raggioApprossimativoKm: number;
+  } | null;
+  entitaNellaViewport: Array<{
     id: string;
     nome: string;
     tipo: string;
-    indirizzo: string;
+    distanzaDalCentroKm: number;
   }>;
   connessioniVisibili: number;
   filtriAttivi: {
@@ -28,7 +39,7 @@ interface CopilotMapContext {
     ricerca: string | null;
     periodo: string;
   };
-  totaleEntita: number;
+  totaleEntitaCaricate: number;
   totaleConnessioni: number;
 }
 
@@ -68,7 +79,33 @@ interface UseCopilotContextParams {
   aiMarkers: AiMarker[];
   userActions: UserAction[];
   tipiNeurone: Array<{ nome: string }>;
+  mapViewport: MapViewport | null;
   categorie: Array<{ nome: string; colore: string }>;
+}
+
+/**
+ * Calcola la distanza in km tra due punti usando la formula di Haversine
+ */
+function haversineDistance(lat1: number, lng1: number, lat2: number, lng2: number): number {
+  const R = 6371; // Raggio della Terra in km
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLng = (lng2 - lng1) * Math.PI / 180;
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+    Math.sin(dLng / 2) * Math.sin(dLng / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+}
+
+/**
+ * Stima il raggio visibile in km in base al livello di zoom
+ * Zoom 20 = ~0.1km, Zoom 15 = ~1km, Zoom 10 = ~30km, Zoom 5 = ~500km
+ */
+function zoomToRadiusKm(zoom: number): number {
+  // Formula approssimativa: raggio ≈ 40000 / (2^zoom)
+  // A zoom 15: ~1.2km, zoom 12: ~10km, zoom 10: ~40km
+  return 40000 / Math.pow(2, zoom);
 }
 
 /**
@@ -84,27 +121,63 @@ export function useCopilotContext({
   aiMarkers,
   userActions,
   tipiNeurone,
+  mapViewport,
   categorie
 }: UseCopilotContextParams): CopilotFullContext {
 
-  // Contesto mappa (max 50 entità per non sovraccaricare)
-  const mappaContext = useMemo<CopilotMapContext>(() => ({
-    entitaVisibili: neuroni.slice(0, 50).map(n => ({
-      id: n.id,
-      nome: n.nome,
-      tipo: n.tipo,
-      indirizzo: n.indirizzo || 'N/D'
-    })),
-    connessioniVisibili: sinapsi.length,
-    filtriAttivi: {
-      tipi: filtri.tipiSelezionati.length > 0 ? filtri.tipiSelezionati : 'tutti',
-      categorie: filtri.categorieSelezionate.length > 0 ? filtri.categorieSelezionate : 'tutte',
-      ricerca: filtri.ricerca || null,
-      periodo: `${filtri.dataInizio} - ${filtri.dataFine}`
-    },
-    totaleEntita: neuroni.length,
-    totaleConnessioni: sinapsi.length
-  }), [neuroni, sinapsi, filtri]);
+  // Contesto mappa con viewport e entità filtrate
+  const mappaContext = useMemo<CopilotMapContext>(() => {
+    if (!mapViewport) {
+      // Se non abbiamo viewport, restituisci solo totali
+      return {
+        viewport: null,
+        entitaNellaViewport: [],
+        connessioniVisibili: sinapsi.length,
+        filtriAttivi: {
+          tipi: filtri.tipiSelezionati.length > 0 ? filtri.tipiSelezionati : 'tutti',
+          categorie: filtri.categorieSelezionate.length > 0 ? filtri.categorieSelezionate : 'tutte',
+          ricerca: filtri.ricerca || null,
+          periodo: `${filtri.dataInizio} - ${filtri.dataFine}`
+        },
+        totaleEntitaCaricate: neuroni.length,
+        totaleConnessioni: sinapsi.length
+      };
+    }
+
+    const { center, zoom } = mapViewport;
+    const raggioKm = zoomToRadiusKm(zoom);
+
+    // Filtra le entità che sono nella viewport (con coordinate)
+    const entitaConDistanza = neuroni
+      .filter(n => n.lat !== null && n.lng !== null)
+      .map(n => ({
+        id: n.id,
+        nome: n.nome,
+        tipo: n.tipo,
+        distanzaDalCentroKm: haversineDistance(center.lat, center.lng, n.lat!, n.lng!)
+      }))
+      .filter(n => n.distanzaDalCentroKm <= raggioKm * 1.5) // Margine del 50%
+      .sort((a, b) => a.distanzaDalCentroKm - b.distanzaDalCentroKm)
+      .slice(0, 15); // Max 15 entità più vicine
+
+    return {
+      viewport: {
+        centro: center,
+        zoom,
+        raggioApprossimativoKm: Math.round(raggioKm * 10) / 10
+      },
+      entitaNellaViewport: entitaConDistanza,
+      connessioniVisibili: sinapsi.length,
+      filtriAttivi: {
+        tipi: filtri.tipiSelezionati.length > 0 ? filtri.tipiSelezionati : 'tutti',
+        categorie: filtri.categorieSelezionate.length > 0 ? filtri.categorieSelezionate : 'tutte',
+        ricerca: filtri.ricerca || null,
+        periodo: `${filtri.dataInizio} - ${filtri.dataFine}`
+      },
+      totaleEntitaCaricate: neuroni.length,
+      totaleConnessioni: sinapsi.length
+    };
+  }, [neuroni, sinapsi, filtri, mapViewport]);
 
   // Contesto selezione
   const selezioneContext = useMemo<CopilotSelectionContext>(() => ({
@@ -149,8 +222,18 @@ export function formatCopilotContextForPrompt(context: CopilotFullContext): stri
     ''
   ];
 
-  // Mappa
-  lines.push(`MAPPA: ${context.mappa.totaleEntita} entità, ${context.mappa.totaleConnessioni} connessioni visibili`);
+  // Viewport
+  if (context.mappa.viewport) {
+    const v = context.mappa.viewport;
+    lines.push(`VIEWPORT MAPPA:`);
+    lines.push(`  Centro: ${v.centro.lat.toFixed(5)}, ${v.centro.lng.toFixed(5)}`);
+    lines.push(`  Zoom: ${v.zoom} (raggio visibile ~${v.raggioApprossimativoKm}km)`);
+    lines.push(`  Totale entità caricate: ${context.mappa.totaleEntitaCaricate}`);
+  } else {
+    lines.push(`MAPPA: ${context.mappa.totaleEntitaCaricate} entità caricate`);
+  }
+
+  // Filtri attivi
   if (context.mappa.filtriAttivi.ricerca) {
     lines.push(`  Ricerca attiva: "${context.mappa.filtriAttivi.ricerca}"`);
   }
@@ -170,23 +253,24 @@ export function formatCopilotContextForPrompt(context: CopilotFullContext): stri
     lines.push('  (Quando l\'utente dice "questo/questa" si riferisce a questa entità)');
   }
 
-  // Prime entità visibili (per riferimento)
-  if (context.mappa.entitaVisibili.length > 0) {
+  // Entità nella viewport (solo se abbiamo viewport)
+  if (context.mappa.entitaNellaViewport.length > 0) {
     lines.push('');
-    lines.push('PRIME ENTITÀ VISIBILI:');
-    context.mappa.entitaVisibili.slice(0, 10).forEach(e => {
-      lines.push(`  - ${e.nome} (${e.tipo}) [ID: ${e.id}]`);
+    lines.push(`ENTITÀ VISIBILI NELLA VIEWPORT (${context.mappa.entitaNellaViewport.length}):`);
+    context.mappa.entitaNellaViewport.forEach(e => {
+      lines.push(`  - ${e.nome} (${e.tipo}) ~${e.distanzaDalCentroKm.toFixed(1)}km dal centro`);
     });
-    if (context.mappa.entitaVisibili.length > 10) {
-      lines.push(`  ... e altre ${context.mappa.entitaVisibili.length - 10}`);
-    }
+  } else if (context.mappa.viewport) {
+    lines.push('');
+    lines.push('NESSUNA ENTITÀ VISIBILE nella viewport corrente');
   }
 
-  // Azioni recenti
-  if (context.azioniRecenti.length > 0) {
+  // Azioni recenti (senza map_move per non sovraccaricare)
+  const azioniRilevanti = context.azioniRecenti.filter(a => a.type !== 'map_move');
+  if (azioniRilevanti.length > 0) {
     lines.push('');
     lines.push('AZIONI RECENTI UTENTE:');
-    context.azioniRecenti.forEach(a => {
+    azioniRilevanti.forEach(a => {
       const time = new Date(a.timestamp).toLocaleTimeString('it-IT');
       lines.push(`  [${time}] ${a.type}: ${JSON.stringify(a.data)}`);
     });

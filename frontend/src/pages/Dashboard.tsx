@@ -33,7 +33,7 @@ interface PendingInvite {
 export default function Dashboard() {
   const { user, personalAccess, verifyPin, exitPersonalMode, logout, updateUser } = useAuth();
 
-  // Filtri (definiti prima perché usati dagli hooks)
+  // Filtri (definiti prima perchÃ© usati dagli hooks)
   const [filtri, setFiltri] = useState<FiltriMappa>({
     dataInizio: new Date(Date.now() - 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // 1 anno fa
     dataFine: new Date().toISOString().split('T')[0], // oggi
@@ -75,10 +75,16 @@ export default function Dashboard() {
   const [pickedPosition, setPickedPosition] = useState<{ lat: number; lng: number } | null>(null);
   const [flyToPosition, setFlyToPosition] = useState<{ lat: number; lng: number; zoom?: number; pitch?: number; bearing?: number } | null>(null);
   const [mapStyleFromAi, setMapStyleFromAi] = useState<string | null>(null);
-  // Marker temporanei piazzati dall'AI (array per supportare più marker)
+  // Marker temporanei piazzati dall'AI (array per supportare piÃ¹ marker)
   const [aiMarkers, setAiMarkers] = useState<AiMarker[]>([]);
 
-  // Stato per connessione su mappa (selezione entità target)
+  // Viewport corrente della mappa (centro e zoom per contesto AI)
+  const [mapViewport, setMapViewport] = useState<{
+    center: { lat: number; lng: number };
+    zoom: number;
+  } | null>(null);
+
+  // Stato per connessione su mappa (selezione entitÃ  target)
   const [connectionPickingMode, setConnectionPickingMode] = useState(false);
   const [connectionTargetEntity, setConnectionTargetEntity] = useState<{ id: string; nome: string; tipo: string } | null>(null);
   const [connectionSourceNeurone, setConnectionSourceNeurone] = useState<Neurone | null>(null); // Neurone origine per connessione
@@ -138,10 +144,10 @@ export default function Dashboard() {
     console.log('DEBUG quickAction aggiornato a:', quickAction);
   }, [quickAction]);
 
-  // Sincronizza scheda modifica con entità selezionata
+  // Sincronizza scheda modifica con entitÃ  selezionata
   useEffect(() => {
     if (showNeuroneForm && selectedNeurone && editingNeurone) {
-      // Se il form è aperto in modifica e l'entità selezionata cambia, aggiorna il form
+      // Se il form Ã¨ aperto in modifica e l'entitÃ  selezionata cambia, aggiorna il form
       if (selectedNeurone.id !== editingNeurone.id) {
         setEditingNeurone(selectedNeurone);
       }
@@ -195,6 +201,7 @@ export default function Dashboard() {
     aiMarkers,
     userActions,
     tipiNeurone,
+    mapViewport,
     categorie
   });
 
@@ -331,7 +338,7 @@ export default function Dashboard() {
         break;
 
       case 'refresh_neuroni':
-        // Ricarica neuroni E sinapsi (chiamato dopo che AI crea/modifica entità o connessioni)
+        // Ricarica neuroni E sinapsi (chiamato dopo che AI crea/modifica entitÃ  o connessioni)
         // Usa TanStack Query invalidation - ricarica automaticamente tutti i componenti
         console.log('AI Action: refresh_neuroni (+ sinapsi) via invalidation');
         invalidateNeuroniESinapsi();
@@ -343,7 +350,7 @@ export default function Dashboard() {
           setAiMarkers(prev => {
             if (prev.length >= 20) {
               console.warn('Limite di 20 marker raggiunto');
-              return prev;  // Non aggiungere se già 20
+              return prev;  // Non aggiungere se giÃ  20
             }
             const newMarker: AiMarker = {
               id: crypto.randomUUID(),
@@ -355,7 +362,7 @@ export default function Dashboard() {
             };
             return [...prev, newMarker];
           });
-          // Vola alla posizione SOLO se fly_to è true
+          // Vola alla posizione SOLO se fly_to Ã¨ true
           if (action.fly_to) {
             setFlyToPosition({ lat: action.lat, lng: action.lng, zoom: 16 });
           }
@@ -426,7 +433,7 @@ export default function Dashboard() {
               marginRight: '12px',
             }}
           >
-            {personalAccess ? '🔓' : '🔒'}
+            {personalAccess ? 'ðŸ”“' : 'ðŸ”’'}
           </button>
 
           {/* Bottone AI Chat (Agea) */}
@@ -503,6 +510,7 @@ export default function Dashboard() {
             }}
             onMapMove={(center, zoom) => {
               logUserAction('map_move', { center, zoom });
+              setMapViewport({ center, zoom });
             }}
             filtri={filtri}
             pickingMode={mapPickingMode}
@@ -567,14 +575,14 @@ export default function Dashboard() {
             // Props per dettagli sinapsi
             onSelectSinapsi={(sinapsiId) => {
               setSelectedSinapsiId(sinapsiId);
-              setSelectedNeurone(null); // Chiudi eventuale pannello entità
+              setSelectedNeurone(null); // Chiudi eventuale pannello entitÃ 
             }}
             // Props per AI markers
             aiMarkers={aiMarkers}
             onRemoveAiMarker={removeAiMarker}
           />
 
-          {/* Indicatore modalità selezione connessione */}
+          {/* Indicatore modalitÃ  selezione connessione */}
           {connectionPickingMode && (
             <div
               style={{
@@ -593,7 +601,7 @@ export default function Dashboard() {
                 gap: '12px',
               }}
             >
-              <span>Clicca su un'entità per collegarla</span>
+              <span>Clicca su un'entitÃ  per collegarla</span>
               <button
                 onClick={() => {
                   // Aggiorna refs immediatamente
@@ -641,7 +649,7 @@ export default function Dashboard() {
                 gap: '12px',
               }}
             >
-              <span>📍 Clicca sulla mappa o su un'entità</span>
+              <span>ðŸ“ Clicca sulla mappa o su un'entitÃ </span>
               <button
                 onClick={() => {
                   setQuickMapMode(false);
@@ -672,7 +680,7 @@ export default function Dashboard() {
                 zIndex: 1001,
               }}
             >
-              {/* Popup creazione nuova entità */}
+              {/* Popup creazione nuova entitÃ  */}
               {quickPopup === 'create' && (
                 <QuickCreateEntity
                   position={{ lat: quickPopupPosition.lat, lng: quickPopupPosition.lng }}
@@ -705,7 +713,7 @@ export default function Dashboard() {
                 />
               )}
 
-              {/* Popup azioni su entità esistente */}
+              {/* Popup azioni su entitÃ  esistente */}
               {quickPopup === 'entityActions' && quickSourceNeurone && (
                 <QuickEntityActions
                   neurone={quickSourceNeurone}
@@ -741,7 +749,7 @@ export default function Dashboard() {
                     setQuickPopupPosition(null);
                   }}
                   onSelectOnMap={() => {
-                    // Entra in modalità selezione target su mappa
+                    // Entra in modalitÃ  selezione target su mappa
                     setQuickPopup(null);
                     setQuickMapMode(false); // IMPORTANTE: disattiva quick mode per evitare conflitti
                     // Usa il sistema esistente di connection picking
@@ -756,7 +764,7 @@ export default function Dashboard() {
                     setQuickAction(null);
                     setQuickSourceNeurone(null);
                     setQuickPopupPosition(null);
-                    // Il DetailPanel permetterà di creare la connessione/transazione
+                    // Il DetailPanel permetterÃ  di creare la connessione/transazione
                   }}
                 />
               )}
@@ -814,7 +822,7 @@ export default function Dashboard() {
                   }}
                   onConfirm={async (data) => {
                     try {
-                      // Determina chi è il venditore e chi l'acquirente
+                      // Determina chi Ã¨ il venditore e chi l'acquirente
                       // Se vendo: source=venditore, target=acquirente
                       // Se compro: source=acquirente, target=venditore
                       const isVendita = quickAction === 'vendi';
@@ -890,7 +898,7 @@ export default function Dashboard() {
                 setConnectionTargetEntity(null);
               }}
               onSelectNeurone={async (id) => {
-                // Cerca prima tra i neuroni già caricati
+                // Cerca prima tra i neuroni giÃ  caricati
                 const trovato = neuroni.find(n => n.id === id);
                 if (trovato) {
                   handleSelectNeurone(trovato);
@@ -909,7 +917,7 @@ export default function Dashboard() {
                 setShowNeuroneForm(true);
               }}
               onRequestConnectionMapPick={() => {
-                // Salva il neurone origine prima di entrare in modalità picking
+                // Salva il neurone origine prima di entrare in modalitÃ  picking
                 // Aggiorna refs IMMEDIATAMENTE (prima del re-render)
                 connectionSourceNeuroneRef.current = selectedNeurone;
                 connectionPickingModeRef.current = true;
