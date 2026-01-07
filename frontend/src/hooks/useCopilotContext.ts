@@ -52,6 +52,15 @@ interface CopilotSelectionContext {
     categorie?: string[];
     telefono?: string | null;
     email?: string | null;
+    // Dati commerciali (visibili nel pannello Transazioni)
+    potenziale?: number | null;
+    venduto_totale?: number;
+    percentuale_raggiunta?: number;
+    // Natura commerciale (spunte nel pannello Info)
+    is_acquirente?: boolean | null;
+    is_venditore?: boolean | null;
+    is_intermediario?: boolean | null;
+    is_influencer?: boolean | null;
   } | null;
   pannelloAperto: 'dettaglio_entita' | 'dettaglio_connessione' | null;
   markerAI: number;
@@ -180,19 +189,43 @@ export function useCopilotContext({
   }, [neuroni, sinapsi, filtri, mapViewport]);
 
   // Contesto selezione
-  const selezioneContext = useMemo<CopilotSelectionContext>(() => ({
-    entitaSelezionata: selectedNeurone ? {
-      id: selectedNeurone.id,
-      nome: selectedNeurone.nome,
-      tipo: selectedNeurone.tipo,
-      indirizzo: selectedNeurone.indirizzo,
-      categorie: selectedNeurone.categorie,
-      telefono: selectedNeurone.telefono,
-      email: selectedNeurone.email
-    } : null,
-    pannelloAperto: selectedNeurone ? 'dettaglio_entita' : (selectedSinapsiId ? 'dettaglio_connessione' : null),
-    markerAI: aiMarkers.length
-  }), [selectedNeurone, selectedSinapsiId, aiMarkers]);
+  const selezioneContext = useMemo<CopilotSelectionContext>(() => {
+    if (!selectedNeurone) {
+      return {
+        entitaSelezionata: null,
+        pannelloAperto: selectedSinapsiId ? 'dettaglio_connessione' : null,
+        markerAI: aiMarkers.length
+      };
+    }
+
+    // Calcola percentuale raggiunta
+    const potenziale = selectedNeurone.potenziale || 0;
+    const venduto = selectedNeurone.venduto_totale || 0;
+    const percentuale = potenziale > 0 ? Math.round((venduto / potenziale) * 100) : 0;
+
+    return {
+      entitaSelezionata: {
+        id: selectedNeurone.id,
+        nome: selectedNeurone.nome,
+        tipo: selectedNeurone.tipo,
+        indirizzo: selectedNeurone.indirizzo,
+        categorie: selectedNeurone.categorie,
+        telefono: selectedNeurone.telefono,
+        email: selectedNeurone.email,
+        // Dati commerciali
+        potenziale: selectedNeurone.potenziale,
+        venduto_totale: selectedNeurone.venduto_totale,
+        percentuale_raggiunta: percentuale,
+        // Natura commerciale
+        is_acquirente: selectedNeurone.is_acquirente,
+        is_venditore: selectedNeurone.is_venditore,
+        is_intermediario: selectedNeurone.is_intermediario,
+        is_influencer: selectedNeurone.is_influencer
+      },
+      pannelloAperto: 'dettaglio_entita',
+      markerAI: aiMarkers.length
+    };
+  }, [selectedNeurone, selectedSinapsiId, aiMarkers]);
 
   // Contesto configurazione
   const configContext = useMemo<CopilotConfigContext>(() => ({
@@ -250,6 +283,27 @@ export function formatCopilotContextForPrompt(context: CopilotFullContext): stri
     if (e.indirizzo) lines.push(`  Indirizzo: ${e.indirizzo}`);
     if (e.telefono) lines.push(`  Tel: ${e.telefono}`);
     if (e.email) lines.push(`  Email: ${e.email}`);
+
+    // Dati commerciali (visibili nel pannello Transazioni)
+    lines.push('  --- DATI COMMERCIALI (tab Transazioni) ---');
+    lines.push(`  Potenziale di acquisto: €${(e.potenziale || 0).toLocaleString('it-IT')}`);
+    lines.push(`  Venduto totale: €${(e.venduto_totale || 0).toLocaleString('it-IT')}`);
+    if (e.potenziale && e.potenziale > 0) {
+      lines.push(`  Percentuale raggiunta: ${e.percentuale_raggiunta}%`);
+    }
+
+    // Natura commerciale (spunte nel pannello Info)
+    const naturaFlags: string[] = [];
+    if (e.is_acquirente) naturaFlags.push('Acquirente ✓');
+    if (e.is_venditore) naturaFlags.push('Venditore ✓');
+    if (e.is_intermediario) naturaFlags.push('Intermediario ✓');
+    if (e.is_influencer) naturaFlags.push('Influencer ✓');
+    if (naturaFlags.length > 0) {
+      lines.push(`  Natura commerciale: ${naturaFlags.join(', ')}`);
+    } else {
+      lines.push(`  Natura commerciale: nessuna spunta attiva`);
+    }
+
     lines.push('  (Quando l\'utente dice "questo/questa" si riferisce a questa entità)');
   }
 
