@@ -504,27 +504,19 @@ aiDebugLog('USER_MESSAGE', $userMessage, [
 $functionDeclarations = [
     [
         'name' => 'query_database',
-        'description' => 'Esegue una query SQL SELECT sul database. Usa questo per recuperare dati strutturati. Il database contiene: neuroni (entità), sinapsi (connessioni), vendite_prodotto, famiglie_prodotto, utenti, tipi, tipologie.',
+        'description' => 'Esegue query SQL di sola lettura. Tabelle principali: neuroni, sinapsi, vendite_prodotto, famiglie_prodotto, tipi, tipologie. Per conoscere la struttura usa "SHOW TABLES" o "DESCRIBE nome_tabella". Per statistiche vendite scrivi la query direttamente.',
         'parameters' => [
             'type' => 'object',
             'properties' => [
                 'sql' => [
                     'type' => 'string',
-                    'description' => 'Query SQL SELECT da eseguire. SOLO SELECT, niente INSERT/UPDATE/DELETE.'
+                    'description' => 'Query SQL: SELECT, SHOW TABLES, DESCRIBE tabella. NO INSERT/UPDATE/DELETE.'
                 ]
             ],
             'required' => ['sql']
         ]
     ],
-    [
-        'name' => 'get_database_schema',
-        'description' => 'Ottiene lo schema del database (tabelle e colonne). Usa questo prima di scrivere query per conoscere la struttura.',
-        'parameters' => [
-            'type' => 'object',
-            'properties' => new stdClass(), // Empty object for no params
-            'required' => []
-        ]
-    ],
+    // RIMOSSO: get_database_schema - usa query_database con "SHOW TABLES" o "DESCRIBE tabella"
     [
         'name' => 'search_entities',
         'description' => 'Cerca entità (neuroni) per nome, tipo o categoria.',
@@ -579,7 +571,7 @@ $functionDeclarations = [
     ],
     [
         'name' => 'get_entity_details',
-        'description' => 'Ottiene tutti i dettagli di una specifica entità incluse le sue connessioni e transazioni.',
+        'description' => 'Ottiene TUTTI i dettagli di un\'entità: info base, connessioni, transazioni recenti. Per statistiche vendite avanzate usa query_database.',
         'parameters' => [
             'type' => 'object',
             'properties' => [
@@ -591,50 +583,8 @@ $functionDeclarations = [
             'required' => ['entity_id']
         ]
     ],
-    [
-        'name' => 'get_sales_stats',
-        'description' => 'Ottiene statistiche vendite aggregate per periodo, entità o famiglia prodotto.',
-        'parameters' => [
-            'type' => 'object',
-            'properties' => [
-                'entity_id' => [
-                    'type' => 'string',
-                    'description' => 'UUID entità per filtrare (opzionale)'
-                ],
-                'from_date' => [
-                    'type' => 'string',
-                    'description' => 'Data inizio formato YYYY-MM-DD'
-                ],
-                'to_date' => [
-                    'type' => 'string',
-                    'description' => 'Data fine formato YYYY-MM-DD'
-                ],
-                'group_by' => [
-                    'type' => 'string',
-                    'description' => 'Raggruppamento: month, entity, family'
-                ]
-            ],
-            'required' => []
-        ]
-    ],
-    [
-        'name' => 'get_connections',
-        'description' => 'Ottiene le connessioni (sinapsi) di un\'entità o tra due entità.',
-        'parameters' => [
-            'type' => 'object',
-            'properties' => [
-                'entity_id' => [
-                    'type' => 'string',
-                    'description' => 'UUID entità di partenza'
-                ],
-                'target_id' => [
-                    'type' => 'string',
-                    'description' => 'UUID entità target (opzionale, per connessione specifica)'
-                ]
-            ],
-            'required' => ['entity_id']
-        ]
-    ],
+    // RIMOSSO: get_sales_stats - usa query_database con SQL per statistiche vendite
+    // RIMOSSO: get_connections - get_entity_details già include le connessioni
 
     // TOOL DI SCRITTURA
     [
@@ -674,55 +624,38 @@ $functionDeclarations = [
         ]
     ],
     [
-        'name' => 'map_place_marker',
-        'description' => 'Piazza un marker/segnaposto (bandierina) temporaneo sulla mappa. Max 20 marker. Leggi docs/MARKER.md per istruzioni dettagliate.',
+        'name' => 'map_marker',
+        'description' => 'Gestisce i marker (bandierine) sulla mappa. Azioni: "place" (piazza), "remove" (rimuovi uno), "clear" (rimuovi tutti). Max 20 marker.',
         'parameters' => [
             'type' => 'object',
             'properties' => [
+                'action' => [
+                    'type' => 'string',
+                    'enum' => ['place', 'remove', 'clear'],
+                    'description' => 'place=piazza nuovo marker, remove=rimuovi marker specifico, clear=rimuovi tutti'
+                ],
                 'lat' => [
                     'type' => 'number',
-                    'description' => 'Latitudine del marker'
+                    'description' => 'Latitudine (solo per action=place)'
                 ],
                 'lng' => [
                     'type' => 'number',
-                    'description' => 'Longitudine del marker'
+                    'description' => 'Longitudine (solo per action=place)'
                 ],
                 'label' => [
                     'type' => 'string',
-                    'description' => 'Etichetta/nome da mostrare (es. "Inizio Via Roma")'
+                    'description' => 'Etichetta (solo per action=place)'
                 ],
                 'color' => [
                     'type' => 'string',
-                    'description' => 'Colore: red, blue, green, orange, purple (default: red)'
+                    'description' => 'Colore: red, blue, green, orange, purple (solo per action=place)'
                 ],
-                'fly_to' => [
-                    'type' => 'boolean',
-                    'description' => 'Se true, vola alla posizione del marker (default: false - piazza senza volare)'
-                ]
-            ],
-            'required' => ['lat', 'lng', 'label']
-        ]
-    ],
-    [
-        'name' => 'map_remove_marker',
-        'description' => 'Rimuove un marker specifico dalla mappa. Usa l\'ID dal contesto marker.',
-        'parameters' => [
-            'type' => 'object',
-            'properties' => [
                 'marker_id' => [
                     'type' => 'string',
-                    'description' => 'ID del marker da rimuovere (visibile nel contesto)'
+                    'description' => 'ID marker da rimuovere (solo per action=remove)'
                 ]
             ],
-            'required' => ['marker_id']
-        ]
-    ],
-    [
-        'name' => 'map_clear_markers',
-        'description' => 'Rimuove TUTTI i marker dalla mappa.',
-        'parameters' => [
-            'type' => 'object',
-            'properties' => new stdClass()  // Oggetto vuoto, non array!
+            'required' => ['action']
         ]
     ],
     [
@@ -1026,7 +959,7 @@ $functionDeclarations = [
     ],
     [
         'name' => 'map_select_entity',
-        'description' => 'Seleziona e evidenzia un\'entità sulla mappa, aprendo il suo pannello dettagli.',
+        'description' => 'Seleziona un\'entità sulla mappa: la evidenzia, mostra connessioni e apre il pannello dettagli.',
         'parameters' => [
             'type' => 'object',
             'properties' => [
@@ -1038,58 +971,8 @@ $functionDeclarations = [
             'required' => ['entity_id']
         ]
     ],
-    [
-        'name' => 'map_show_connections',
-        'description' => 'Mostra/evidenzia le connessioni di un\'entità sulla mappa.',
-        'parameters' => [
-            'type' => 'object',
-            'properties' => [
-                'entity_id' => [
-                    'type' => 'string',
-                    'description' => 'UUID dell\'entità di cui mostrare le connessioni'
-                ]
-            ],
-            'required' => ['entity_id']
-        ]
-    ],
-
-    // TOOL UI - Comandi per controllare l'interfaccia
-    [
-        'name' => 'ui_open_panel',
-        'description' => 'Apre un pannello dell\'interfaccia utente.',
-        'parameters' => [
-            'type' => 'object',
-            'properties' => [
-                'panel' => [
-                    'type' => 'string',
-                    'description' => 'Nome pannello: entity_detail, connection_detail, settings, families'
-                ],
-                'entity_id' => [
-                    'type' => 'string',
-                    'description' => 'UUID entità (se pannello è entity_detail)'
-                ]
-            ],
-            'required' => ['panel']
-        ]
-    ],
-    [
-        'name' => 'ui_show_notification',
-        'description' => 'Mostra una notifica all\'utente.',
-        'parameters' => [
-            'type' => 'object',
-            'properties' => [
-                'message' => [
-                    'type' => 'string',
-                    'description' => 'Messaggio da mostrare'
-                ],
-                'type' => [
-                    'type' => 'string',
-                    'description' => 'Tipo: success, error, warning, info'
-                ]
-            ],
-            'required' => ['message']
-        ]
-    ],
+    // RIMOSSO: map_show_connections - map_select_entity già mostra le connessioni
+    // RIMOSSO: ui_open_panel - map_select_entity già apre il pannello dettagli
 
     // TOOL AUTONOMIA - TEMPORANEAMENTE DISABILITATI PER DEBUG
     // Verranno riattivati dopo aver risolto il problema
@@ -1437,7 +1320,9 @@ function callOpenRouter($apiKey, $systemInstruction, $messages, $tools) {
 }
 
 // Funzione chiamata Gemini API (principale)
-function callGemini($apiKey, $systemInstruction, $contents, $functionDeclarations) {
+// THINKING MODE: Gemini può mostrare il suo ragionamento prima di rispondere
+// Livelli: 'off' (disabilitato), 'low' (veloce), 'medium' (bilanciato), 'high' (approfondito)
+function callGemini($apiKey, $systemInstruction, $contents, $functionDeclarations, $thinkingLevel = 'medium') {
     $model = 'gemini-2.5-flash';
     $url = "https://generativelanguage.googleapis.com/v1beta/models/{$model}:generateContent?key={$apiKey}";
 
@@ -1451,7 +1336,13 @@ function callGemini($apiKey, $systemInstruction, $contents, $functionDeclaration
         ],
         'generationConfig' => [
             'temperature' => 0.7,
-            'maxOutputTokens' => 4096
+            'maxOutputTokens' => 4096,
+            // THINKING MODE: Gemini mostra il ragionamento
+            // I thinking tokens si pagano come output tokens
+            'thinkingConfig' => [
+                'includeThoughts' => true,
+                'thinkingBudget' => $thinkingLevel === 'high' ? 8192 : ($thinkingLevel === 'medium' ? 4096 : 2048)
+            ]
         ]
     ];
 
@@ -2088,9 +1979,10 @@ if ($useOpenRouter) {
 
         $parts = $candidate['content']['parts'];
 
-        // Controlla se ci sono function calls
+        // Controlla se ci sono function calls, testo e PENSIERI (thinking mode)
         $functionCalls = [];
         $textResponse = null;
+        $aiThoughts = null;  // THINKING MODE: ragionamento dell'AI
 
         foreach ($parts as $part) {
             if (isset($part['functionCall'])) {
@@ -2099,6 +1991,21 @@ if ($useOpenRouter) {
             if (isset($part['text'])) {
                 $textResponse = $part['text'];
             }
+            // THINKING MODE: Gemini può includere i suoi pensieri
+            if (isset($part['thought'])) {
+                $aiThoughts = $part['thought'];
+                // Log pensieri per debug
+                aiDebugLog('GEMINI_THINKING', [
+                    'iteration' => $iteration,
+                    'thought_length' => strlen($aiThoughts),
+                    'thought_preview' => substr($aiThoughts, 0, 500) . (strlen($aiThoughts) > 500 ? '...' : '')
+                ]);
+            }
+        }
+
+        // Salva pensieri per la risposta finale (debug)
+        if ($aiThoughts && !isset($GLOBALS['ai_last_thoughts'])) {
+            $GLOBALS['ai_last_thoughts'] = $aiThoughts;
         }
 
         // Se non ci sono function calls, abbiamo la risposta finale
@@ -2256,6 +2163,12 @@ if (!empty($frontendActions)) {
 // Aggiungi tool_summary per memoria contesto (ID creati, ricerche, etc.)
 if (!empty($toolSummary)) {
     $responseData['tool_summary'] = $toolSummary;
+}
+
+// THINKING MODE: Includi i pensieri dell'AI se disponibili (per debug)
+// I pensieri mostrano il ragionamento interno di Gemini prima di rispondere
+if (!empty($GLOBALS['ai_last_thoughts'])) {
+    $responseData['ai_thoughts'] = $GLOBALS['ai_last_thoughts'];
 }
 
 jsonResponse($responseData);

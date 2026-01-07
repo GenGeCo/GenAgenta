@@ -83,6 +83,11 @@ function executeAiTool(string $toolName, array $input, array $user): array {
             case 'map_show_connections':
                 return tool_mapShowConnections($db, $input, $user);
 
+            // Tool UNIFICATO per marker
+            case 'map_marker':
+                return tool_mapMarker($input);
+
+            // Backward compatibility per vecchi tool (se AI li usa ancora)
             case 'map_place_marker':
                 return tool_mapPlaceMarker($input);
 
@@ -153,15 +158,19 @@ function executeAiTool(string $toolName, array $input, array $user): array {
 }
 
 /**
- * Tool: Esegue query SQL (solo SELECT)
+ * Tool: Esegue query SQL (SELECT, SHOW, DESCRIBE)
  */
 function tool_queryDatabase(PDO $db, array $input, ?string $aziendaId): array {
     $sql = $input['sql'] ?? '';
 
-    // Validazione sicurezza: solo SELECT
+    // Validazione sicurezza: SELECT, SHOW, DESCRIBE
     $sqlUpper = strtoupper(trim($sql));
-    if (!str_starts_with($sqlUpper, 'SELECT')) {
-        return ['error' => 'Solo query SELECT sono permesse'];
+    $isSelect = str_starts_with($sqlUpper, 'SELECT');
+    $isShow = str_starts_with($sqlUpper, 'SHOW');
+    $isDescribe = str_starts_with($sqlUpper, 'DESCRIBE') || str_starts_with($sqlUpper, 'DESC ');
+
+    if (!$isSelect && !$isShow && !$isDescribe) {
+        return ['error' => 'Solo SELECT, SHOW TABLES e DESCRIBE sono permessi'];
     }
 
     // Blocca parole chiave pericolose
@@ -1260,69 +1269,83 @@ function tool_mapFlyTo(array $input): array {
 }
 
 /**
- * Tool: Piazza un marker temporaneo sulla mappa
+ * Tool UNIFICATO: Gestisce marker sulla mappa (place/remove/clear)
  */
+function tool_mapMarker(array $input): array {
+    $action = $input['action'] ?? 'place';
+
+    switch ($action) {
+        case 'place':
+            $lat = $input['lat'] ?? null;
+            $lng = $input['lng'] ?? null;
+            $label = $input['label'] ?? 'Segnaposto';
+            $color = $input['color'] ?? 'red';
+            $flyTo = $input['fly_to'] ?? false;
+
+            if ($lat === null || $lng === null) {
+                return ['error' => 'lat e lng sono richiesti per action=place'];
+            }
+
+            $validColors = ['red', 'blue', 'green', 'orange', 'purple', 'yellow'];
+            if (!in_array($color, $validColors)) {
+                $color = 'red';
+            }
+
+            return [
+                'success' => true,
+                'message' => "Marker '$label' piazzato a ($lat, $lng)" . ($flyTo ? " (volo alla posizione)" : ""),
+                '_frontend_action' => [
+                    'type' => 'map_place_marker',
+                    'lat' => (float)$lat,
+                    'lng' => (float)$lng,
+                    'label' => $label,
+                    'color' => $color,
+                    'fly_to' => (bool)$flyTo
+                ]
+            ];
+
+        case 'remove':
+            $markerId = $input['marker_id'] ?? null;
+            if (!$markerId) {
+                return ['error' => 'marker_id è richiesto per action=remove'];
+            }
+            return [
+                'success' => true,
+                'message' => "Rimozione marker $markerId",
+                '_frontend_action' => [
+                    'type' => 'map_remove_marker',
+                    'marker_id' => $markerId
+                ]
+            ];
+
+        case 'clear':
+            return [
+                'success' => true,
+                'message' => "Rimozione di tutti i marker dalla mappa",
+                '_frontend_action' => [
+                    'type' => 'map_clear_markers'
+                ]
+            ];
+
+        default:
+            return ['error' => "Azione non valida: $action. Usa place, remove o clear"];
+    }
+}
+
+// BACKWARD COMPATIBILITY: Vecchi tool che chiamano quello nuovo
 function tool_mapPlaceMarker(array $input): array {
-    $lat = $input['lat'] ?? null;
-    $lng = $input['lng'] ?? null;
-    $label = $input['label'] ?? 'Segnaposto';
-    $color = $input['color'] ?? 'red';
-    $flyTo = $input['fly_to'] ?? false;  // Default: NON volare
-
-    if ($lat === null || $lng === null) {
-        return ['error' => 'lat e lng sono richiesti'];
-    }
-
-    $validColors = ['red', 'blue', 'green', 'orange', 'purple', 'yellow'];
-    if (!in_array($color, $validColors)) {
-        $color = 'red';
-    }
-
-    return [
-        'success' => true,
-        'message' => "Marker '$label' piazzato a ($lat, $lng)" . ($flyTo ? " (volo alla posizione)" : ""),
-        '_frontend_action' => [
-            'type' => 'map_place_marker',
-            'lat' => (float)$lat,
-            'lng' => (float)$lng,
-            'label' => $label,
-            'color' => $color,
-            'fly_to' => (bool)$flyTo
-        ]
-    ];
+    $input['action'] = 'place';
+    return tool_mapMarker($input);
 }
 
-/**
- * Tool: Rimuove un marker specifico dalla mappa
- */
 function tool_mapRemoveMarker(array $input): array {
-    $markerId = $input['marker_id'] ?? null;
-
-    if (!$markerId) {
-        return ['error' => 'marker_id è richiesto'];
-    }
-
-    return [
-        'success' => true,
-        'message' => "Richiesta rimozione marker $markerId",
-        '_frontend_action' => [
-            'type' => 'map_remove_marker',
-            'marker_id' => $markerId
-        ]
-    ];
+    $input['action'] = 'remove';
+    return tool_mapMarker($input);
 }
 
-/**
- * Tool: Rimuove tutti i marker dalla mappa
- */
 function tool_mapClearMarkers(array $input): array {
-    return [
-        'success' => true,
-        'message' => "Rimozione di tutti i marker dalla mappa",
-        '_frontend_action' => [
-            'type' => 'map_clear_markers'
-        ]
-    ];
+    $input['action'] = 'clear';
+    return tool_mapMarker($input);
 }
 
 /**
