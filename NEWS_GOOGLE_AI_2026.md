@@ -8,6 +8,7 @@ Ecco cosa ho trovato di MOLTO interessante per noi:
 ]
 Benefici per noi:
 Vediamo il ragionamento di Agea prima della risposta
+Vediamo il ragionamento di Agea prima della risposta
 Possiamo mostrare all'utente "Sto ragionando su..." con pensieri VERI
 Debug: capiamo PERCHÉ fa certe scelte sbagliate
 thinking_level: low = veloce/economico, high = ragionamento profondo

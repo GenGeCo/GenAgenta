@@ -131,4 +131,8 @@ Per il refactoring, ecco la corrispondenza:
 
 ---
 
+debuga ai:
+https://www.gruppogea.net/genagenta/backend/ai-debug.php
+
+
 *File creato per allineare terminologia. Non viene deployato sul server (solo GitHub).*
